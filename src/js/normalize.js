@@ -1,6 +1,7 @@
 /** @import { EditorSelectionMarkers } from './types.js'; */
 
 import $ from '@fr0st/query';
+import { containsNode } from './helpers.js';
 
 const transparent = 'rgba(0, 0, 0, 0)';
 const phrasingSelector = [
@@ -53,7 +54,7 @@ export function joinAdjacentNodes(container, markers) {
     const isMarker = (node) => node === markers.start || node === markers.end;
 
     for (const element of elements) {
-        if (!container.contains(element) || !isPhrasingContainer(element)) {
+        if (!containsNode(container, element) || !isPhrasingContainer(element)) {
             continue;
         }
 
@@ -82,7 +83,7 @@ export function normalizePhrasing(container) {
     const elements = $.find('h1, h2, h3, h4, h5, h6, p, pre', container);
 
     for (const element of elements) {
-        if (!container.contains(element)) {
+        if (!containsNode(container, element)) {
             continue;
         }
 

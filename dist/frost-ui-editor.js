@@ -32,6 +32,17 @@ Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 
 _fr0st_query = __toESM(_fr0st_query, 1);
 
+// src/js/helpers.js
+/**
+	* Checks whether a node is the parent itself or one of its descendants.
+	* @param {Node|null|undefined} parent The parent node.
+	* @param {Node|null|undefined} node The node to check.
+	* @returns {boolean} Whether the parent contains the node.
+	*/
+	function containsNode(parent, node) {
+		return Boolean(parent && node) && (_fr0st_query.default.isSame(parent, node) || _fr0st_query.default.hasDescendent(parent, node));
+	}
+
 // src/js/normalize.js
 /** @import { EditorSelectionMarkers } from './types.js'; */
 	var transparent = "rgba(0, 0, 0, 0)";
@@ -126,7 +137,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		const elements = _fr0st_query.default.find("*", container);
 		const isMarker = (node) => node === markers.start || node === markers.end;
 		for (const element of elements) {
-			if (!container.contains(element) || !isPhrasingContainer(element)) continue;
+			if (!containsNode(container, element) || !isPhrasingContainer(element)) continue;
 			const moveMarkers = [];
 			let next = element.nextSibling;
 			while (next && isMarker(next)) {
@@ -145,7 +156,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	function normalizePhrasing(container) {
 		const elements = _fr0st_query.default.find("h1, h2, h3, h4, h5, h6, p, pre", container);
 		for (const element of elements) {
-			if (!container.contains(element)) continue;
+			if (!containsNode(container, element)) continue;
 			const contents = _fr0st_query.default.contents(element);
 			if (!contents.length) continue;
 			for (const [i, child] of contents.entries()) {
@@ -236,28 +247,29 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	}
 
 // src/js/commands.js
-/**
+	var window$4 = _fr0st_query.default.getWindow();
+	/**
 	* Tests whether a range includes content inside a block rather than just its boundary.
 	* @param {Range} range The selected range.
 	* @param {HTMLElement} block The block to test.
 	* @returns {boolean} Whether the block contains selected content.
 	*/
 	function intersects(range, block) {
-		if (range.collapsed) return block === range.startContainer || block.contains(range.startContainer);
+		if (range.collapsed) return containsNode(block, range.startContainer);
 		const start = range.cloneRange();
 		const end = range.cloneRange();
 		start.collapse(true);
 		end.collapse(false);
-		const blockStart = document.createRange();
+		const blockStart = _fr0st_query.default.createRange();
 		blockStart.selectNodeContents(block);
 		const blockEnd = blockStart.cloneRange();
 		blockStart.collapse(true);
 		blockEnd.collapse(false);
-		if (start.compareBoundaryPoints(Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(Range.START_TO_START, blockStart) <= 0) return false;
+		if (start.compareBoundaryPoints(window$4.Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(window$4.Range.START_TO_START, blockStart) <= 0) return false;
 		const overlap = range.cloneRange();
-		if (start.compareBoundaryPoints(Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
-		if (end.compareBoundaryPoints(Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
-		return Boolean(overlap.toString() || [...block.querySelectorAll("br, img, hr, iframe, video, audio, svg, input")].some((node) => overlap.intersectsNode(node)) || !block.childNodes.length);
+		if (start.compareBoundaryPoints(window$4.Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
+		if (end.compareBoundaryPoints(window$4.Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
+		return Boolean(overlap.toString() || _fr0st_query.default.find("br, img, hr, iframe, video, audio, svg, input", block).some((node) => overlap.intersectsNode(node)) || !block.childNodes.length);
 	}
 	/**
 	* Gets the block units affected by a selection.
@@ -266,13 +278,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @returns {HTMLElement[]} The selected blocks or sibling list items.
 	*/
 	function getSelectedBlocks(root, range) {
-		const item = (range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement).closest("li");
-		if (item && root.contains(item)) return [...item.parentElement.children].filter((node) => node.matches("li") && intersects(range, node));
+		const anchor = range.startContainer.nodeType === window$4.Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+		const item = _fr0st_query.default.closest(anchor, "li")[0];
+		if (item && containsNode(root, item)) return [...item.parentElement.children].filter((node) => _fr0st_query.default.is(node, "li") && intersects(range, node));
 		const blocks = [];
 		const visit = (parent) => {
 			for (const child of [...parent.children]) {
 				if (!range.intersectsNode(child)) continue;
-				if (child.matches("p, h1, h2, h3, h4, h5, h6, pre, li") || child.matches("div, blockquote, td, th") && [...child.childNodes].every(isPhrasingContent)) {
+				if (_fr0st_query.default.is(child, "p, h1, h2, h3, h4, h5, h6, pre, li") || _fr0st_query.default.is(child, "div, blockquote, td, th") && [...child.childNodes].every(isPhrasingContent)) {
 					if (intersects(range, child)) blocks.push(child);
 				} else visit(child);
 			}
@@ -285,7 +298,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {HTMLElement} node The container.
 	*/
 	function removeEmpty(node) {
-		if (!node.children.length && !node.textContent.trim()) node.replaceWith(...node.childNodes);
+		if (!node.children.length && !_fr0st_query.default.getText(node).trim()) _fr0st_query.default.replaceWith(node, node.childNodes);
 	}
 	/**
 	* Indents sibling blocks or list items.
@@ -294,21 +307,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	function indentBlocks(blocks) {
 		const first = blocks[0];
 		const parent = first.parentElement;
-		if (first.matches("li")) {
+		if (_fr0st_query.default.is(first, "li")) {
 			const previous = first.previousElementSibling;
-			if (!previous?.matches("li")) return;
+			if (!_fr0st_query.default.is(previous, "li")) return;
 			let list = previous.lastElementChild;
 			if (!list || list.tagName !== parent.tagName) {
-				list = document.createElement(parent.localName);
-				previous.append(list);
+				list = _fr0st_query.default.create(parent.localName);
+				_fr0st_query.default.append(previous, list);
 			}
-			list.append(...blocks);
+			_fr0st_query.default.append(list, blocks);
 			return;
 		}
-		const wrapper = document.createElement("div");
-		wrapper.style.marginInlineStart = "2em";
-		first.before(wrapper);
-		wrapper.append(...blocks);
+		const wrapper = _fr0st_query.default.create("div");
+		_fr0st_query.default.setStyle(wrapper, "marginInlineStart", "2em");
+		_fr0st_query.default.before(first, wrapper);
+		_fr0st_query.default.append(wrapper, blocks);
 	}
 	/**
 	* Moves list items out of one nesting level, retaining following items as children.
@@ -317,23 +330,23 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	function outdentItems(blocks) {
 		const list = blocks[0].parentElement;
 		const parentItem = list.parentElement;
-		const following = list.cloneNode(false);
-		following.removeAttribute("id");
-		while (blocks.at(-1).nextSibling) following.append(blocks.at(-1).nextSibling);
-		if (parentItem.matches("li")) {
-			if (following.children.length) blocks.at(-1).append(following);
-			parentItem.after(...blocks);
+		const following = _fr0st_query.default.clone(list, { deep: false })[0];
+		_fr0st_query.default.removeAttribute(following, "id");
+		while (blocks.at(-1).nextSibling) _fr0st_query.default.append(following, blocks.at(-1).nextSibling);
+		if (_fr0st_query.default.is(parentItem, "li")) {
+			if (following.children.length) _fr0st_query.default.append(blocks.at(-1), following);
+			_fr0st_query.default.after(parentItem, blocks);
 		} else {
-			const content = document.createDocumentFragment();
+			const content = _fr0st_query.default.createFragment();
 			for (const item of blocks) {
-				const paragraph = document.createElement("p");
-				while (item.firstChild && isPhrasingContent(item.firstChild)) paragraph.append(item.firstChild);
-				if (paragraph.childNodes.length) content.append(paragraph);
-				content.append(...item.childNodes);
-				item.remove();
+				const paragraph = _fr0st_query.default.create("p");
+				while (item.firstChild && isPhrasingContent(item.firstChild)) _fr0st_query.default.append(paragraph, item.firstChild);
+				if (paragraph.childNodes.length) _fr0st_query.default.append(content, paragraph);
+				_fr0st_query.default.append(content, item.childNodes);
+				_fr0st_query.default.remove(item);
 			}
-			if (following.children.length) content.append(following);
-			list.after(content);
+			if (following.children.length) _fr0st_query.default.append(content, following);
+			_fr0st_query.default.after(list, content);
 		}
 		removeEmpty(list);
 	}
@@ -343,24 +356,24 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {HTMLElement} root The editing boundary.
 	*/
 	function outdentBlocks(blocks, root) {
-		if (blocks[0].matches("li")) {
+		if (_fr0st_query.default.is(blocks[0], "li")) {
 			outdentItems(blocks);
 			return;
 		}
 		const wrappers = /* @__PURE__ */ new Set();
 		for (const block of blocks) {
 			let wrapper = block;
-			while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginInlineStart || wrapper.style.marginLeft) > 0)) wrapper = wrapper.parentElement;
+			while (wrapper && wrapper !== root && !(parseFloat(_fr0st_query.default.getStyle(wrapper, "marginInlineStart") || _fr0st_query.default.getStyle(wrapper, "marginLeft")) > 0)) wrapper = wrapper.parentElement;
 			if (wrapper && wrapper !== root) wrappers.add(wrapper);
 		}
 		for (const wrapper of wrappers) {
-			const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) => block === node || node.contains(block)));
-			if (blocks.includes(wrapper)) wrapper.replaceWith(...wrapper.childNodes);
+			const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) => containsNode(node, block)));
+			if (blocks.includes(wrapper)) _fr0st_query.default.replaceWith(wrapper, wrapper.childNodes);
 			else if (selected.length) {
-				const following = wrapper.cloneNode(false);
-				following.removeAttribute("id");
-				while (selected.at(-1).nextSibling) following.append(selected.at(-1).nextSibling);
-				wrapper.after(...selected, following);
+				const following = _fr0st_query.default.clone(wrapper, { deep: false })[0];
+				_fr0st_query.default.removeAttribute(following, "id");
+				while (selected.at(-1).nextSibling) _fr0st_query.default.append(following, selected.at(-1).nextSibling);
+				_fr0st_query.default.after(wrapper, [...selected, following]);
 				removeEmpty(wrapper);
 				removeEmpty(following);
 			}
@@ -537,6 +550,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 
 // src/js/history.js
 /** @import { EditorSelectionData } from './types.js'; */
+	var window$3 = _fr0st_query.default.getWindow();
 	/**
 	* Gets a descendant by its child indexes, returning null for stale paths.
 	* @param {number[]} path The child indexes.
@@ -568,8 +582,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @returns {EditorSelectionData|null} The saved selection.
 	*/
 	function getSelectionData(container) {
-		const { anchorNode, anchorOffset, focusNode, focusOffset } = window.getSelection();
-		if (!anchorNode || !focusNode || !container.contains(anchorNode) || !container.contains(focusNode)) return null;
+		const { anchorNode, anchorOffset, focusNode, focusOffset } = window$3.getSelection();
+		if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
 		return {
 			anchorPath: getPathToNode(anchorNode, container),
 			anchorOffset,
@@ -583,10 +597,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {EditorSelectionData|null} selectionData The saved selection.
 	*/
 	function restoreSelectionData(container, selectionData) {
-		const selection = window.getSelection();
+		const selection = window$3.getSelection();
 		const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
 		const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
-		const length = (node) => node.nodeType === Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+		const length = (node) => node.nodeType === window$3.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
 		if (anchor && focus) selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)), focus, Math.min(selectionData.focusOffset, length(focus)));
 		else {
 			selection.selectAllChildren(container);
@@ -640,6 +654,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 // src/js/modals.js
 /** @import Editor from './editor.js'; */
 	/** @import { EditorInputOptions, EditorInputElements, EditorModalOptions } from './types.js'; */
+	var document$2 = _fr0st_query.default.getContext();
 	/**
 	* Creates a form checkbox.
 	* @param {typeof Editor} Component The component class.
@@ -725,7 +740,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		_fr0st_query.default.append(inputContainer, input);
 		_fr0st_query.default.append(group, inputContainer);
 		invalidFeedback.id = `${options.id}-error`;
-		input.setAttribute("aria-describedby", invalidFeedback.id);
+		_fr0st_query.default.setAttribute(input, "aria-describedby", invalidFeedback.id);
 		_fr0st_query.default.append(group, invalidFeedback);
 		return {
 			group,
@@ -740,7 +755,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @returns {HTMLElement} The modal element.
 	*/
 	function createModal(Component, options) {
-		const returnFocus = options.returnFocus || document.activeElement;
+		const returnFocus = options.returnFocus || document$2.activeElement;
 		const modal = _fr0st_query.default.create("div", {
 			class: Component.classes.modal,
 			attributes: {
@@ -763,7 +778,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				text: options.title
 			});
 			modalTitle.id = (0, _fr0st_ui.generateId)("editor-dialog");
-			modal.setAttribute("aria-labelledby", modalTitle.id);
+			_fr0st_query.default.setAttribute(modal, "aria-labelledby", modalTitle.id);
 			_fr0st_query.default.append(modalHeader, modalTitle);
 		}
 		const closeBtn = _fr0st_query.default.create("button", {
@@ -797,21 +812,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 			_fr0st_query.default.append(modalFooter, submitButton);
 		}
-		_fr0st_query.default.append(document.body, modal);
+		_fr0st_query.default.append(document$2.body, modal);
 		const controller = _fr0st_ui.Modal.init(modal);
-		if (options.onSubmit) controller.listen(modalContent, "submit", (e) => {
-			e.preventDefault();
-			if (options.onSubmit(e) === false) return;
+		if (options.onSubmit) controller.listen(modalContent, "submit", (event) => {
+			event.preventDefault();
+			if (options.onSubmit(event) === false) return;
 			controller.hide();
 		});
-		if ("onShow" in options) controller.listen(modal, "show.ui.modal", (e) => {
-			options.onShow(e);
+		if ("onShow" in options) controller.listen(modal, "show.ui.modal", (event) => {
+			options.onShow(event);
 		});
-		if ("onShown" in options) controller.listen(modal, "shown.ui.modal", (e) => {
-			options.onShown(e);
+		if ("onShown" in options) controller.listen(modal, "shown.ui.modal", (event) => {
+			options.onShown(event);
 		});
-		if ("onHide" in options) controller.listen(modal, "hide.ui.modal", (e) => {
-			options.onHide(e);
+		if ("onHide" in options) controller.listen(modal, "hide.ui.modal", (event) => {
+			options.onHide(event);
 		});
 		controller.listen(modal, "hidden.ui.modal", (event) => {
 			try {
@@ -828,16 +843,17 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 
 // src/js/selection.js
 /** @import { EditorSelectionMarkers } from './types.js'; */
+	var window$2 = _fr0st_query.default.getWindow();
 	/**
 	* Gets the current range, optionally restricted to an editing boundary.
 	* @param {HTMLElement|null} [container=null] The optional editing boundary.
 	* @returns {Range|null} The owned range, or null when the selection is elsewhere.
 	*/
 	function getRange(container = null) {
-		const selection = window.getSelection();
+		const selection = window$2.getSelection();
 		if (!selection.rangeCount) return null;
 		const range = selection.getRangeAt(0);
-		return !container || container.contains(range.startContainer) && container.contains(range.endContainer) ? range : null;
+		return !container || containsNode(container, range.startContainer) && containsNode(container, range.endContainer) ? range : null;
 	}
 	/**
 	* Restores a range from markers and removes the markers without losing direction.
@@ -845,16 +861,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	*/
 	function restoreSelection({ start, end, backward = false } = {}) {
 		if (!start?.isConnected || !end?.isConnected) {
-			start?.remove();
-			end?.remove();
+			_fr0st_query.default.remove(start);
+			_fr0st_query.default.remove(end);
 			return;
 		}
 		const range = _fr0st_query.default.createRange();
 		range.setStartAfter(start);
 		range.setEndBefore(end);
-		start.remove();
-		end.remove();
-		const selection = window.getSelection();
+		_fr0st_query.default.remove(start);
+		_fr0st_query.default.remove(end);
+		const selection = window$2.getSelection();
 		if (backward) selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
 		else selectRange(range);
 	}
@@ -866,7 +882,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	function saveSelection(container = null) {
 		const range = getRange(container);
 		if (!range) return {};
-		const selection = window.getSelection();
+		const selection = window$2.getSelection();
 		const backward = !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
 		const start = _fr0st_query.default.createText("");
 		const end = _fr0st_query.default.createText("");
@@ -900,7 +916,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	*/
 	function selectRange(range, backward = false) {
 		if (!range || !range.startContainer.isConnected || !range.endContainer.isConnected) return;
-		const selection = window.getSelection();
+		const selection = window$2.getSelection();
 		if (backward) selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
 		else {
 			selection.removeAllRanges();
@@ -913,7 +929,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	*/
 	function normalizeText(container) {
 		const range = getRange(container)?.cloneRange();
-		const selection = window.getSelection();
+		const selection = window$2.getSelection();
 		const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
 		_fr0st_query.default.normalize(container);
 		if (range) selectRange(range, backward);
@@ -921,6 +937,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 
 // src/js/shared-events.js
 /** @import Editor from './editor.js'; */
+	var document$1 = _fr0st_query.default.getContext();
+	var window$1 = _fr0st_query.default.getWindow();
 	/**
 	* @typedef {object} EditorSharedEvents
 	* @property {() => void} showDropTarget Shows the active drop target.
@@ -958,22 +976,22 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		const deferred = (callback) => _fr0st_query.default.debounce(() => {
 			if (generation === session) callback();
 		});
-		listenShared(document.body, "dragenter.ui.editor", () => {
+		listenShared(document$1.body, "dragenter.ui.editor", () => {
 			if (dragCount++ === 0) for (const current of editors.values()) current.showDropTarget();
 		});
-		listenShared(document.body, "dragleave.ui.editor", () => {
+		listenShared(document$1.body, "dragleave.ui.editor", () => {
 			dragCount = Math.max(0, dragCount - 1);
 			if (dragCount === 0) resetDragCount();
 		});
-		listenShared(document.body, "dragend.ui.editor drop.ui.editor", resetDragCount);
-		listenShared(document, "selectionchange.ui.editor", deferred(() => {
+		listenShared(document$1.body, "dragend.ui.editor drop.ui.editor", resetDragCount);
+		listenShared(document$1, "selectionchange.ui.editor", deferred(() => {
 			const range = getRange();
 			for (const current of editors.values()) current.selectionChange(range);
 		}));
-		listenShared(window, "click.ui.editor", () => {
+		listenShared(window$1, "click.ui.editor", () => {
 			for (const current of editors.values()) current.removePopover();
 		});
-		listenShared(window, "resize.ui.editor", deferred(() => {
+		listenShared(window$1, "resize.ui.editor", deferred(() => {
 			for (const current of editors.values()) current.resize();
 		}));
 	}
@@ -1138,6 +1156,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 
 // src/js/editor.js
 /** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover, EditorDropdownCallback } from './types.js'; */
+	var document = _fr0st_query.default.getContext();
+	var window = _fr0st_query.default.getWindow();
 	/**
 	* A customizable WYSIWYG editor backed by a native textarea.
 	* @augments {BaseComponent<EditorOptions>}
@@ -1196,12 +1216,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			/**
 			* Handles the default formatting and history shortcuts.
 			* @this {Editor}
-			* @param {KeyboardEvent} e The keyboard event.
+			* @param {KeyboardEvent} event The keyboard event.
 			*/
-			keyDown(e) {
-				if (!e.ctrlKey && !e.metaKey || e.altKey) return;
+			keyDown(event) {
+				if (!event.ctrlKey && !event.metaKey || event.altKey) return;
 				let action;
-				switch (e.key.toLowerCase()) {
+				switch (event.key.toLowerCase()) {
 					case "b":
 						action = "bold";
 						break;
@@ -1215,11 +1235,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						action = "redo";
 						break;
 					case "z":
-						action = e.shiftKey ? "redo" : "undo";
+						action = event.shiftKey ? "redo" : "undo";
 						break;
 					default: return;
 				}
-				e.preventDefault();
+				event.preventDefault();
 				this[action]();
 			},
 			defaultFont: "Arial",
@@ -1285,11 +1305,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#fullScreen = createModal(this.constructor, {
 					content: this.#container,
 					fullScreen: true,
-					onShown: (_) => {
+					onShown: () => {
 						if (_fr0st_query.default.isVisible(this.#sourceContainer)) _fr0st_query.default.focus(this.#source);
 						else _fr0st_query.default.focus(this.#editor);
 					},
-					onHide: (_) => {
+					onHide: () => {
 						_fr0st_query.default.insertBefore(this.#container, this.node);
 						this.#fullScreen = null;
 					}
@@ -1595,12 +1615,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		constructor(node, options) {
 			if (!_fr0st_query.default._isElement(node) || !_fr0st_query.default.is(node, "textarea")) throw new TypeError("Editor must be created on a textarea element.");
 			super(node, options);
-			this.#originalStyle = node.hasAttribute("style");
+			this.#originalStyle = _fr0st_query.default.hasAttribute(node, "style");
 			this.#originalAttributes = new Map([
 				"tabindex",
 				"hidden",
 				"aria-hidden"
-			].map((name) => [name, node.getAttribute(name)]));
+			].map((name) => [name, _fr0st_query.default.getAttribute(node, name)]));
 			this.#originalSelection = [
 				node.selectionStart,
 				node.selectionEnd,
@@ -1624,7 +1644,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#eventsShared();
 				if (active === node) this.#focusEditor();
 				else {
-					if (active instanceof HTMLElement && active.isConnected && document.activeElement !== active) active.focus({ preventScroll: true });
+					if (active instanceof window.HTMLElement && active.isConnected && document.activeElement !== active) active.focus({ preventScroll: true });
 					selectRange(originalRange);
 				}
 				if (this.node) _fr0st_query.default.triggerEvent(node, "init.ui.editor");
@@ -1664,7 +1684,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#disposing = true;
 			const node = this.node;
 			const active = document.activeElement;
-			const restoreFocus = this.#container?.contains(active) || this.#modal?.contains(active) || this.#fullScreen?.contains(active);
+			const restoreFocus = containsNode(this.#container, active) || containsNode(this.#modal, active) || containsNode(this.#fullScreen, active);
 			removeEditor(this);
 			this.#observer?.disconnect();
 			this.#observer = null;
@@ -1696,9 +1716,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (this.#container) _fr0st_query.default.remove(this.#container);
 			this.#releaseDisplay?.();
 			this.#releaseDisplay = null;
-			if (!this.#originalStyle && !node.getAttribute("style")) node.removeAttribute("style");
-			for (const [name, value] of this.#originalAttributes) if (value === null) node.removeAttribute(name);
-			else node.setAttribute(name, value);
+			if (!this.#originalStyle && !_fr0st_query.default.getAttribute(node, "style")) _fr0st_query.default.removeAttribute(node, "style");
+			for (const [name, value] of this.#originalAttributes) if (value === null) _fr0st_query.default.removeAttribute(node, name);
+			else _fr0st_query.default.setAttribute(node, name, value);
 			if (restoreFocus && node.isConnected && !node.hidden) {
 				node.focus({ preventScroll: true });
 				node.setSelectionRange(...this.#originalSelection);
@@ -1788,7 +1808,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {string} value The HTML string.
 		*/
 		insertHtml(value) {
-			if (!this.node || this.node.matches(":disabled") || this.node.readOnly) return;
+			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
 			this.#execCommand("insertHTML", value);
 		}
 		/**
@@ -1800,7 +1820,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const img = _fr0st_query.default.create("img", { attributes: { src } });
 			const newImg = this.insertNode(img);
 			if (!newImg) return;
-			const image = new Image();
+			const image = new window.Image();
 			this.#images.add(image);
 			const finish = () => {
 				this.#images.delete(image);
@@ -1808,7 +1828,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				image.onerror = null;
 			};
 			image.onload = () => {
-				if (this.node && this.#editor.contains(newImg)) {
+				if (this.node && containsNode(this.#editor, newImg)) {
 					const maxWidth = _fr0st_query.default.width(this.#editor, { boxSize: _fr0st_query.default.CONTENT_BOX });
 					_fr0st_query.default.setStyle(newImg, { width: `${Math.min(image.width, maxWidth)}px` });
 				}
@@ -1843,7 +1863,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const range = getRange(this.#editor);
 			if (!range) return null;
 			this.#addHistory({
-				html: this.#editor.innerHTML,
+				html: _fr0st_query.default.getHtml(this.#editor),
 				selectionData: getSelectionData(this.#editor)
 			});
 			this.#observe(false);
@@ -2050,22 +2070,22 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			let blocks = getSelectedBlocks(this.#editor, range);
 			if (outdent && !blocks.length) return;
 			this.#addHistory({
-				html: this.#editor.innerHTML,
+				html: _fr0st_query.default.getHtml(this.#editor),
 				selectionData: getSelectionData(this.#editor)
 			});
 			this.#observe(false);
 			const markers = saveSelection(this.#editor);
 			try {
 				if (!blocks.length) {
-					const paragraph = document.createElement("p");
+					const paragraph = _fr0st_query.default.create("p");
 					let first = markers.start;
 					while (first.parentNode !== this.#editor) first = first.parentNode;
 					while (first.previousSibling && isPhrasingContent(first.previousSibling)) first = first.previousSibling;
 					const inline = [];
 					for (let node = first; node && isPhrasingContent(node); node = node.nextSibling) inline.push(node);
 					if (inline.length) {
-						inline[0].before(paragraph);
-						paragraph.append(...inline);
+						_fr0st_query.default.before(inline[0], paragraph);
+						_fr0st_query.default.append(paragraph, inline);
 						blocks = [paragraph];
 					}
 				}
@@ -2083,10 +2103,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}
 		}
 		/**
-		* Checks if the editor is empty and populate base markup.
+		* Checks whether the editor is empty and populates base markup.
 		*/
 		#checkEmpty() {
-			if (this.node && !this.#editor.innerHTML.trim()) _fr0st_query.default.setHtml(this.#editor, "<p><br></p>");
+			if (this.node && !_fr0st_query.default.getHtml(this.#editor).trim()) _fr0st_query.default.setHtml(this.#editor, "<p><br></p>");
 		}
 		/**
 		* Renders a color dropdown.
@@ -2182,7 +2202,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		/**
 		* Creates a deferred callback that cannot run after disposal.
 		* @param {() => void} callback The callback to defer.
-		* @returns {Function} The guarded callback.
+		* @returns {ReturnType<typeof $.debounce>} The guarded callback.
 		*/
 		#debounce(callback) {
 			return _fr0st_query.default.debounce((...args) => {
@@ -2227,28 +2247,28 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Attaches drop events.
 		*/
 		#eventsDrop() {
-			this.listen(this.#editor, "dragstart.ui.editor", (e) => {
-				e.preventDefault();
+			this.listen(this.#editor, "dragstart.ui.editor", (event) => {
+				event.preventDefault();
 			}, { delegate: "img" });
-			this.listen(this.#dropTarget, "dragenter.ui.editor", (_) => {
+			this.listen(this.#dropTarget, "dragenter.ui.editor", () => {
 				_fr0st_query.default.addClass(this.#dropText, this.constructor.classes.dropHover);
 				_fr0st_query.default.setText(this.#dropText, this.constructor.lang.drop.drop);
 				_fr0st_query.default.show(this.#dropTarget);
 			});
-			this.listen(this.#dropTarget, "dragleave.ui.editor", (_) => {
+			this.listen(this.#dropTarget, "dragleave.ui.editor", () => {
 				this.#resetDropText();
 			});
-			this.listen(this.#dropTarget, "dragover.ui.editor", (e) => {
-				e.preventDefault();
+			this.listen(this.#dropTarget, "dragover.ui.editor", (event) => {
+				event.preventDefault();
 			});
-			this.listen(this.#dropTarget, "drop.ui.editor", (e) => {
-				e.preventDefault();
+			this.listen(this.#dropTarget, "drop.ui.editor", (event) => {
+				event.preventDefault();
 				resetDragCount();
 				this.#resetDropText();
 				_fr0st_query.default.hide(this.#dropTarget);
-				if (e.dataTransfer.files.length) this.options.imageUpload.call(this, e.dataTransfer.files);
+				if (event.dataTransfer.files.length) this.options.imageUpload.call(this, event.dataTransfer.files);
 				else {
-					const text = e.dataTransfer.getData("text");
+					const text = event.dataTransfer.getData("text");
 					this.insertText(text);
 				}
 			});
@@ -2265,23 +2285,23 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					else this.insertText(event.clipboardData.getData("text/plain"));
 				}
 			});
-			this.listen(this.#editor, "focus.ui.editor", (_) => {
+			this.listen(this.#editor, "focus.ui.editor", () => {
 				document.execCommand("defaultParagraphSeparator", false, "p");
 				_fr0st_query.default.triggerEvent(this.node, "focus.ui.editor");
 			});
-			this.listen(this.#editor, "blur.ui.editor", (_) => {
+			this.listen(this.#editor, "blur.ui.editor", () => {
 				_fr0st_query.default.triggerEvent(this.node, "blur.ui.editor");
 			});
-			this.listen(this.#editor, "beforeinput.ui.editor", (e) => {
-				if (e.inputType === "historyUndo" || e.inputType === "historyRedo") {
-					if (e.cancelable) {
-						e.preventDefault();
-						this[e.inputType === "historyUndo" ? "undo" : "redo"]();
+			this.listen(this.#editor, "beforeinput.ui.editor", (event) => {
+				if (event.inputType === "historyUndo" || event.inputType === "historyRedo") {
+					if (event.cancelable) {
+						event.preventDefault();
+						this[event.inputType === "historyUndo" ? "undo" : "redo"]();
 					}
 				} else if (this.#history.length) this.#history.at(-1).selectionData = getSelectionData(this.#editor);
 			});
-			this.listen(this.#editor, "input.ui.editor", (e) => {
-				switch (e.inputType) {
+			this.listen(this.#editor, "input.ui.editor", (event) => {
+				switch (event.inputType) {
 					case "historyUndo":
 						if (!_fr0st_query.default.isSame(document.activeElement, this.#editor)) return;
 						this.undo();
@@ -2291,23 +2311,23 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						this.redo();
 						return;
 				}
-				if (e.inputType !== "insertText") this.#normalize();
+				if (event.inputType !== "insertText") this.#normalize();
 				this.#checkEmpty();
 				this.#updateValue();
 			});
-			this.listen(this.#editor, "keydown.ui.editor", (e) => {
-				if (this.options.keyDown) this.options.keyDown.call(this, e);
-				if (e.defaultPrevented || !this.node) return;
+			this.listen(this.#editor, "keydown.ui.editor", (event) => {
+				if (this.options.keyDown) this.options.keyDown.call(this, event);
+				if (event.defaultPrevented || !this.node) return;
 				const selection = window.getSelection();
 				const isIndented = (node) => {
 					return [node, ..._fr0st_query.default.parents(node, null, this.#editor)].some((ancestor) => _fr0st_query.default.is(ancestor, "li") || parseFloat(_fr0st_query.default.getStyle(ancestor, "marginInlineStart") || _fr0st_query.default.getStyle(ancestor, "marginLeft")) > 0);
 				};
-				switch (e.code) {
+				switch (event.code) {
 					case "Backspace":
 						if (selection.isCollapsed && _fr0st_query.default.isSame(selection.anchorNode, selection.focusNode) && (_fr0st_query.default._isElement(selection.anchorNode) && _fr0st_query.default.getText(selection.anchorNode) === "" && isIndented(selection.anchorNode) || _fr0st_query.default._isText(selection.anchorNode) && selection.anchorOffset === 0 && isIndented(_fr0st_query.default.parent(selection.anchorNode)))) {
-							e.preventDefault();
+							event.preventDefault();
 							this.outdent();
-						} else if (_fr0st_query.default.contents(this.#editor).length <= 1 && _fr0st_query.default.getText(this.#editor) === "") e.preventDefault();
+						} else if (_fr0st_query.default.contents(this.#editor).length <= 1 && _fr0st_query.default.getText(this.#editor) === "") event.preventDefault();
 						break;
 					case "Delete":
 						if (selection.isCollapsed && _fr0st_query.default.isSame(selection.anchorNode, selection.focusNode) && _fr0st_query.default.getText(selection.anchorNode) === "") {
@@ -2323,22 +2343,22 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 							}
 						}
 						break;
-					case "Tab": if (!e.ctrlKey && !e.metaKey && !e.altKey && !this.node.readOnly && !this.node.matches(":disabled")) {
-						e.preventDefault();
-						if (e.shiftKey) this.outdent();
+					case "Tab": if (!event.ctrlKey && !event.metaKey && !event.altKey && !this.node.readOnly && !_fr0st_query.default.is(this.node, ":disabled")) {
+						event.preventDefault();
+						if (event.shiftKey) this.outdent();
 						else this.indent();
 					}
 				}
 			});
-			this.listen(this.#editorContainer, "click.ui.editor", (_) => {
+			this.listen(this.#editorContainer, "click.ui.editor", () => {
 				_fr0st_query.default.focus(this.#editor);
 			});
-			this.listen(this.#editor, "click.ui.editor", (e) => {
-				e.preventDefault();
-				e.stopPropagation();
-				if (this.node.matches(":disabled") || this.node.readOnly) return;
-				if (e.currentTarget.matches("img")) selectNode(e.currentTarget);
-				this.#refreshPopover(e.currentTarget, e);
+			this.listen(this.#editor, "click.ui.editor", (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+				if (_fr0st_query.default.is(event.currentTarget, "img")) selectNode(event.currentTarget);
+				this.#refreshPopover(event.currentTarget, event);
 				this.#refreshToolbar();
 			}, {
 				delegate: "a, td, th, img",
@@ -2351,7 +2371,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#eventsForm() {
 			const focus = () => {
-				if (this.node && !this.node.matches(":disabled")) (_fr0st_query.default.isVisible(this.#sourceContainer) ? this.#source : this.#editor).focus();
+				if (this.node && !_fr0st_query.default.is(this.node, ":disabled")) _fr0st_query.default.focus(_fr0st_query.default.isVisible(this.#sourceContainer) ? this.#source : this.#editor);
 			};
 			const labels = [...this.node.labels];
 			const generated = [];
@@ -2361,7 +2381,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					generated.push([label, label.id]);
 				}
 				this.listen(label, "click.ui.editor", (event) => {
-					if (event.target === label || !event.target.closest("a, button, input, select, textarea")) {
+					if (event.target === label || !_fr0st_query.default.closest(event.target, "a, button, input, select, textarea")[0]) {
 						event.preventDefault();
 						focus();
 					}
@@ -2374,8 +2394,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 			this.listen(this.node, "invalid.ui.editor", (event) => {
 				event.preventDefault();
-				this.#editor.setAttribute("aria-invalid", "true");
-				this.#source.setAttribute("aria-invalid", "true");
+				_fr0st_query.default.setAttribute(this.#editor, "aria-invalid", "true");
+				_fr0st_query.default.setAttribute(this.#source, "aria-invalid", "true");
 				focus();
 			});
 			this.listen(this.node, "input.ui.editor change.ui.editor", (event) => {
@@ -2384,7 +2404,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const timers = /* @__PURE__ */ new Set();
 			this.listen(this.node.ownerDocument, "reset.ui.editor", (event) => {
 				if (event.target !== this.node.form) return;
-				const timer = setTimeout(() => {
+				const timer = window.setTimeout(() => {
 					timers.delete(timer);
 					if (this.node && !event.defaultPrevented) {
 						this.#removePopover();
@@ -2393,7 +2413,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				}, 0);
 				timers.add(timer);
 			});
-			const observer = new MutationObserver(() => {
+			const observer = new window.MutationObserver(() => {
 				if (this.node) {
 					this.#refreshDisabled();
 					this.#refreshToolbar();
@@ -2406,52 +2426,52 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 			this.onDispose(() => {
 				observer.disconnect();
-				for (const timer of timers) clearTimeout(timer);
-				for (const [label, id] of generated) if (label.id === id) label.removeAttribute("id");
+				for (const timer of timers) window.clearTimeout(timer);
+				for (const [label, id] of generated) if (label.id === id) _fr0st_query.default.removeAttribute(label, "id");
 			});
 		}
 		/**
 		* Attaches popover events.
 		*/
 		#eventsPopover() {
-			this.listen(this.#popover, "click.ui.editor", (e) => {
-				if (this.node.matches(":disabled") || this.node.readOnly) return;
-				const action = _fr0st_query.default.getDataset(e.currentTarget, "uiAction");
+			this.listen(this.#popover, "click.ui.editor", (event) => {
+				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+				const action = _fr0st_query.default.getDataset(event.currentTarget, "uiAction");
 				if (!(action in this.constructor.popovers)) throw new Error(`Unknown action ${action}`);
-				e.preventDefault();
-				e.stopPropagation();
+				event.preventDefault();
+				event.stopPropagation();
 				this.constructor.popovers[action].action.call(this, this.#currentNode);
 				this.#refreshPopover(this.#currentNode);
 			}, { delegate: "[data-ui-action]" });
-			const downEvent = (e) => {
+			const downEvent = (event) => {
 				if (!this.#currentNode || !_fr0st_query.default.is(this.#currentNode, "img")) return false;
-				e.stopPropagation();
+				event.stopPropagation();
 				_fr0st_query.default.hide(this.#imgCursor);
 				_fr0st_query.default.hide(this.#popover);
 				this.#observe(false);
 			};
-			const moveEvent = (e) => {
+			const moveEvent = (event) => {
 				const imgRect = _fr0st_query.default.rect(this.#currentNode, { offset: true });
 				const ratio = imgRect.width / imgRect.height;
-				const width = Math.max(e.pageX - imgRect.x, (e.pageY - imgRect.y) * ratio, 1);
+				const width = Math.max(event.pageX - imgRect.x, (event.pageY - imgRect.y) * ratio, 1);
 				_fr0st_query.default.setStyle(this.#currentNode, { width: `${Math.round(width)}px` });
 				this.#highlightImage(this.#currentNode);
 			};
-			const upEvent = (_) => {
-				if (this.#currentNode?.isConnected && this.#editor.contains(this.#currentNode)) selectNode(this.#currentNode).collapse(false);
+			const upEvent = () => {
+				if (this.#currentNode?.isConnected && containsNode(this.#editor, this.#currentNode)) selectNode(this.#currentNode).collapse(false);
 				this.#updateValue();
 				this.#observe();
 			};
 			this.#bindDrag(this.#imgResize, downEvent, moveEvent, upEvent);
 			this.listen(this.#imgResize, "keydown.ui.editor", (event) => {
-				if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || this.node.matches(":disabled") || this.node.readOnly) return;
+				if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
 				event.preventDefault();
-				const width = Math.max(1, this.#currentNode.getBoundingClientRect().width + (event.code === "ArrowRight" ? 10 : -10));
-				this.#currentNode.style.width = `${width}px`;
+				const width = Math.max(1, _fr0st_query.default.rect(this.#currentNode).width + (event.code === "ArrowRight" ? 10 : -10));
+				_fr0st_query.default.setStyle(this.#currentNode, "width", `${width}px`);
 				this.#highlightImage(this.#currentNode);
 				this.#updateValue();
 			});
-			this.listen(this.#editorBody, "scroll.ui.editor", (_) => {
+			this.listen(this.#editorBody, "scroll.ui.editor", () => {
 				this.#removePopover();
 			});
 		}
@@ -2460,27 +2480,27 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#eventsResize() {
 			let resizeOffset = 0;
-			const downEvent = (e) => {
+			const downEvent = (event) => {
 				const barPosition = _fr0st_query.default.position(this.#resizeBar, { offset: true });
-				resizeOffset = e.pageY - barPosition.y;
+				resizeOffset = event.pageY - barPosition.y;
 				this.#removePopover();
 			};
-			const moveEvent = (e) => {
+			const moveEvent = (event) => {
 				const editorPosition = _fr0st_query.default.position(this.#editorBody, { offset: true });
-				const height = Math.max(0, e.pageY - editorPosition.y - resizeOffset);
+				const height = Math.max(0, event.pageY - editorPosition.y - resizeOffset);
 				_fr0st_query.default.setStyle(this.#editorBody, { height: `${height}px` });
-				this.#resizeBar.setAttribute("aria-valuenow", String(Math.round(height)));
+				_fr0st_query.default.setAttribute(this.#resizeBar, "aria-valuenow", String(Math.round(height)));
 			};
-			const upEvent = (_) => {
+			const upEvent = () => {
 				resizeOffset = 0;
 			};
 			this.#bindDrag(this.#resizeBar, downEvent, moveEvent, upEvent);
 			this.listen(this.#resizeBar, "keydown.ui.editor", (event) => {
-				if (!["ArrowUp", "ArrowDown"].includes(event.code) || this.node.matches(":disabled") || this.node.readOnly) return;
+				if (!["ArrowUp", "ArrowDown"].includes(event.code) || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
 				event.preventDefault();
-				const height = Math.max(40, this.#editorBody.getBoundingClientRect().height + (event.code === "ArrowDown" ? 10 : -10));
-				this.#editorBody.style.height = `${height}px`;
-				this.#resizeBar.setAttribute("aria-valuenow", String(Math.round(height)));
+				const height = Math.max(40, _fr0st_query.default.rect(this.#editorBody).height + (event.code === "ArrowDown" ? 10 : -10));
+				_fr0st_query.default.setStyle(this.#editorBody, "height", `${height}px`);
+				_fr0st_query.default.setAttribute(this.#resizeBar, "aria-valuenow", String(Math.round(height)));
 			});
 		}
 		/**
@@ -2495,7 +2515,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				},
 				removePopover: () => this.#removePopover(),
 				selectionChange: (range) => {
-					if (!range || !this.#editor.contains(range.startContainer) || !this.#editor.contains(range.endContainer)) {
+					if (!range || !containsNode(this.#editor, range.startContainer) || !containsNode(this.#editor, range.endContainer)) {
 						this.#removePopover();
 						return;
 					}
@@ -2504,7 +2524,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					this.#refreshToolbar();
 				},
 				resize: () => {
-					if (this.#currentNode?.matches("img")) this.#highlightImage(this.#currentNode);
+					if (_fr0st_query.default.is(this.#currentNode, "img")) this.#highlightImage(this.#currentNode);
 					this.#refreshLineNumbers();
 				}
 			});
@@ -2515,25 +2535,25 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#eventsSource() {
 			this.listen(this.#source, "focus.ui.editor", () => _fr0st_query.default.triggerEvent(this.node, "focus.ui.editor"));
 			this.listen(this.#source, "blur.ui.editor", () => _fr0st_query.default.triggerEvent(this.node, "blur.ui.editor"));
-			const refreshLineNumbersDebounced = this.#debounce((_) => {
+			const refreshLineNumbersDebounced = this.#debounce(() => {
 				this.#refreshLineNumbers();
 			});
-			this.listen(this.#source, "input.ui.editor change.ui.editor", (_) => {
-				if (this.node.matches(":disabled") || this.node.readOnly) return;
+			this.listen(this.#source, "input.ui.editor change.ui.editor", () => {
+				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
 				refreshLineNumbersDebounced();
-				const html = this.#source.value;
-				if (this.node.value !== html) {
-					this.node.value = html;
-					if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
-						this.#source.removeAttribute("aria-invalid");
-						this.#editor.removeAttribute("aria-invalid");
+				const html = _fr0st_query.default.getValue(this.#source);
+				if (_fr0st_query.default.getValue(this.node) !== html) {
+					_fr0st_query.default.setValue(this.node, html);
+					if (this.node.validity.valid && !_fr0st_query.default.hasAttribute(this.node, "aria-invalid")) {
+						_fr0st_query.default.removeAttribute(this.#source, "aria-invalid");
+						_fr0st_query.default.removeAttribute(this.#editor, "aria-invalid");
 					}
 					_fr0st_query.default.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 				}
 			});
-			this.listen(this.#source, "keydown.ui.editor", (e) => {
-				if (e.code !== "Tab" || e.ctrlKey || e.metaKey || e.altKey || this.node.readOnly || this.node.matches(":disabled")) return;
-				e.preventDefault();
+			this.listen(this.#source, "keydown.ui.editor", (event) => {
+				if (event.code !== "Tab" || event.ctrlKey || event.metaKey || event.altKey || this.node.readOnly || _fr0st_query.default.is(this.node, ":disabled")) return;
+				event.preventDefault();
 				const start = _fr0st_query.default.getProperty(this.#source, "selectionStart");
 				const end = _fr0st_query.default.getProperty(this.#source, "selectionEnd");
 				const value = _fr0st_query.default.getValue(this.#source);
@@ -2551,7 +2571,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				let newStart = start;
 				let newEnd = end;
 				let newValue;
-				if (e.shiftKey) {
+				if (event.shiftKey) {
 					for (const [i, line] of lines.entries()) if (i >= startLine && i <= lastLine && line.startsWith(tab)) {
 						lines[i] = line.substring(1);
 						if (lineStarts[i] < start) newStart--;
@@ -2575,7 +2595,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				document.execCommand("insertText", false, newValue);
 				this.#source.setSelectionRange(newStart, newEnd);
 			});
-			this.listen(this.#source, "scroll.ui.editor", this.#debounce((_) => {
+			this.listen(this.#source, "scroll.ui.editor", this.#debounce(() => {
 				const scrollY = _fr0st_query.default.getScrollY(this.#source);
 				_fr0st_query.default.setStyle(this.#lineNumbers, { marginTop: `${-scrollY}px` });
 			}));
@@ -2584,30 +2604,30 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Attaches toolbar events.
 		*/
 		#eventsToolbar() {
-			this.listen(this.#toolbar, "click.ui.editor", (e) => {
-				const action = _fr0st_query.default.getDataset(e.currentTarget, "uiAction");
+			this.listen(this.#toolbar, "click.ui.editor", (event) => {
+				const action = _fr0st_query.default.getDataset(event.currentTarget, "uiAction");
 				if (!(action in this.constructor.plugins)) throw new Error(`Unknown action ${action}`);
-				e.preventDefault();
-				e.stopPropagation();
-				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly && !["source", "fullScreen"].includes(action) || _fr0st_query.default.is(e.currentTarget, "[aria-disabled=\"true\"]")) return;
-				if (this.#lastRange && this.#editor.contains(this.#lastRange.startContainer) && this.#editor.contains(this.#lastRange.endContainer)) {
+				event.preventDefault();
+				event.stopPropagation();
+				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly && !["source", "fullScreen"].includes(action) || _fr0st_query.default.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+				if (this.#lastRange && containsNode(this.#editor, this.#lastRange.startContainer) && containsNode(this.#editor, this.#lastRange.endContainer)) {
 					const selection = window.getSelection();
 					selection.removeAllRanges();
 					selection.addRange(this.#lastRange);
 				}
 				this.constructor.plugins[action].action.call(this);
 			}, { delegate: "[data-ui-action]" });
-			this.listen(this.#toolbar, "click.ui.editor", (e) => {
-				if (this.node.matches(":disabled") || this.node.readOnly || e.currentTarget.matches("[aria-disabled=\"true\"]")) return;
-				const command = _fr0st_query.default.getDataset(e.currentTarget, "uiCommand");
+			this.listen(this.#toolbar, "click.ui.editor", (event) => {
+				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly || _fr0st_query.default.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+				const command = _fr0st_query.default.getDataset(event.currentTarget, "uiCommand");
 				if (!(command in this)) throw new Error(`Unknown command ${command}`);
-				e.preventDefault();
+				event.preventDefault();
 				if (this.#lastRange) {
 					const selection = window.getSelection();
 					selection.removeAllRanges();
 					selection.addRange(this.#lastRange);
 				}
-				const value = _fr0st_query.default.getDataset(e.currentTarget, "uiValue");
+				const value = _fr0st_query.default.getDataset(event.currentTarget, "uiValue");
 				this[command](value);
 				this.#refreshToolbar();
 			}, { delegate: "[data-ui-command]" });
@@ -2622,7 +2642,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#focusEditor();
 			if (!this.node) return;
 			this.#addHistory({
-				html: this.#editor.innerHTML,
+				html: _fr0st_query.default.getHtml(this.#editor),
 				selectionData: getSelectionData(this.#editor)
 			});
 			this.#observe(false);
@@ -2658,14 +2678,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.focus(this.#editor);
 			if (!this.node) return;
 			if (current) selectRange(current, backward);
-			else if (saved && this.#editor.contains(saved.startContainer) && this.#editor.contains(saved.endContainer)) selectRange(saved);
+			else if (saved && containsNode(this.#editor, saved.startContainer) && containsNode(this.#editor, saved.endContainer)) selectRange(saved);
 			else {
-				const range = document.createRange();
+				const range = _fr0st_query.default.createRange();
 				let target = this.#editor;
-				const opaque = (node) => node instanceof Element && node.matches("br, img, hr, iframe, input, video, audio, svg");
+				const opaque = (node) => _fr0st_query.default.is(node, "br, img, hr, iframe, input, video, audio, svg");
 				while (target.lastChild && !opaque(target)) target = target.lastChild;
 				if (opaque(target)) {
-					if (target.matches("br")) range.setStartBefore(target);
+					if (_fr0st_query.default.is(target, "br")) range.setStartBefore(target);
 					else range.setStartAfter(target);
 				} else range.selectNodeContents(target);
 				range.collapse(false);
@@ -2748,7 +2768,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				width: `${imgWidth + 2}px`,
 				height: `${imgHeight + 2}px`
 			});
-			this.#imgResize.setAttribute("aria-valuenow", String(imgWidth));
+			_fr0st_query.default.setAttribute(this.#imgResize, "aria-valuenow", String(imgWidth));
 			_fr0st_query.default.setText(this.#imgSize, `${imgWidth}x${imgHeight}`);
 			if (imgWidth < 100 || imgHeight < 50) _fr0st_query.default.hide(this.#imgSize);
 			else _fr0st_query.default.show(this.#imgSize);
@@ -2762,18 +2782,18 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#loadValue(reset = false) {
 			this.#observe(false);
 			try {
-				this.#editor.innerHTML = this.node.value;
+				_fr0st_query.default.setHtml(this.#editor, _fr0st_query.default.getValue(this.node));
 				this.#normalize();
 				this.#checkEmpty();
-				this.node.value = this.#editor.innerHTML;
-				this.#source.value = this.node.value;
+				_fr0st_query.default.setValue(this.node, _fr0st_query.default.getHtml(this.#editor));
+				_fr0st_query.default.setValue(this.#source, _fr0st_query.default.getValue(this.node));
 				this.#lastRange = null;
 				if (reset) {
 					this.#history = [];
 					this.#redoHistory = [];
 				}
-				if (this.#history.at(-1)?.html !== this.#editor.innerHTML) this.#redoHistory = [];
-				this.#addHistory({ html: this.#editor.innerHTML });
+				if (this.#history.at(-1)?.html !== _fr0st_query.default.getHtml(this.#editor)) this.#redoHistory = [];
+				this.#addHistory({ html: _fr0st_query.default.getHtml(this.#editor) });
 				this.#refreshDisabled();
 				this.#refreshToolbar();
 				this.#refreshLineNumbers();
@@ -2799,7 +2819,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				restoreSelection(markers);
 				normalizeText(this.#editor);
 				this.#observe();
-				if (active instanceof HTMLElement && active !== document.body && active.isConnected && !this.#editor?.contains(active) && document.activeElement !== active) active.focus({ preventScroll: true });
+				if (active instanceof window.HTMLElement && active !== document.body && active.isConnected && !containsNode(this.#editor, active) && document.activeElement !== active) active.focus({ preventScroll: true });
 			}
 		}
 		/**
@@ -2860,7 +2880,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					reject(/* @__PURE__ */ new Error("Editor is disposed."));
 					return;
 				}
-				const reader = new FileReader();
+				const reader = new window.FileReader();
 				this.#readers.add(reader);
 				const finish = () => {
 					this.#readers.delete(reader);
@@ -2890,7 +2910,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 		}
 		/**
-		* Refreshes the popover at cursor.
+		* Refreshes the popover at the cursor.
 		*/
 		#refreshCursor() {
 			const baseNode = window.getSelection().anchorNode;
@@ -2899,7 +2919,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				return;
 			}
 			const range = getRange(this.#editor);
-			if (this.#currentNode && range && (!range.collapsed && range.intersectsNode(this.#currentNode) || this.#currentNode.contains(baseNode))) return;
+			if (this.#currentNode && range && (!range.collapsed && range.intersectsNode(this.#currentNode) || containsNode(this.#currentNode, baseNode))) return;
 			const currentNode = _fr0st_query.default.is(baseNode, "a") ? baseNode : _fr0st_query.default.closest(baseNode, "a", this.#editor).shift();
 			if (!currentNode) {
 				this.#removePopover();
@@ -2908,25 +2928,25 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#refreshPopover(currentNode);
 		}
 		/**
-		* Refreshes the editor disabled.
+		* Synchronizes disabled, readonly, and accessible state.
 		*/
 		#refreshDisabled() {
-			const disabled = this.node.matches(":disabled");
+			const disabled = _fr0st_query.default.is(this.node, ":disabled");
 			const readOnly = this.node.readOnly;
 			if (disabled) _fr0st_query.default.addClass(this.#editor, this.constructor.classes.editorDisabled);
 			else _fr0st_query.default.removeClass(this.#editor, this.constructor.classes.editorDisabled);
-			this.#editor.setAttribute("contenteditable", String(!disabled && !readOnly));
-			this.#editor.setAttribute("tabindex", disabled ? "-1" : this.node.getAttribute("tabindex") || "0");
+			_fr0st_query.default.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
+			_fr0st_query.default.setAttribute(this.#editor, "tabindex", disabled ? "-1" : _fr0st_query.default.getAttribute(this.node, "tabindex") || "0");
 			this.#source.disabled = disabled;
 			this.#source.readOnly = readOnly;
 			for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
-				handle.setAttribute("tabindex", disabled || readOnly ? "-1" : "0");
-				handle.setAttribute("aria-disabled", String(disabled || readOnly));
+				_fr0st_query.default.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
+				_fr0st_query.default.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
 			}
 			for (const surface of [this.#editor, this.#source]) {
-				surface.setAttribute("aria-disabled", String(disabled));
-				surface.setAttribute("aria-readonly", String(readOnly));
-				surface.setAttribute("aria-required", String(this.node.required));
+				_fr0st_query.default.setAttribute(surface, "aria-disabled", String(disabled));
+				_fr0st_query.default.setAttribute(surface, "aria-readonly", String(readOnly));
+				_fr0st_query.default.setAttribute(surface, "aria-required", String(this.node.required));
 				for (const name of [
 					"aria-label",
 					"aria-labelledby",
@@ -2936,15 +2956,15 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					"dir",
 					"lang"
 				]) {
-					const value = this.node.getAttribute(name) || (name === "aria-labelledby" && !this.node.hasAttribute("aria-label") ? this.#labelledBy : null);
-					if (value) surface.setAttribute(name, value);
-					else surface.removeAttribute(name);
+					const value = _fr0st_query.default.getAttribute(this.node, name) || (name === "aria-labelledby" && !_fr0st_query.default.hasAttribute(this.node, "aria-label") ? this.#labelledBy : null);
+					if (value) _fr0st_query.default.setAttribute(surface, name, value);
+					else _fr0st_query.default.removeAttribute(surface, name);
 				}
 			}
-			this.#container.classList.toggle("form-error", this.node.classList.contains("form-error"));
+			_fr0st_query.default[_fr0st_query.default.hasClass(this.node, "form-error") ? "addClass" : "removeClass"](this.#container, "form-error");
 			if (disabled || readOnly) {
 				this.#removePopover();
-				for (const toggle of this.#toolbar.querySelectorAll("[data-ui-toggle=\"dropdown\"]")) _fr0st_ui.Dropdown.init(toggle).hide();
+				for (const toggle of _fr0st_query.default.find("[data-ui-toggle=\"dropdown\"]", this.#toolbar)) _fr0st_ui.Dropdown.init(toggle).hide();
 			}
 		}
 		/**
@@ -3004,7 +3024,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				});
 				reference = this.#imgCursor;
 			}
-			const originalPlacement = reference.getAttribute("data-ui-placement");
+			const originalPlacement = _fr0st_query.default.getAttribute(reference, "data-ui-placement");
 			this.#popper = new _fr0st_ui.Popper(this.#popover, {
 				reference,
 				arrow: this.#popoverArrow,
@@ -3013,9 +3033,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				position: "start",
 				minContact: 0,
 				afterUpdate: (_, anchor) => {
-					if (this.#editor?.contains(anchor)) {
-						if (originalPlacement === null) anchor.removeAttribute("data-ui-placement");
-						else anchor.setAttribute("data-ui-placement", originalPlacement);
+					if (containsNode(this.#editor, anchor)) {
+						if (originalPlacement === null) _fr0st_query.default.removeAttribute(anchor, "data-ui-placement");
+						else _fr0st_query.default.setAttribute(anchor, "data-ui-placement", originalPlacement);
 					}
 				}
 			});
@@ -3111,7 +3131,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#releaseDisplay = _fr0st_query.default.setStyleLock(this.node, "display", "none", { important: true });
 			_fr0st_query.default.setAttribute(this.node, { "aria-hidden": true });
 			_fr0st_query.default.insertBefore(this.#container, this.node);
-			if (this.#resizeBar) this.#resizeBar.setAttribute("aria-valuenow", String(Math.round(this.#editorBody.getBoundingClientRect().height)));
+			if (this.#resizeBar) _fr0st_query.default.setAttribute(this.#resizeBar, "aria-valuenow", String(Math.round(_fr0st_query.default.rect(this.#editorBody).height)));
 		}
 		/**
 		* Renders a button.
@@ -3360,7 +3380,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.append(buttonGroup, dropGroup);
 			this.#ownComponent(_fr0st_ui.Dropdown.init(button));
 			this.listen(document, "keydown.ui.editor", (event) => {
-				if (event.code === "Escape" && dropdown.contains(document.activeElement)) button.focus();
+				if (event.code === "Escape" && containsNode(dropdown, document.activeElement)) _fr0st_query.default.focus(button);
 			}, { capture: true });
 		}
 		/**
@@ -3391,7 +3411,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			} finally {
 				this.#observe();
 			}
-			if (this.node && previous !== this.node.value) _fr0st_query.default.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
+			if (this.node && previous !== _fr0st_query.default.getValue(this.node)) _fr0st_query.default.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 		}
 		/**
 		* Sets data for a toolbar action.
@@ -3450,17 +3470,17 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				content: container,
 				cancelText: this.constructor.lang.modals.cancel,
 				submitText: this.constructor.lang.modals.insertImage,
-				onSubmit: (_) => {
+				onSubmit: () => {
 					selectRange(range);
 					const files = _fr0st_query.default.getProperty(fileInput, "files");
 					const src = _fr0st_query.default.getValue(urlInput);
 					if (files.length) this.options.imageUpload.call(this, files);
 					else if (src) this.insertImage(src);
 				},
-				onShown: (_) => {
+				onShown: () => {
 					_fr0st_query.default.focus(fileInput);
 				},
-				onHidden: (_) => {
+				onHidden: () => {
 					this.#removeModal();
 					if (this.node) {
 						selectRange(originalRange);
@@ -3515,17 +3535,17 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				content: container,
 				cancelText: this.constructor.lang.modals.cancel,
 				submitText: this.constructor.lang.modals.insertLink,
-				onSubmit: (_) => {
+				onSubmit: () => {
 					selectRange(range);
 					const text = _fr0st_query.default.getValue(textInput);
 					const href = _fr0st_query.default.getValue(urlInput);
 					const newWindow = _fr0st_query.default.is(newWindowInput, ":checked");
 					this.insertLink(href, text, newWindow);
 				},
-				onShown: (_) => {
+				onShown: () => {
 					_fr0st_query.default.focus(urlInput);
 				},
-				onHidden: (_) => {
+				onHidden: () => {
 					this.#removeModal();
 					if (this.node) {
 						selectRange(originalRange);
@@ -3534,10 +3554,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				}
 			});
 			const controller = this.#ownComponent(_fr0st_ui.Modal.init(this.#modal));
-			controller.listen(textInput, "input.ui.editor", (_) => {
+			controller.listen(textInput, "input.ui.editor", () => {
 				hasText = !!_fr0st_query.default.getValue(textInput);
 			});
-			controller.listen(urlInput, "input.ui.editor", (_) => {
+			controller.listen(urlInput, "input.ui.editor", () => {
 				if (hasText) return;
 				const url = _fr0st_query.default.getValue(urlInput);
 				_fr0st_query.default.setValue(textInput, url);
@@ -3573,7 +3593,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				content: container,
 				cancelText: this.constructor.lang.modals.cancel,
 				submitText: this.constructor.lang.modals.insertVideo,
-				onSubmit: (_) => {
+				onSubmit: () => {
 					selectRange(range);
 					const url = _fr0st_query.default.getValue(urlInput);
 					let id;
@@ -3582,13 +3602,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						if (parsed.protocol === "https:" && (parsed.hostname === "youtu.be" || ["youtube.com", "www.youtube.com"].includes(parsed.hostname) && parsed.pathname === "/watch")) id = parsed.hostname === "youtu.be" ? parsed.pathname.slice(1) : parsed.searchParams.get("v");
 					} catch {}
 					if (!id || !/^[\w-]+$/.test(id)) {
-						urlInput.setAttribute("aria-invalid", "true");
+						_fr0st_query.default.setAttribute(urlInput, "aria-invalid", "true");
 						_fr0st_query.default.addClass(urlGroup, this.constructor.classes.formError);
 						_fr0st_query.default.setText(urlInvalidFeedback, this.constructor.lang.modals.videoUrlInvalid);
 						return false;
 					}
 					_fr0st_query.default.removeClass(urlGroup, this.constructor.classes.formError);
-					urlInput.removeAttribute("aria-invalid");
+					_fr0st_query.default.removeAttribute(urlInput, "aria-invalid");
 					const video = _fr0st_query.default.create("iframe", { attributes: {
 						width: 560,
 						height: 315,
@@ -3600,10 +3620,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					const html = _fr0st_query.default.getProperty(video, "outerHTML");
 					this.insertHtml(html);
 				},
-				onShown: (_) => {
+				onShown: () => {
 					_fr0st_query.default.focus(urlInput);
 				},
-				onHidden: (_) => {
+				onHidden: () => {
 					this.#removeModal();
 					if (this.node) {
 						selectRange(originalRange);
@@ -3674,9 +3694,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.addClass(dropdown, this.constructor.classes.tableDropdown);
 			_fr0st_query.default.append(dropdown, container);
 			_fr0st_query.default.append(dropdown, info);
-			this.listen(container, "click.ui.editor", (e) => {
-				const cols = _fr0st_query.default.getDataset(e.currentTarget, "uiColumn");
-				const rows = _fr0st_query.default.getDataset(e.currentTarget, "uiRow");
+			this.listen(container, "click.ui.editor", (event) => {
+				const cols = _fr0st_query.default.getDataset(event.currentTarget, "uiColumn");
+				const rows = _fr0st_query.default.getDataset(event.currentTarget, "uiRow");
 				const container = _fr0st_query.default.create("div");
 				const table = _fr0st_query.default.create("table", { class: this.constructor.classes.table });
 				const tbody = _fr0st_query.default.create("tbody");
@@ -3695,9 +3715,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				const html = _fr0st_query.default.getHtml(container);
 				this.insertHtml(html);
 			}, { delegate: "button" });
-			this.listen(container, "mouseover.ui.editor focusin.ui.editor", (e) => {
-				const targetCol = _fr0st_query.default.getDataset(e.currentTarget, "uiColumn");
-				const targetRow = _fr0st_query.default.getDataset(e.currentTarget, "uiRow");
+			this.listen(container, "mouseover.ui.editor focusin.ui.editor", (event) => {
+				const targetCol = _fr0st_query.default.getDataset(event.currentTarget, "uiColumn");
+				const targetRow = _fr0st_query.default.getDataset(event.currentTarget, "uiRow");
 				const colMin = Math.max(targetCol + 1, 4);
 				const rowMin = Math.max(targetRow + 1, 4);
 				const links = _fr0st_query.default.find("button", container);
@@ -3719,12 +3739,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {(cell: HTMLTableCellElement, row: HTMLTableRowElement, table: HTMLTableElement) => void} callback The callback.
 		*/
 		#updateTable(td, callback) {
-			const table = td.closest("table");
-			if (!table || !this.#editor.contains(table)) return;
+			const table = _fr0st_query.default.closest(td, "table")[0];
+			if (!table || !containsNode(this.#editor, table)) return;
 			this.#observe(false);
 			try {
-				callback(td, td.closest("tr"), table);
-				if (this.#editor.contains(td)) selectNode(td).collapse(true);
+				callback(td, _fr0st_query.default.closest(td, "tr")[0], table);
+				if (containsNode(this.#editor, td)) selectNode(td).collapse(true);
 				this.#normalize();
 				this.#updateValue();
 			} finally {
@@ -3751,9 +3771,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 			_fr0st_query.default.setValue(this.node, html);
 			_fr0st_query.default.setValue(this.#source, html);
-			if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
-				this.#editor.removeAttribute("aria-invalid");
-				this.#source.removeAttribute("aria-invalid");
+			if (this.node.validity.valid && !_fr0st_query.default.hasAttribute(this.node, "aria-invalid")) {
+				_fr0st_query.default.removeAttribute(this.#editor, "aria-invalid");
+				_fr0st_query.default.removeAttribute(this.#source, "aria-invalid");
 			}
 			_fr0st_query.default.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 		}
@@ -3767,7 +3787,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#checkEmpty();
 				this.#updateValue();
 			});
-			this.#observer = new MutationObserver((records) => {
+			this.#observer = new window.MutationObserver((records) => {
 				if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) changed();
 			});
 			this.#observe();

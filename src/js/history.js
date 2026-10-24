@@ -1,5 +1,10 @@
 /** @import { EditorSelectionData } from './types.js'; */
 
+import $ from '@fr0st/query';
+import { containsNode } from './helpers.js';
+
+const window = $.getWindow();
+
 /**
  * Gets a descendant by its child indexes, returning null for stale paths.
  * @param {number[]} path The child indexes.
@@ -41,7 +46,7 @@ function getPathToNode(node, container) {
 export function getSelectionData(container) {
     const { anchorNode, anchorOffset, focusNode, focusOffset } = window.getSelection();
 
-    if (!anchorNode || !focusNode || !container.contains(anchorNode) || !container.contains(focusNode)) {
+    if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) {
         return null;
     }
 
@@ -62,7 +67,7 @@ export function restoreSelectionData(container, selectionData) {
     const selection = window.getSelection();
     const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
     const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
-    const length = (node) => node.nodeType === Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+    const length = (node) => node.nodeType === window.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
 
     if (anchor && focus) {
         selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)),

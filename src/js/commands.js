@@ -1,4 +1,8 @@
+import $ from '@fr0st/query';
+import { containsNode } from './helpers.js';
 import { isPhrasingContent } from './normalize.js';
+
+const window = $.getWindow();
 
 /**
  * Tests whether a range includes content inside a block rather than just its boundary.
@@ -8,7 +12,7 @@ import { isPhrasingContent } from './normalize.js';
  */
 function intersects(range, block) {
     if (range.collapsed) {
-        return block === range.startContainer || block.contains(range.startContainer);
+        return containsNode(block, range.startContainer);
     }
 
     const start = range.cloneRange();
@@ -17,7 +21,7 @@ function intersects(range, block) {
     start.collapse(true);
     end.collapse(false);
 
-    const blockStart = document.createRange();
+    const blockStart = $.createRange();
 
     blockStart.selectNodeContents(block);
 
@@ -26,23 +30,23 @@ function intersects(range, block) {
     blockStart.collapse(true);
     blockEnd.collapse(false);
 
-    if (start.compareBoundaryPoints(Range.START_TO_START, blockEnd) >= 0 ||
-        end.compareBoundaryPoints(Range.START_TO_START, blockStart) <= 0) {
+    if (start.compareBoundaryPoints(window.Range.START_TO_START, blockEnd) >= 0 ||
+        end.compareBoundaryPoints(window.Range.START_TO_START, blockStart) <= 0) {
         return false;
     }
 
     const overlap = range.cloneRange();
 
-    if (start.compareBoundaryPoints(Range.START_TO_START, blockStart) < 0) {
+    if (start.compareBoundaryPoints(window.Range.START_TO_START, blockStart) < 0) {
         overlap.setStart(block, 0);
     }
 
-    if (end.compareBoundaryPoints(Range.START_TO_START, blockEnd) > 0) {
+    if (end.compareBoundaryPoints(window.Range.START_TO_START, blockEnd) > 0) {
         overlap.setEnd(block, block.childNodes.length);
     }
 
     return Boolean(overlap.toString() ||
-        [...block.querySelectorAll('br, img, hr, iframe, video, audio, svg, input')].some((node) => overlap.intersectsNode(node)) ||
+        $.find('br, img, hr, iframe, video, audio, svg, input', block).some((node) => overlap.intersectsNode(node)) ||
         !block.childNodes.length);
 }
 
@@ -53,12 +57,12 @@ function intersects(range, block) {
  * @returns {HTMLElement[]} The selected blocks or sibling list items.
  */
 export function getSelectedBlocks(root, range) {
-    const anchor = range.startContainer.nodeType === Node.ELEMENT_NODE ?
+    const anchor = range.startContainer.nodeType === window.Node.ELEMENT_NODE ?
         range.startContainer : range.startContainer.parentElement;
-    const item = anchor.closest('li');
+    const item = $.closest(anchor, 'li')[0];
 
-    if (item && root.contains(item)) {
-        return [...item.parentElement.children].filter((node) => node.matches('li') && intersects(range, node));
+    if (item && containsNode(root, item)) {
+        return [...item.parentElement.children].filter((node) => $.is(node, 'li') && intersects(range, node));
     }
 
     const blocks = [];
@@ -68,8 +72,8 @@ export function getSelectedBlocks(root, range) {
                 continue;
             }
 
-            if (child.matches('p, h1, h2, h3, h4, h5, h6, pre, li') ||
-                (child.matches('div, blockquote, td, th') && [...child.childNodes].every(isPhrasingContent))) {
+            if ($.is(child, 'p, h1, h2, h3, h4, h5, h6, pre, li') ||
+                ($.is(child, 'div, blockquote, td, th') && [...child.childNodes].every(isPhrasingContent))) {
                 if (intersects(range, child)) {
                     blocks.push(child);
                 }
@@ -89,8 +93,8 @@ export function getSelectedBlocks(root, range) {
  * @param {HTMLElement} node The container.
  */
 function removeEmpty(node) {
-    if (!node.children.length && !node.textContent.trim()) {
-        node.replaceWith(...node.childNodes);
+    if (!node.children.length && !$.getText(node).trim()) {
+        $.replaceWith(node, node.childNodes);
     }
 }
 
@@ -102,30 +106,30 @@ export function indentBlocks(blocks) {
     const first = blocks[0];
     const parent = first.parentElement;
 
-    if (first.matches('li')) {
+    if ($.is(first, 'li')) {
         const previous = first.previousElementSibling;
 
-        if (!previous?.matches('li')) {
+        if (!$.is(previous, 'li')) {
             return;
         }
 
         let list = previous.lastElementChild;
 
         if (!list || list.tagName !== parent.tagName) {
-            list = document.createElement(parent.localName);
-            previous.append(list);
+            list = $.create(parent.localName);
+            $.append(previous, list);
         }
 
-        list.append(...blocks);
+        $.append(list, blocks);
 
         return;
     }
 
-    const wrapper = document.createElement('div');
+    const wrapper = $.create('div');
 
-    wrapper.style.marginInlineStart = '2em';
-    first.before(wrapper);
-    wrapper.append(...blocks);
+    $.setStyle(wrapper, 'marginInlineStart', '2em');
+    $.before(first, wrapper);
+    $.append(wrapper, blocks);
 }
 
 /**
@@ -135,43 +139,43 @@ export function indentBlocks(blocks) {
 function outdentItems(blocks) {
     const list = blocks[0].parentElement;
     const parentItem = list.parentElement;
-    const following = list.cloneNode(false);
+    const following = $.clone(list, { deep: false })[0];
 
-    following.removeAttribute('id');
+    $.removeAttribute(following, 'id');
 
     while (blocks.at(-1).nextSibling) {
-        following.append(blocks.at(-1).nextSibling);
+        $.append(following, blocks.at(-1).nextSibling);
     }
 
-    if (parentItem.matches('li')) {
+    if ($.is(parentItem, 'li')) {
         if (following.children.length) {
-            blocks.at(-1).append(following);
+            $.append(blocks.at(-1), following);
         }
 
-        parentItem.after(...blocks);
+        $.after(parentItem, blocks);
     } else {
-        const content = document.createDocumentFragment();
+        const content = $.createFragment();
 
         for (const item of blocks) {
-            const paragraph = document.createElement('p');
+            const paragraph = $.create('p');
 
             while (item.firstChild && isPhrasingContent(item.firstChild)) {
-                paragraph.append(item.firstChild);
+                $.append(paragraph, item.firstChild);
             }
 
             if (paragraph.childNodes.length) {
-                content.append(paragraph);
+                $.append(content, paragraph);
             }
 
-            content.append(...item.childNodes);
-            item.remove();
+            $.append(content, item.childNodes);
+            $.remove(item);
         }
 
         if (following.children.length) {
-            content.append(following);
+            $.append(content, following);
         }
 
-        list.after(content);
+        $.after(list, content);
     }
 
     removeEmpty(list);
@@ -183,7 +187,7 @@ function outdentItems(blocks) {
  * @param {HTMLElement} root The editing boundary.
  */
 export function outdentBlocks(blocks, root) {
-    if (blocks[0].matches('li')) {
+    if ($.is(blocks[0], 'li')) {
         outdentItems(blocks);
 
         return;
@@ -194,7 +198,7 @@ export function outdentBlocks(blocks, root) {
     for (const block of blocks) {
         let wrapper = block;
 
-        while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginInlineStart || wrapper.style.marginLeft) > 0)) {
+        while (wrapper && wrapper !== root && !(parseFloat($.getStyle(wrapper, 'marginInlineStart') || $.getStyle(wrapper, 'marginLeft')) > 0)) {
             wrapper = wrapper.parentElement;
         }
 
@@ -205,20 +209,20 @@ export function outdentBlocks(blocks, root) {
 
     for (const wrapper of wrappers) {
         const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) =>
-            block === node || node.contains(block)));
+            containsNode(node, block)));
 
         if (blocks.includes(wrapper)) {
-            wrapper.replaceWith(...wrapper.childNodes);
+            $.replaceWith(wrapper, wrapper.childNodes);
         } else if (selected.length) {
-            const following = wrapper.cloneNode(false);
+            const following = $.clone(wrapper, { deep: false })[0];
 
-            following.removeAttribute('id');
+            $.removeAttribute(following, 'id');
 
             while (selected.at(-1).nextSibling) {
-                following.append(selected.at(-1).nextSibling);
+                $.append(following, selected.at(-1).nextSibling);
             }
 
-            wrapper.after(...selected, following);
+            $.after(wrapper, [...selected, following]);
             removeEmpty(wrapper);
             removeEmpty(following);
         }

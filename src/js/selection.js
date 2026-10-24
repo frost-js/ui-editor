@@ -1,6 +1,9 @@
 /** @import { EditorSelectionMarkers } from './types.js'; */
 
 import $ from '@fr0st/query';
+import { containsNode } from './helpers.js';
+
+const window = $.getWindow();
 
 /**
  * Gets the current range, optionally restricted to an editing boundary.
@@ -16,7 +19,7 @@ export function getRange(container = null) {
 
     const range = selection.getRangeAt(0);
 
-    return !container || (container.contains(range.startContainer) && container.contains(range.endContainer)) ? range : null;
+    return !container || (containsNode(container, range.startContainer) && containsNode(container, range.endContainer)) ? range : null;
 }
 
 /**
@@ -25,8 +28,8 @@ export function getRange(container = null) {
  */
 export function restoreSelection({ start, end, backward = false } = {}) {
     if (!start?.isConnected || !end?.isConnected) {
-        start?.remove();
-        end?.remove();
+        $.remove(start);
+        $.remove(end);
 
         return;
     }
@@ -35,8 +38,8 @@ export function restoreSelection({ start, end, backward = false } = {}) {
 
     range.setStartAfter(start);
     range.setEndBefore(end);
-    start.remove();
-    end.remove();
+    $.remove(start);
+    $.remove(end);
 
     const selection = window.getSelection();
 

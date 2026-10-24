@@ -5,6 +5,8 @@
 import $ from '@fr0st/query';
 import { generateId, Modal } from '@fr0st/ui';
 
+const document = $.getContext();
+
 /**
  * Creates a form checkbox.
  * @param {typeof Editor} Component The component class.
@@ -121,7 +123,7 @@ export function createInput(Component, options) {
     $.append(inputContainer, input);
     $.append(group, inputContainer);
     invalidFeedback.id = `${options.id}-error`;
-    input.setAttribute('aria-describedby', invalidFeedback.id);
+    $.setAttribute(input, 'aria-describedby', invalidFeedback.id);
     $.append(group, invalidFeedback);
 
     return { group, input, invalidFeedback };
@@ -174,7 +176,7 @@ export function createModal(Component, options) {
         });
 
         modalTitle.id = generateId('editor-dialog');
-        modal.setAttribute('aria-labelledby', modalTitle.id);
+        $.setAttribute(modal, 'aria-labelledby', modalTitle.id);
         $.append(modalHeader, modalTitle);
     }
 
@@ -236,10 +238,10 @@ export function createModal(Component, options) {
     const controller = Modal.init(modal);
 
     if (options.onSubmit) {
-        controller.listen(modalContent, 'submit', (e) => {
-            e.preventDefault();
+        controller.listen(modalContent, 'submit', (event) => {
+            event.preventDefault();
 
-            if (options.onSubmit(e) === false) {
+            if (options.onSubmit(event) === false) {
                 return;
             }
 
@@ -248,20 +250,20 @@ export function createModal(Component, options) {
     }
 
     if ('onShow' in options) {
-        controller.listen(modal, 'show.ui.modal', (e) => {
-            options.onShow(e);
+        controller.listen(modal, 'show.ui.modal', (event) => {
+            options.onShow(event);
         });
     }
 
     if ('onShown' in options) {
-        controller.listen(modal, 'shown.ui.modal', (e) => {
-            options.onShown(e);
+        controller.listen(modal, 'shown.ui.modal', (event) => {
+            options.onShown(event);
         });
     }
 
     if ('onHide' in options) {
-        controller.listen(modal, 'hide.ui.modal', (e) => {
-            options.onHide(e);
+        controller.listen(modal, 'hide.ui.modal', (event) => {
+            options.onHide(event);
         });
     }
 

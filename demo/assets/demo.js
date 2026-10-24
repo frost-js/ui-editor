@@ -39,10 +39,12 @@ $.ready(() => {
 
     const requestedTheme = new URLSearchParams(location.search).get('theme');
     const initialTheme = requestedTheme || storedTheme;
+
     setTheme(['light', 'dark'].includes(initialTheme) ? initialTheme : 'system');
 
     $('[data-demo-theme]').addEvent('change', (event) => {
         const theme = $.getValue(event.currentTarget);
+
         setTheme(theme);
 
         try {
@@ -63,10 +65,10 @@ $.ready(() => {
             this.insertText('Hello from a custom plugin! ');
         },
     };
-    Editor.init(document.querySelector('#compact-editor'), {
+    Editor.init($.findOne('#compact-editor'), {
         buttons: [['bold', 'italic', 'underline'], ['source']],
     });
-    Editor.init(document.querySelector('#custom-editor'), {
+    Editor.init($.findOne('#custom-editor'), {
         buttons: [
             ['style', 'font', 'fontSize', 'color'],
             ['bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript', 'removeFormat'],
@@ -76,11 +78,11 @@ $.ready(() => {
         ],
     });
 
-    Editor.init(document.querySelector('#upload-editor'), {
+    Editor.init($.findOne('#upload-editor'), {
         async imageUpload(files) {
-            const status = document.querySelector('#upload-status');
+            const status = $.findOne('#upload-status');
 
-            status.textContent = 'Reading images…';
+            $.setText(status, 'Reading images…');
 
             let inserted = 0;
 
@@ -106,62 +108,64 @@ $.ready(() => {
                     inserted++;
                 }
 
-                status.textContent = `Inserted ${inserted} image(s). No files were sent to a server.`;
+                $.setText(status, `Inserted ${inserted} image(s). No files were sent to a server.`);
             } catch (error) {
                 if (this.node) {
-                    status.textContent = `Image upload failed: ${error.message}`;
+                    $.setText(status, `Image upload failed: ${error.message}`);
                 }
             }
         },
     });
 
-    const methodNode = document.querySelector('#methods-editor');
+    const methodNode = $.findOne('#methods-editor');
 
     $.addEvent(methodNode, 'init.ui.editor change.ui.editor focus.ui.editor blur.ui.editor', (event) => {
-        logEvent(`${event.type}.ui.editor — ${methodNode.value}`);
+        logEvent(`${event.type}.ui.editor — ${$.getValue(methodNode)}`);
     });
     // Explicit initialization is required; data attributes only configure options.
     $('[data-demo-editor]').editor();
 
     let methodInstance = Editor.init(methodNode);
 
-    document.querySelector('#document-form').addEventListener('submit', (event) => {
+    $('#document-form').addEvent('submit', (event) => {
         event.preventDefault();
 
         const value = new FormData(event.currentTarget).get('document');
 
-        document.querySelector('#form-output').textContent = value === null ?
-            'The disabled document is omitted from FormData.' : value;
+        $('#form-output').setText(value === null ?
+            'The disabled document is omitted from FormData.' : value);
     });
-    document.querySelector('#document-form').addEventListener('reset', () => {
-        document.querySelector('#form-output').textContent = 'Reset to the original document.';
+    $('#document-form').addEvent('reset', () => {
+        $('#form-output').setText('Reset to the original document.');
     });
-    document.querySelector('#toggle-disabled').addEventListener('click', (event) => {
-        const fieldset = document.querySelector('#document-fieldset');
+    $('#toggle-disabled').addEvent('click', (event) => {
+        const fieldset = $.findOne('#document-fieldset');
 
-        fieldset.disabled = !fieldset.disabled;
-        event.currentTarget.textContent = fieldset.disabled ? 'Enable fieldset' : 'Disable fieldset';
+        const disabled = !$.getProperty(fieldset, 'disabled');
+
+        $.setProperty(fieldset, 'disabled', disabled);
+        $.setText(event.currentTarget, disabled ? 'Enable fieldset' : 'Disable fieldset');
     });
-    document.querySelector('#clear-log').addEventListener('click', () => {
-        document.querySelector('#event-log').replaceChildren();
+    $('#clear-log').addEvent('click', () => {
+        $('#event-log').empty();
     });
 
-    for (const button of document.querySelectorAll('[data-demo-method]')) {
+    for (const button of $.find('[data-demo-method]')) {
         // Preserve the editing selection when invoking a method with the pointer.
-        button.addEventListener('mousedown', (event) => event.preventDefault());
-        button.addEventListener('click', () => {
-            const method = button.dataset.demoMethod;
-            const output = document.querySelector('#method-output');
+        $.addEvent(button, 'mousedown', (event) => event.preventDefault());
+        $.addEvent(button, 'click', () => {
+            const method = $.getDataset(button, 'demoMethod');
+            const output = $.findOne('#method-output');
 
             if (method === 'init') {
                 methodInstance = Editor.init(methodNode);
-                output.textContent = 'Initialized.';
+                $.setText(output, 'Initialized.');
 
                 return;
             }
 
             if (!methodInstance) {
-                output.textContent = 'Use Init to create an instance first.';
+                $.setText(output, 'Use Init to create an instance first.');
 
                 return;
             }
@@ -169,17 +173,17 @@ $.ready(() => {
             if (method === 'dispose') {
                 methodInstance.dispose();
                 methodInstance = null;
-                output.textContent = 'Disposed. The native textarea is restored.';
+                $.setText(output, 'Disposed. The native textarea is restored.');
 
                 return;
             }
 
             if (method === 'refresh') {
-                methodNode.value = '<h2>Loaded with refresh()</h2><p>A programmatic update.</p>';
+                $.setValue(methodNode, '<h2>Loaded with refresh()</h2><p>A programmatic update.</p>');
             }
 
             methodInstance[method](...(method === 'insertText' ? ['Text from the API. '] : []));
-            output.textContent = `${method}() called.`;
+            $.setText(output, `${method}() called.`);
         });
     }
 });

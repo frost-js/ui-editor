@@ -1,6 +1,17 @@
 import { BaseComponent, Dropdown, Modal, Popper, Tooltip, generateId, initComponent } from "@fr0st/ui";
 import $ from "@fr0st/query";
 
+// src/js/helpers.js
+/**
+* Checks whether a node is the parent itself or one of its descendants.
+* @param {Node|null|undefined} parent The parent node.
+* @param {Node|null|undefined} node The node to check.
+* @returns {boolean} Whether the parent contains the node.
+*/
+function containsNode(parent, node) {
+	return Boolean(parent && node) && ($.isSame(parent, node) || $.hasDescendent(parent, node));
+}
+
 // src/js/normalize.js
 /** @import { EditorSelectionMarkers } from './types.js'; */
 var transparent = "rgba(0, 0, 0, 0)";
@@ -95,7 +106,7 @@ function joinAdjacentNodes(container, markers) {
 	const elements = $.find("*", container);
 	const isMarker = (node) => node === markers.start || node === markers.end;
 	for (const element of elements) {
-		if (!container.contains(element) || !isPhrasingContainer(element)) continue;
+		if (!containsNode(container, element) || !isPhrasingContainer(element)) continue;
 		const moveMarkers = [];
 		let next = element.nextSibling;
 		while (next && isMarker(next)) {
@@ -114,7 +125,7 @@ function joinAdjacentNodes(container, markers) {
 function normalizePhrasing(container) {
 	const elements = $.find("h1, h2, h3, h4, h5, h6, p, pre", container);
 	for (const element of elements) {
-		if (!container.contains(element)) continue;
+		if (!containsNode(container, element)) continue;
 		const contents = $.contents(element);
 		if (!contents.length) continue;
 		for (const [i, child] of contents.entries()) {
@@ -205,6 +216,7 @@ function normalizeStyles(container) {
 }
 
 // src/js/commands.js
+var window$4 = $.getWindow();
 /**
 * Tests whether a range includes content inside a block rather than just its boundary.
 * @param {Range} range The selected range.
@@ -212,21 +224,21 @@ function normalizeStyles(container) {
 * @returns {boolean} Whether the block contains selected content.
 */
 function intersects(range, block) {
-	if (range.collapsed) return block === range.startContainer || block.contains(range.startContainer);
+	if (range.collapsed) return containsNode(block, range.startContainer);
 	const start = range.cloneRange();
 	const end = range.cloneRange();
 	start.collapse(true);
 	end.collapse(false);
-	const blockStart = document.createRange();
+	const blockStart = $.createRange();
 	blockStart.selectNodeContents(block);
 	const blockEnd = blockStart.cloneRange();
 	blockStart.collapse(true);
 	blockEnd.collapse(false);
-	if (start.compareBoundaryPoints(Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(Range.START_TO_START, blockStart) <= 0) return false;
+	if (start.compareBoundaryPoints(window$4.Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(window$4.Range.START_TO_START, blockStart) <= 0) return false;
 	const overlap = range.cloneRange();
-	if (start.compareBoundaryPoints(Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
-	if (end.compareBoundaryPoints(Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
-	return Boolean(overlap.toString() || [...block.querySelectorAll("br, img, hr, iframe, video, audio, svg, input")].some((node) => overlap.intersectsNode(node)) || !block.childNodes.length);
+	if (start.compareBoundaryPoints(window$4.Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
+	if (end.compareBoundaryPoints(window$4.Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
+	return Boolean(overlap.toString() || $.find("br, img, hr, iframe, video, audio, svg, input", block).some((node) => overlap.intersectsNode(node)) || !block.childNodes.length);
 }
 /**
 * Gets the block units affected by a selection.
@@ -235,13 +247,14 @@ function intersects(range, block) {
 * @returns {HTMLElement[]} The selected blocks or sibling list items.
 */
 function getSelectedBlocks(root, range) {
-	const item = (range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement).closest("li");
-	if (item && root.contains(item)) return [...item.parentElement.children].filter((node) => node.matches("li") && intersects(range, node));
+	const anchor = range.startContainer.nodeType === window$4.Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+	const item = $.closest(anchor, "li")[0];
+	if (item && containsNode(root, item)) return [...item.parentElement.children].filter((node) => $.is(node, "li") && intersects(range, node));
 	const blocks = [];
 	const visit = (parent) => {
 		for (const child of [...parent.children]) {
 			if (!range.intersectsNode(child)) continue;
-			if (child.matches("p, h1, h2, h3, h4, h5, h6, pre, li") || child.matches("div, blockquote, td, th") && [...child.childNodes].every(isPhrasingContent)) {
+			if ($.is(child, "p, h1, h2, h3, h4, h5, h6, pre, li") || $.is(child, "div, blockquote, td, th") && [...child.childNodes].every(isPhrasingContent)) {
 				if (intersects(range, child)) blocks.push(child);
 			} else visit(child);
 		}
@@ -254,7 +267,7 @@ function getSelectedBlocks(root, range) {
 * @param {HTMLElement} node The container.
 */
 function removeEmpty(node) {
-	if (!node.children.length && !node.textContent.trim()) node.replaceWith(...node.childNodes);
+	if (!node.children.length && !$.getText(node).trim()) $.replaceWith(node, node.childNodes);
 }
 /**
 * Indents sibling blocks or list items.
@@ -263,21 +276,21 @@ function removeEmpty(node) {
 function indentBlocks(blocks) {
 	const first = blocks[0];
 	const parent = first.parentElement;
-	if (first.matches("li")) {
+	if ($.is(first, "li")) {
 		const previous = first.previousElementSibling;
-		if (!previous?.matches("li")) return;
+		if (!$.is(previous, "li")) return;
 		let list = previous.lastElementChild;
 		if (!list || list.tagName !== parent.tagName) {
-			list = document.createElement(parent.localName);
-			previous.append(list);
+			list = $.create(parent.localName);
+			$.append(previous, list);
 		}
-		list.append(...blocks);
+		$.append(list, blocks);
 		return;
 	}
-	const wrapper = document.createElement("div");
-	wrapper.style.marginInlineStart = "2em";
-	first.before(wrapper);
-	wrapper.append(...blocks);
+	const wrapper = $.create("div");
+	$.setStyle(wrapper, "marginInlineStart", "2em");
+	$.before(first, wrapper);
+	$.append(wrapper, blocks);
 }
 /**
 * Moves list items out of one nesting level, retaining following items as children.
@@ -286,23 +299,23 @@ function indentBlocks(blocks) {
 function outdentItems(blocks) {
 	const list = blocks[0].parentElement;
 	const parentItem = list.parentElement;
-	const following = list.cloneNode(false);
-	following.removeAttribute("id");
-	while (blocks.at(-1).nextSibling) following.append(blocks.at(-1).nextSibling);
-	if (parentItem.matches("li")) {
-		if (following.children.length) blocks.at(-1).append(following);
-		parentItem.after(...blocks);
+	const following = $.clone(list, { deep: false })[0];
+	$.removeAttribute(following, "id");
+	while (blocks.at(-1).nextSibling) $.append(following, blocks.at(-1).nextSibling);
+	if ($.is(parentItem, "li")) {
+		if (following.children.length) $.append(blocks.at(-1), following);
+		$.after(parentItem, blocks);
 	} else {
-		const content = document.createDocumentFragment();
+		const content = $.createFragment();
 		for (const item of blocks) {
-			const paragraph = document.createElement("p");
-			while (item.firstChild && isPhrasingContent(item.firstChild)) paragraph.append(item.firstChild);
-			if (paragraph.childNodes.length) content.append(paragraph);
-			content.append(...item.childNodes);
-			item.remove();
+			const paragraph = $.create("p");
+			while (item.firstChild && isPhrasingContent(item.firstChild)) $.append(paragraph, item.firstChild);
+			if (paragraph.childNodes.length) $.append(content, paragraph);
+			$.append(content, item.childNodes);
+			$.remove(item);
 		}
-		if (following.children.length) content.append(following);
-		list.after(content);
+		if (following.children.length) $.append(content, following);
+		$.after(list, content);
 	}
 	removeEmpty(list);
 }
@@ -312,24 +325,24 @@ function outdentItems(blocks) {
 * @param {HTMLElement} root The editing boundary.
 */
 function outdentBlocks(blocks, root) {
-	if (blocks[0].matches("li")) {
+	if ($.is(blocks[0], "li")) {
 		outdentItems(blocks);
 		return;
 	}
 	const wrappers = /* @__PURE__ */ new Set();
 	for (const block of blocks) {
 		let wrapper = block;
-		while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginInlineStart || wrapper.style.marginLeft) > 0)) wrapper = wrapper.parentElement;
+		while (wrapper && wrapper !== root && !(parseFloat($.getStyle(wrapper, "marginInlineStart") || $.getStyle(wrapper, "marginLeft")) > 0)) wrapper = wrapper.parentElement;
 		if (wrapper && wrapper !== root) wrappers.add(wrapper);
 	}
 	for (const wrapper of wrappers) {
-		const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) => block === node || node.contains(block)));
-		if (blocks.includes(wrapper)) wrapper.replaceWith(...wrapper.childNodes);
+		const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) => containsNode(node, block)));
+		if (blocks.includes(wrapper)) $.replaceWith(wrapper, wrapper.childNodes);
 		else if (selected.length) {
-			const following = wrapper.cloneNode(false);
-			following.removeAttribute("id");
-			while (selected.at(-1).nextSibling) following.append(selected.at(-1).nextSibling);
-			wrapper.after(...selected, following);
+			const following = $.clone(wrapper, { deep: false })[0];
+			$.removeAttribute(following, "id");
+			while (selected.at(-1).nextSibling) $.append(following, selected.at(-1).nextSibling);
+			$.after(wrapper, [...selected, following]);
 			removeEmpty(wrapper);
 			removeEmpty(following);
 		}
@@ -506,6 +519,7 @@ var lang = {
 
 // src/js/history.js
 /** @import { EditorSelectionData } from './types.js'; */
+var window$3 = $.getWindow();
 /**
 * Gets a descendant by its child indexes, returning null for stale paths.
 * @param {number[]} path The child indexes.
@@ -537,8 +551,8 @@ function getPathToNode(node, container) {
 * @returns {EditorSelectionData|null} The saved selection.
 */
 function getSelectionData(container) {
-	const { anchorNode, anchorOffset, focusNode, focusOffset } = window.getSelection();
-	if (!anchorNode || !focusNode || !container.contains(anchorNode) || !container.contains(focusNode)) return null;
+	const { anchorNode, anchorOffset, focusNode, focusOffset } = window$3.getSelection();
+	if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
 	return {
 		anchorPath: getPathToNode(anchorNode, container),
 		anchorOffset,
@@ -552,10 +566,10 @@ function getSelectionData(container) {
 * @param {EditorSelectionData|null} selectionData The saved selection.
 */
 function restoreSelectionData(container, selectionData) {
-	const selection = window.getSelection();
+	const selection = window$3.getSelection();
 	const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
 	const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
-	const length = (node) => node.nodeType === Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+	const length = (node) => node.nodeType === window$3.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
 	if (anchor && focus) selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)), focus, Math.min(selectionData.focusOffset, length(focus)));
 	else {
 		selection.selectAllChildren(container);
@@ -609,6 +623,7 @@ var icons_default = {
 // src/js/modals.js
 /** @import Editor from './editor.js'; */
 /** @import { EditorInputOptions, EditorInputElements, EditorModalOptions } from './types.js'; */
+var document$2 = $.getContext();
 /**
 * Creates a form checkbox.
 * @param {typeof Editor} Component The component class.
@@ -694,7 +709,7 @@ function createInput(Component, options) {
 	$.append(inputContainer, input);
 	$.append(group, inputContainer);
 	invalidFeedback.id = `${options.id}-error`;
-	input.setAttribute("aria-describedby", invalidFeedback.id);
+	$.setAttribute(input, "aria-describedby", invalidFeedback.id);
 	$.append(group, invalidFeedback);
 	return {
 		group,
@@ -709,7 +724,7 @@ function createInput(Component, options) {
 * @returns {HTMLElement} The modal element.
 */
 function createModal(Component, options) {
-	const returnFocus = options.returnFocus || document.activeElement;
+	const returnFocus = options.returnFocus || document$2.activeElement;
 	const modal = $.create("div", {
 		class: Component.classes.modal,
 		attributes: {
@@ -732,7 +747,7 @@ function createModal(Component, options) {
 			text: options.title
 		});
 		modalTitle.id = generateId("editor-dialog");
-		modal.setAttribute("aria-labelledby", modalTitle.id);
+		$.setAttribute(modal, "aria-labelledby", modalTitle.id);
 		$.append(modalHeader, modalTitle);
 	}
 	const closeBtn = $.create("button", {
@@ -766,21 +781,21 @@ function createModal(Component, options) {
 		});
 		$.append(modalFooter, submitButton);
 	}
-	$.append(document.body, modal);
+	$.append(document$2.body, modal);
 	const controller = Modal.init(modal);
-	if (options.onSubmit) controller.listen(modalContent, "submit", (e) => {
-		e.preventDefault();
-		if (options.onSubmit(e) === false) return;
+	if (options.onSubmit) controller.listen(modalContent, "submit", (event) => {
+		event.preventDefault();
+		if (options.onSubmit(event) === false) return;
 		controller.hide();
 	});
-	if ("onShow" in options) controller.listen(modal, "show.ui.modal", (e) => {
-		options.onShow(e);
+	if ("onShow" in options) controller.listen(modal, "show.ui.modal", (event) => {
+		options.onShow(event);
 	});
-	if ("onShown" in options) controller.listen(modal, "shown.ui.modal", (e) => {
-		options.onShown(e);
+	if ("onShown" in options) controller.listen(modal, "shown.ui.modal", (event) => {
+		options.onShown(event);
 	});
-	if ("onHide" in options) controller.listen(modal, "hide.ui.modal", (e) => {
-		options.onHide(e);
+	if ("onHide" in options) controller.listen(modal, "hide.ui.modal", (event) => {
+		options.onHide(event);
 	});
 	controller.listen(modal, "hidden.ui.modal", (event) => {
 		try {
@@ -797,16 +812,17 @@ function createModal(Component, options) {
 
 // src/js/selection.js
 /** @import { EditorSelectionMarkers } from './types.js'; */
+var window$2 = $.getWindow();
 /**
 * Gets the current range, optionally restricted to an editing boundary.
 * @param {HTMLElement|null} [container=null] The optional editing boundary.
 * @returns {Range|null} The owned range, or null when the selection is elsewhere.
 */
 function getRange(container = null) {
-	const selection = window.getSelection();
+	const selection = window$2.getSelection();
 	if (!selection.rangeCount) return null;
 	const range = selection.getRangeAt(0);
-	return !container || container.contains(range.startContainer) && container.contains(range.endContainer) ? range : null;
+	return !container || containsNode(container, range.startContainer) && containsNode(container, range.endContainer) ? range : null;
 }
 /**
 * Restores a range from markers and removes the markers without losing direction.
@@ -814,16 +830,16 @@ function getRange(container = null) {
 */
 function restoreSelection({ start, end, backward = false } = {}) {
 	if (!start?.isConnected || !end?.isConnected) {
-		start?.remove();
-		end?.remove();
+		$.remove(start);
+		$.remove(end);
 		return;
 	}
 	const range = $.createRange();
 	range.setStartAfter(start);
 	range.setEndBefore(end);
-	start.remove();
-	end.remove();
-	const selection = window.getSelection();
+	$.remove(start);
+	$.remove(end);
+	const selection = window$2.getSelection();
 	if (backward) selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
 	else selectRange(range);
 }
@@ -835,7 +851,7 @@ function restoreSelection({ start, end, backward = false } = {}) {
 function saveSelection(container = null) {
 	const range = getRange(container);
 	if (!range) return {};
-	const selection = window.getSelection();
+	const selection = window$2.getSelection();
 	const backward = !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
 	const start = $.createText("");
 	const end = $.createText("");
@@ -869,7 +885,7 @@ function selectNode(node) {
 */
 function selectRange(range, backward = false) {
 	if (!range || !range.startContainer.isConnected || !range.endContainer.isConnected) return;
-	const selection = window.getSelection();
+	const selection = window$2.getSelection();
 	if (backward) selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
 	else {
 		selection.removeAllRanges();
@@ -882,7 +898,7 @@ function selectRange(range, backward = false) {
 */
 function normalizeText(container) {
 	const range = getRange(container)?.cloneRange();
-	const selection = window.getSelection();
+	const selection = window$2.getSelection();
 	const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
 	$.normalize(container);
 	if (range) selectRange(range, backward);
@@ -890,6 +906,8 @@ function normalizeText(container) {
 
 // src/js/shared-events.js
 /** @import Editor from './editor.js'; */
+var document$1 = $.getContext();
+var window$1 = $.getWindow();
 /**
 * @typedef {object} EditorSharedEvents
 * @property {() => void} showDropTarget Shows the active drop target.
@@ -927,22 +945,22 @@ function addEditor(editor, callbacks) {
 	const deferred = (callback) => $.debounce(() => {
 		if (generation === session) callback();
 	});
-	listenShared(document.body, "dragenter.ui.editor", () => {
+	listenShared(document$1.body, "dragenter.ui.editor", () => {
 		if (dragCount++ === 0) for (const current of editors.values()) current.showDropTarget();
 	});
-	listenShared(document.body, "dragleave.ui.editor", () => {
+	listenShared(document$1.body, "dragleave.ui.editor", () => {
 		dragCount = Math.max(0, dragCount - 1);
 		if (dragCount === 0) resetDragCount();
 	});
-	listenShared(document.body, "dragend.ui.editor drop.ui.editor", resetDragCount);
-	listenShared(document, "selectionchange.ui.editor", deferred(() => {
+	listenShared(document$1.body, "dragend.ui.editor drop.ui.editor", resetDragCount);
+	listenShared(document$1, "selectionchange.ui.editor", deferred(() => {
 		const range = getRange();
 		for (const current of editors.values()) current.selectionChange(range);
 	}));
-	listenShared(window, "click.ui.editor", () => {
+	listenShared(window$1, "click.ui.editor", () => {
 		for (const current of editors.values()) current.removePopover();
 	});
-	listenShared(window, "resize.ui.editor", deferred(() => {
+	listenShared(window$1, "resize.ui.editor", deferred(() => {
 		for (const current of editors.values()) current.resize();
 	}));
 }
@@ -1107,6 +1125,8 @@ var styles = [
 
 // src/js/editor.js
 /** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover, EditorDropdownCallback } from './types.js'; */
+var document = $.getContext();
+var window = $.getWindow();
 /**
 * A customizable WYSIWYG editor backed by a native textarea.
 * @augments {BaseComponent<EditorOptions>}
@@ -1165,12 +1185,12 @@ var Editor = class extends BaseComponent {
 		/**
 		* Handles the default formatting and history shortcuts.
 		* @this {Editor}
-		* @param {KeyboardEvent} e The keyboard event.
+		* @param {KeyboardEvent} event The keyboard event.
 		*/
-		keyDown(e) {
-			if (!e.ctrlKey && !e.metaKey || e.altKey) return;
+		keyDown(event) {
+			if (!event.ctrlKey && !event.metaKey || event.altKey) return;
 			let action;
-			switch (e.key.toLowerCase()) {
+			switch (event.key.toLowerCase()) {
 				case "b":
 					action = "bold";
 					break;
@@ -1184,11 +1204,11 @@ var Editor = class extends BaseComponent {
 					action = "redo";
 					break;
 				case "z":
-					action = e.shiftKey ? "redo" : "undo";
+					action = event.shiftKey ? "redo" : "undo";
 					break;
 				default: return;
 			}
-			e.preventDefault();
+			event.preventDefault();
 			this[action]();
 		},
 		defaultFont: "Arial",
@@ -1254,11 +1274,11 @@ var Editor = class extends BaseComponent {
 			this.#fullScreen = createModal(this.constructor, {
 				content: this.#container,
 				fullScreen: true,
-				onShown: (_) => {
+				onShown: () => {
 					if ($.isVisible(this.#sourceContainer)) $.focus(this.#source);
 					else $.focus(this.#editor);
 				},
-				onHide: (_) => {
+				onHide: () => {
 					$.insertBefore(this.#container, this.node);
 					this.#fullScreen = null;
 				}
@@ -1564,12 +1584,12 @@ var Editor = class extends BaseComponent {
 	constructor(node, options) {
 		if (!$._isElement(node) || !$.is(node, "textarea")) throw new TypeError("Editor must be created on a textarea element.");
 		super(node, options);
-		this.#originalStyle = node.hasAttribute("style");
+		this.#originalStyle = $.hasAttribute(node, "style");
 		this.#originalAttributes = new Map([
 			"tabindex",
 			"hidden",
 			"aria-hidden"
-		].map((name) => [name, node.getAttribute(name)]));
+		].map((name) => [name, $.getAttribute(node, name)]));
 		this.#originalSelection = [
 			node.selectionStart,
 			node.selectionEnd,
@@ -1593,7 +1613,7 @@ var Editor = class extends BaseComponent {
 			this.#eventsShared();
 			if (active === node) this.#focusEditor();
 			else {
-				if (active instanceof HTMLElement && active.isConnected && document.activeElement !== active) active.focus({ preventScroll: true });
+				if (active instanceof window.HTMLElement && active.isConnected && document.activeElement !== active) active.focus({ preventScroll: true });
 				selectRange(originalRange);
 			}
 			if (this.node) $.triggerEvent(node, "init.ui.editor");
@@ -1633,7 +1653,7 @@ var Editor = class extends BaseComponent {
 		this.#disposing = true;
 		const node = this.node;
 		const active = document.activeElement;
-		const restoreFocus = this.#container?.contains(active) || this.#modal?.contains(active) || this.#fullScreen?.contains(active);
+		const restoreFocus = containsNode(this.#container, active) || containsNode(this.#modal, active) || containsNode(this.#fullScreen, active);
 		removeEditor(this);
 		this.#observer?.disconnect();
 		this.#observer = null;
@@ -1665,9 +1685,9 @@ var Editor = class extends BaseComponent {
 		if (this.#container) $.remove(this.#container);
 		this.#releaseDisplay?.();
 		this.#releaseDisplay = null;
-		if (!this.#originalStyle && !node.getAttribute("style")) node.removeAttribute("style");
-		for (const [name, value] of this.#originalAttributes) if (value === null) node.removeAttribute(name);
-		else node.setAttribute(name, value);
+		if (!this.#originalStyle && !$.getAttribute(node, "style")) $.removeAttribute(node, "style");
+		for (const [name, value] of this.#originalAttributes) if (value === null) $.removeAttribute(node, name);
+		else $.setAttribute(node, name, value);
 		if (restoreFocus && node.isConnected && !node.hidden) {
 			node.focus({ preventScroll: true });
 			node.setSelectionRange(...this.#originalSelection);
@@ -1757,7 +1777,7 @@ var Editor = class extends BaseComponent {
 	* @param {string} value The HTML string.
 	*/
 	insertHtml(value) {
-		if (!this.node || this.node.matches(":disabled") || this.node.readOnly) return;
+		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
 		this.#execCommand("insertHTML", value);
 	}
 	/**
@@ -1769,7 +1789,7 @@ var Editor = class extends BaseComponent {
 		const img = $.create("img", { attributes: { src } });
 		const newImg = this.insertNode(img);
 		if (!newImg) return;
-		const image = new Image();
+		const image = new window.Image();
 		this.#images.add(image);
 		const finish = () => {
 			this.#images.delete(image);
@@ -1777,7 +1797,7 @@ var Editor = class extends BaseComponent {
 			image.onerror = null;
 		};
 		image.onload = () => {
-			if (this.node && this.#editor.contains(newImg)) {
+			if (this.node && containsNode(this.#editor, newImg)) {
 				const maxWidth = $.width(this.#editor, { boxSize: $.CONTENT_BOX });
 				$.setStyle(newImg, { width: `${Math.min(image.width, maxWidth)}px` });
 			}
@@ -1812,7 +1832,7 @@ var Editor = class extends BaseComponent {
 		const range = getRange(this.#editor);
 		if (!range) return null;
 		this.#addHistory({
-			html: this.#editor.innerHTML,
+			html: $.getHtml(this.#editor),
 			selectionData: getSelectionData(this.#editor)
 		});
 		this.#observe(false);
@@ -2019,22 +2039,22 @@ var Editor = class extends BaseComponent {
 		let blocks = getSelectedBlocks(this.#editor, range);
 		if (outdent && !blocks.length) return;
 		this.#addHistory({
-			html: this.#editor.innerHTML,
+			html: $.getHtml(this.#editor),
 			selectionData: getSelectionData(this.#editor)
 		});
 		this.#observe(false);
 		const markers = saveSelection(this.#editor);
 		try {
 			if (!blocks.length) {
-				const paragraph = document.createElement("p");
+				const paragraph = $.create("p");
 				let first = markers.start;
 				while (first.parentNode !== this.#editor) first = first.parentNode;
 				while (first.previousSibling && isPhrasingContent(first.previousSibling)) first = first.previousSibling;
 				const inline = [];
 				for (let node = first; node && isPhrasingContent(node); node = node.nextSibling) inline.push(node);
 				if (inline.length) {
-					inline[0].before(paragraph);
-					paragraph.append(...inline);
+					$.before(inline[0], paragraph);
+					$.append(paragraph, inline);
 					blocks = [paragraph];
 				}
 			}
@@ -2052,10 +2072,10 @@ var Editor = class extends BaseComponent {
 		}
 	}
 	/**
-	* Checks if the editor is empty and populate base markup.
+	* Checks whether the editor is empty and populates base markup.
 	*/
 	#checkEmpty() {
-		if (this.node && !this.#editor.innerHTML.trim()) $.setHtml(this.#editor, "<p><br></p>");
+		if (this.node && !$.getHtml(this.#editor).trim()) $.setHtml(this.#editor, "<p><br></p>");
 	}
 	/**
 	* Renders a color dropdown.
@@ -2151,7 +2171,7 @@ var Editor = class extends BaseComponent {
 	/**
 	* Creates a deferred callback that cannot run after disposal.
 	* @param {() => void} callback The callback to defer.
-	* @returns {Function} The guarded callback.
+	* @returns {ReturnType<typeof $.debounce>} The guarded callback.
 	*/
 	#debounce(callback) {
 		return $.debounce((...args) => {
@@ -2196,28 +2216,28 @@ var Editor = class extends BaseComponent {
 	* Attaches drop events.
 	*/
 	#eventsDrop() {
-		this.listen(this.#editor, "dragstart.ui.editor", (e) => {
-			e.preventDefault();
+		this.listen(this.#editor, "dragstart.ui.editor", (event) => {
+			event.preventDefault();
 		}, { delegate: "img" });
-		this.listen(this.#dropTarget, "dragenter.ui.editor", (_) => {
+		this.listen(this.#dropTarget, "dragenter.ui.editor", () => {
 			$.addClass(this.#dropText, this.constructor.classes.dropHover);
 			$.setText(this.#dropText, this.constructor.lang.drop.drop);
 			$.show(this.#dropTarget);
 		});
-		this.listen(this.#dropTarget, "dragleave.ui.editor", (_) => {
+		this.listen(this.#dropTarget, "dragleave.ui.editor", () => {
 			this.#resetDropText();
 		});
-		this.listen(this.#dropTarget, "dragover.ui.editor", (e) => {
-			e.preventDefault();
+		this.listen(this.#dropTarget, "dragover.ui.editor", (event) => {
+			event.preventDefault();
 		});
-		this.listen(this.#dropTarget, "drop.ui.editor", (e) => {
-			e.preventDefault();
+		this.listen(this.#dropTarget, "drop.ui.editor", (event) => {
+			event.preventDefault();
 			resetDragCount();
 			this.#resetDropText();
 			$.hide(this.#dropTarget);
-			if (e.dataTransfer.files.length) this.options.imageUpload.call(this, e.dataTransfer.files);
+			if (event.dataTransfer.files.length) this.options.imageUpload.call(this, event.dataTransfer.files);
 			else {
-				const text = e.dataTransfer.getData("text");
+				const text = event.dataTransfer.getData("text");
 				this.insertText(text);
 			}
 		});
@@ -2234,23 +2254,23 @@ var Editor = class extends BaseComponent {
 				else this.insertText(event.clipboardData.getData("text/plain"));
 			}
 		});
-		this.listen(this.#editor, "focus.ui.editor", (_) => {
+		this.listen(this.#editor, "focus.ui.editor", () => {
 			document.execCommand("defaultParagraphSeparator", false, "p");
 			$.triggerEvent(this.node, "focus.ui.editor");
 		});
-		this.listen(this.#editor, "blur.ui.editor", (_) => {
+		this.listen(this.#editor, "blur.ui.editor", () => {
 			$.triggerEvent(this.node, "blur.ui.editor");
 		});
-		this.listen(this.#editor, "beforeinput.ui.editor", (e) => {
-			if (e.inputType === "historyUndo" || e.inputType === "historyRedo") {
-				if (e.cancelable) {
-					e.preventDefault();
-					this[e.inputType === "historyUndo" ? "undo" : "redo"]();
+		this.listen(this.#editor, "beforeinput.ui.editor", (event) => {
+			if (event.inputType === "historyUndo" || event.inputType === "historyRedo") {
+				if (event.cancelable) {
+					event.preventDefault();
+					this[event.inputType === "historyUndo" ? "undo" : "redo"]();
 				}
 			} else if (this.#history.length) this.#history.at(-1).selectionData = getSelectionData(this.#editor);
 		});
-		this.listen(this.#editor, "input.ui.editor", (e) => {
-			switch (e.inputType) {
+		this.listen(this.#editor, "input.ui.editor", (event) => {
+			switch (event.inputType) {
 				case "historyUndo":
 					if (!$.isSame(document.activeElement, this.#editor)) return;
 					this.undo();
@@ -2260,23 +2280,23 @@ var Editor = class extends BaseComponent {
 					this.redo();
 					return;
 			}
-			if (e.inputType !== "insertText") this.#normalize();
+			if (event.inputType !== "insertText") this.#normalize();
 			this.#checkEmpty();
 			this.#updateValue();
 		});
-		this.listen(this.#editor, "keydown.ui.editor", (e) => {
-			if (this.options.keyDown) this.options.keyDown.call(this, e);
-			if (e.defaultPrevented || !this.node) return;
+		this.listen(this.#editor, "keydown.ui.editor", (event) => {
+			if (this.options.keyDown) this.options.keyDown.call(this, event);
+			if (event.defaultPrevented || !this.node) return;
 			const selection = window.getSelection();
 			const isIndented = (node) => {
 				return [node, ...$.parents(node, null, this.#editor)].some((ancestor) => $.is(ancestor, "li") || parseFloat($.getStyle(ancestor, "marginInlineStart") || $.getStyle(ancestor, "marginLeft")) > 0);
 			};
-			switch (e.code) {
+			switch (event.code) {
 				case "Backspace":
 					if (selection.isCollapsed && $.isSame(selection.anchorNode, selection.focusNode) && ($._isElement(selection.anchorNode) && $.getText(selection.anchorNode) === "" && isIndented(selection.anchorNode) || $._isText(selection.anchorNode) && selection.anchorOffset === 0 && isIndented($.parent(selection.anchorNode)))) {
-						e.preventDefault();
+						event.preventDefault();
 						this.outdent();
-					} else if ($.contents(this.#editor).length <= 1 && $.getText(this.#editor) === "") e.preventDefault();
+					} else if ($.contents(this.#editor).length <= 1 && $.getText(this.#editor) === "") event.preventDefault();
 					break;
 				case "Delete":
 					if (selection.isCollapsed && $.isSame(selection.anchorNode, selection.focusNode) && $.getText(selection.anchorNode) === "") {
@@ -2292,22 +2312,22 @@ var Editor = class extends BaseComponent {
 						}
 					}
 					break;
-				case "Tab": if (!e.ctrlKey && !e.metaKey && !e.altKey && !this.node.readOnly && !this.node.matches(":disabled")) {
-					e.preventDefault();
-					if (e.shiftKey) this.outdent();
+				case "Tab": if (!event.ctrlKey && !event.metaKey && !event.altKey && !this.node.readOnly && !$.is(this.node, ":disabled")) {
+					event.preventDefault();
+					if (event.shiftKey) this.outdent();
 					else this.indent();
 				}
 			}
 		});
-		this.listen(this.#editorContainer, "click.ui.editor", (_) => {
+		this.listen(this.#editorContainer, "click.ui.editor", () => {
 			$.focus(this.#editor);
 		});
-		this.listen(this.#editor, "click.ui.editor", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
-			if (this.node.matches(":disabled") || this.node.readOnly) return;
-			if (e.currentTarget.matches("img")) selectNode(e.currentTarget);
-			this.#refreshPopover(e.currentTarget, e);
+		this.listen(this.#editor, "click.ui.editor", (event) => {
+			event.preventDefault();
+			event.stopPropagation();
+			if ($.is(this.node, ":disabled") || this.node.readOnly) return;
+			if ($.is(event.currentTarget, "img")) selectNode(event.currentTarget);
+			this.#refreshPopover(event.currentTarget, event);
 			this.#refreshToolbar();
 		}, {
 			delegate: "a, td, th, img",
@@ -2320,7 +2340,7 @@ var Editor = class extends BaseComponent {
 	*/
 	#eventsForm() {
 		const focus = () => {
-			if (this.node && !this.node.matches(":disabled")) ($.isVisible(this.#sourceContainer) ? this.#source : this.#editor).focus();
+			if (this.node && !$.is(this.node, ":disabled")) $.focus($.isVisible(this.#sourceContainer) ? this.#source : this.#editor);
 		};
 		const labels = [...this.node.labels];
 		const generated = [];
@@ -2330,7 +2350,7 @@ var Editor = class extends BaseComponent {
 				generated.push([label, label.id]);
 			}
 			this.listen(label, "click.ui.editor", (event) => {
-				if (event.target === label || !event.target.closest("a, button, input, select, textarea")) {
+				if (event.target === label || !$.closest(event.target, "a, button, input, select, textarea")[0]) {
 					event.preventDefault();
 					focus();
 				}
@@ -2343,8 +2363,8 @@ var Editor = class extends BaseComponent {
 		});
 		this.listen(this.node, "invalid.ui.editor", (event) => {
 			event.preventDefault();
-			this.#editor.setAttribute("aria-invalid", "true");
-			this.#source.setAttribute("aria-invalid", "true");
+			$.setAttribute(this.#editor, "aria-invalid", "true");
+			$.setAttribute(this.#source, "aria-invalid", "true");
 			focus();
 		});
 		this.listen(this.node, "input.ui.editor change.ui.editor", (event) => {
@@ -2353,7 +2373,7 @@ var Editor = class extends BaseComponent {
 		const timers = /* @__PURE__ */ new Set();
 		this.listen(this.node.ownerDocument, "reset.ui.editor", (event) => {
 			if (event.target !== this.node.form) return;
-			const timer = setTimeout(() => {
+			const timer = window.setTimeout(() => {
 				timers.delete(timer);
 				if (this.node && !event.defaultPrevented) {
 					this.#removePopover();
@@ -2362,7 +2382,7 @@ var Editor = class extends BaseComponent {
 			}, 0);
 			timers.add(timer);
 		});
-		const observer = new MutationObserver(() => {
+		const observer = new window.MutationObserver(() => {
 			if (this.node) {
 				this.#refreshDisabled();
 				this.#refreshToolbar();
@@ -2375,52 +2395,52 @@ var Editor = class extends BaseComponent {
 		});
 		this.onDispose(() => {
 			observer.disconnect();
-			for (const timer of timers) clearTimeout(timer);
-			for (const [label, id] of generated) if (label.id === id) label.removeAttribute("id");
+			for (const timer of timers) window.clearTimeout(timer);
+			for (const [label, id] of generated) if (label.id === id) $.removeAttribute(label, "id");
 		});
 	}
 	/**
 	* Attaches popover events.
 	*/
 	#eventsPopover() {
-		this.listen(this.#popover, "click.ui.editor", (e) => {
-			if (this.node.matches(":disabled") || this.node.readOnly) return;
-			const action = $.getDataset(e.currentTarget, "uiAction");
+		this.listen(this.#popover, "click.ui.editor", (event) => {
+			if ($.is(this.node, ":disabled") || this.node.readOnly) return;
+			const action = $.getDataset(event.currentTarget, "uiAction");
 			if (!(action in this.constructor.popovers)) throw new Error(`Unknown action ${action}`);
-			e.preventDefault();
-			e.stopPropagation();
+			event.preventDefault();
+			event.stopPropagation();
 			this.constructor.popovers[action].action.call(this, this.#currentNode);
 			this.#refreshPopover(this.#currentNode);
 		}, { delegate: "[data-ui-action]" });
-		const downEvent = (e) => {
+		const downEvent = (event) => {
 			if (!this.#currentNode || !$.is(this.#currentNode, "img")) return false;
-			e.stopPropagation();
+			event.stopPropagation();
 			$.hide(this.#imgCursor);
 			$.hide(this.#popover);
 			this.#observe(false);
 		};
-		const moveEvent = (e) => {
+		const moveEvent = (event) => {
 			const imgRect = $.rect(this.#currentNode, { offset: true });
 			const ratio = imgRect.width / imgRect.height;
-			const width = Math.max(e.pageX - imgRect.x, (e.pageY - imgRect.y) * ratio, 1);
+			const width = Math.max(event.pageX - imgRect.x, (event.pageY - imgRect.y) * ratio, 1);
 			$.setStyle(this.#currentNode, { width: `${Math.round(width)}px` });
 			this.#highlightImage(this.#currentNode);
 		};
-		const upEvent = (_) => {
-			if (this.#currentNode?.isConnected && this.#editor.contains(this.#currentNode)) selectNode(this.#currentNode).collapse(false);
+		const upEvent = () => {
+			if (this.#currentNode?.isConnected && containsNode(this.#editor, this.#currentNode)) selectNode(this.#currentNode).collapse(false);
 			this.#updateValue();
 			this.#observe();
 		};
 		this.#bindDrag(this.#imgResize, downEvent, moveEvent, upEvent);
 		this.listen(this.#imgResize, "keydown.ui.editor", (event) => {
-			if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || this.node.matches(":disabled") || this.node.readOnly) return;
+			if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || $.is(this.node, ":disabled") || this.node.readOnly) return;
 			event.preventDefault();
-			const width = Math.max(1, this.#currentNode.getBoundingClientRect().width + (event.code === "ArrowRight" ? 10 : -10));
-			this.#currentNode.style.width = `${width}px`;
+			const width = Math.max(1, $.rect(this.#currentNode).width + (event.code === "ArrowRight" ? 10 : -10));
+			$.setStyle(this.#currentNode, "width", `${width}px`);
 			this.#highlightImage(this.#currentNode);
 			this.#updateValue();
 		});
-		this.listen(this.#editorBody, "scroll.ui.editor", (_) => {
+		this.listen(this.#editorBody, "scroll.ui.editor", () => {
 			this.#removePopover();
 		});
 	}
@@ -2429,27 +2449,27 @@ var Editor = class extends BaseComponent {
 	*/
 	#eventsResize() {
 		let resizeOffset = 0;
-		const downEvent = (e) => {
+		const downEvent = (event) => {
 			const barPosition = $.position(this.#resizeBar, { offset: true });
-			resizeOffset = e.pageY - barPosition.y;
+			resizeOffset = event.pageY - barPosition.y;
 			this.#removePopover();
 		};
-		const moveEvent = (e) => {
+		const moveEvent = (event) => {
 			const editorPosition = $.position(this.#editorBody, { offset: true });
-			const height = Math.max(0, e.pageY - editorPosition.y - resizeOffset);
+			const height = Math.max(0, event.pageY - editorPosition.y - resizeOffset);
 			$.setStyle(this.#editorBody, { height: `${height}px` });
-			this.#resizeBar.setAttribute("aria-valuenow", String(Math.round(height)));
+			$.setAttribute(this.#resizeBar, "aria-valuenow", String(Math.round(height)));
 		};
-		const upEvent = (_) => {
+		const upEvent = () => {
 			resizeOffset = 0;
 		};
 		this.#bindDrag(this.#resizeBar, downEvent, moveEvent, upEvent);
 		this.listen(this.#resizeBar, "keydown.ui.editor", (event) => {
-			if (!["ArrowUp", "ArrowDown"].includes(event.code) || this.node.matches(":disabled") || this.node.readOnly) return;
+			if (!["ArrowUp", "ArrowDown"].includes(event.code) || $.is(this.node, ":disabled") || this.node.readOnly) return;
 			event.preventDefault();
-			const height = Math.max(40, this.#editorBody.getBoundingClientRect().height + (event.code === "ArrowDown" ? 10 : -10));
-			this.#editorBody.style.height = `${height}px`;
-			this.#resizeBar.setAttribute("aria-valuenow", String(Math.round(height)));
+			const height = Math.max(40, $.rect(this.#editorBody).height + (event.code === "ArrowDown" ? 10 : -10));
+			$.setStyle(this.#editorBody, "height", `${height}px`);
+			$.setAttribute(this.#resizeBar, "aria-valuenow", String(Math.round(height)));
 		});
 	}
 	/**
@@ -2464,7 +2484,7 @@ var Editor = class extends BaseComponent {
 			},
 			removePopover: () => this.#removePopover(),
 			selectionChange: (range) => {
-				if (!range || !this.#editor.contains(range.startContainer) || !this.#editor.contains(range.endContainer)) {
+				if (!range || !containsNode(this.#editor, range.startContainer) || !containsNode(this.#editor, range.endContainer)) {
 					this.#removePopover();
 					return;
 				}
@@ -2473,7 +2493,7 @@ var Editor = class extends BaseComponent {
 				this.#refreshToolbar();
 			},
 			resize: () => {
-				if (this.#currentNode?.matches("img")) this.#highlightImage(this.#currentNode);
+				if ($.is(this.#currentNode, "img")) this.#highlightImage(this.#currentNode);
 				this.#refreshLineNumbers();
 			}
 		});
@@ -2484,25 +2504,25 @@ var Editor = class extends BaseComponent {
 	#eventsSource() {
 		this.listen(this.#source, "focus.ui.editor", () => $.triggerEvent(this.node, "focus.ui.editor"));
 		this.listen(this.#source, "blur.ui.editor", () => $.triggerEvent(this.node, "blur.ui.editor"));
-		const refreshLineNumbersDebounced = this.#debounce((_) => {
+		const refreshLineNumbersDebounced = this.#debounce(() => {
 			this.#refreshLineNumbers();
 		});
-		this.listen(this.#source, "input.ui.editor change.ui.editor", (_) => {
-			if (this.node.matches(":disabled") || this.node.readOnly) return;
+		this.listen(this.#source, "input.ui.editor change.ui.editor", () => {
+			if ($.is(this.node, ":disabled") || this.node.readOnly) return;
 			refreshLineNumbersDebounced();
-			const html = this.#source.value;
-			if (this.node.value !== html) {
-				this.node.value = html;
-				if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
-					this.#source.removeAttribute("aria-invalid");
-					this.#editor.removeAttribute("aria-invalid");
+			const html = $.getValue(this.#source);
+			if ($.getValue(this.node) !== html) {
+				$.setValue(this.node, html);
+				if (this.node.validity.valid && !$.hasAttribute(this.node, "aria-invalid")) {
+					$.removeAttribute(this.#source, "aria-invalid");
+					$.removeAttribute(this.#editor, "aria-invalid");
 				}
 				$.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 			}
 		});
-		this.listen(this.#source, "keydown.ui.editor", (e) => {
-			if (e.code !== "Tab" || e.ctrlKey || e.metaKey || e.altKey || this.node.readOnly || this.node.matches(":disabled")) return;
-			e.preventDefault();
+		this.listen(this.#source, "keydown.ui.editor", (event) => {
+			if (event.code !== "Tab" || event.ctrlKey || event.metaKey || event.altKey || this.node.readOnly || $.is(this.node, ":disabled")) return;
+			event.preventDefault();
 			const start = $.getProperty(this.#source, "selectionStart");
 			const end = $.getProperty(this.#source, "selectionEnd");
 			const value = $.getValue(this.#source);
@@ -2520,7 +2540,7 @@ var Editor = class extends BaseComponent {
 			let newStart = start;
 			let newEnd = end;
 			let newValue;
-			if (e.shiftKey) {
+			if (event.shiftKey) {
 				for (const [i, line] of lines.entries()) if (i >= startLine && i <= lastLine && line.startsWith(tab)) {
 					lines[i] = line.substring(1);
 					if (lineStarts[i] < start) newStart--;
@@ -2544,7 +2564,7 @@ var Editor = class extends BaseComponent {
 			document.execCommand("insertText", false, newValue);
 			this.#source.setSelectionRange(newStart, newEnd);
 		});
-		this.listen(this.#source, "scroll.ui.editor", this.#debounce((_) => {
+		this.listen(this.#source, "scroll.ui.editor", this.#debounce(() => {
 			const scrollY = $.getScrollY(this.#source);
 			$.setStyle(this.#lineNumbers, { marginTop: `${-scrollY}px` });
 		}));
@@ -2553,30 +2573,30 @@ var Editor = class extends BaseComponent {
 	* Attaches toolbar events.
 	*/
 	#eventsToolbar() {
-		this.listen(this.#toolbar, "click.ui.editor", (e) => {
-			const action = $.getDataset(e.currentTarget, "uiAction");
+		this.listen(this.#toolbar, "click.ui.editor", (event) => {
+			const action = $.getDataset(event.currentTarget, "uiAction");
 			if (!(action in this.constructor.plugins)) throw new Error(`Unknown action ${action}`);
-			e.preventDefault();
-			e.stopPropagation();
-			if ($.is(this.node, ":disabled") || this.node.readOnly && !["source", "fullScreen"].includes(action) || $.is(e.currentTarget, "[aria-disabled=\"true\"]")) return;
-			if (this.#lastRange && this.#editor.contains(this.#lastRange.startContainer) && this.#editor.contains(this.#lastRange.endContainer)) {
+			event.preventDefault();
+			event.stopPropagation();
+			if ($.is(this.node, ":disabled") || this.node.readOnly && !["source", "fullScreen"].includes(action) || $.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+			if (this.#lastRange && containsNode(this.#editor, this.#lastRange.startContainer) && containsNode(this.#editor, this.#lastRange.endContainer)) {
 				const selection = window.getSelection();
 				selection.removeAllRanges();
 				selection.addRange(this.#lastRange);
 			}
 			this.constructor.plugins[action].action.call(this);
 		}, { delegate: "[data-ui-action]" });
-		this.listen(this.#toolbar, "click.ui.editor", (e) => {
-			if (this.node.matches(":disabled") || this.node.readOnly || e.currentTarget.matches("[aria-disabled=\"true\"]")) return;
-			const command = $.getDataset(e.currentTarget, "uiCommand");
+		this.listen(this.#toolbar, "click.ui.editor", (event) => {
+			if ($.is(this.node, ":disabled") || this.node.readOnly || $.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+			const command = $.getDataset(event.currentTarget, "uiCommand");
 			if (!(command in this)) throw new Error(`Unknown command ${command}`);
-			e.preventDefault();
+			event.preventDefault();
 			if (this.#lastRange) {
 				const selection = window.getSelection();
 				selection.removeAllRanges();
 				selection.addRange(this.#lastRange);
 			}
-			const value = $.getDataset(e.currentTarget, "uiValue");
+			const value = $.getDataset(event.currentTarget, "uiValue");
 			this[command](value);
 			this.#refreshToolbar();
 		}, { delegate: "[data-ui-command]" });
@@ -2591,7 +2611,7 @@ var Editor = class extends BaseComponent {
 		this.#focusEditor();
 		if (!this.node) return;
 		this.#addHistory({
-			html: this.#editor.innerHTML,
+			html: $.getHtml(this.#editor),
 			selectionData: getSelectionData(this.#editor)
 		});
 		this.#observe(false);
@@ -2627,14 +2647,14 @@ var Editor = class extends BaseComponent {
 		$.focus(this.#editor);
 		if (!this.node) return;
 		if (current) selectRange(current, backward);
-		else if (saved && this.#editor.contains(saved.startContainer) && this.#editor.contains(saved.endContainer)) selectRange(saved);
+		else if (saved && containsNode(this.#editor, saved.startContainer) && containsNode(this.#editor, saved.endContainer)) selectRange(saved);
 		else {
-			const range = document.createRange();
+			const range = $.createRange();
 			let target = this.#editor;
-			const opaque = (node) => node instanceof Element && node.matches("br, img, hr, iframe, input, video, audio, svg");
+			const opaque = (node) => $.is(node, "br, img, hr, iframe, input, video, audio, svg");
 			while (target.lastChild && !opaque(target)) target = target.lastChild;
 			if (opaque(target)) {
-				if (target.matches("br")) range.setStartBefore(target);
+				if ($.is(target, "br")) range.setStartBefore(target);
 				else range.setStartAfter(target);
 			} else range.selectNodeContents(target);
 			range.collapse(false);
@@ -2717,7 +2737,7 @@ var Editor = class extends BaseComponent {
 			width: `${imgWidth + 2}px`,
 			height: `${imgHeight + 2}px`
 		});
-		this.#imgResize.setAttribute("aria-valuenow", String(imgWidth));
+		$.setAttribute(this.#imgResize, "aria-valuenow", String(imgWidth));
 		$.setText(this.#imgSize, `${imgWidth}x${imgHeight}`);
 		if (imgWidth < 100 || imgHeight < 50) $.hide(this.#imgSize);
 		else $.show(this.#imgSize);
@@ -2731,18 +2751,18 @@ var Editor = class extends BaseComponent {
 	#loadValue(reset = false) {
 		this.#observe(false);
 		try {
-			this.#editor.innerHTML = this.node.value;
+			$.setHtml(this.#editor, $.getValue(this.node));
 			this.#normalize();
 			this.#checkEmpty();
-			this.node.value = this.#editor.innerHTML;
-			this.#source.value = this.node.value;
+			$.setValue(this.node, $.getHtml(this.#editor));
+			$.setValue(this.#source, $.getValue(this.node));
 			this.#lastRange = null;
 			if (reset) {
 				this.#history = [];
 				this.#redoHistory = [];
 			}
-			if (this.#history.at(-1)?.html !== this.#editor.innerHTML) this.#redoHistory = [];
-			this.#addHistory({ html: this.#editor.innerHTML });
+			if (this.#history.at(-1)?.html !== $.getHtml(this.#editor)) this.#redoHistory = [];
+			this.#addHistory({ html: $.getHtml(this.#editor) });
 			this.#refreshDisabled();
 			this.#refreshToolbar();
 			this.#refreshLineNumbers();
@@ -2768,7 +2788,7 @@ var Editor = class extends BaseComponent {
 			restoreSelection(markers);
 			normalizeText(this.#editor);
 			this.#observe();
-			if (active instanceof HTMLElement && active !== document.body && active.isConnected && !this.#editor?.contains(active) && document.activeElement !== active) active.focus({ preventScroll: true });
+			if (active instanceof window.HTMLElement && active !== document.body && active.isConnected && !containsNode(this.#editor, active) && document.activeElement !== active) active.focus({ preventScroll: true });
 		}
 	}
 	/**
@@ -2829,7 +2849,7 @@ var Editor = class extends BaseComponent {
 				reject(/* @__PURE__ */ new Error("Editor is disposed."));
 				return;
 			}
-			const reader = new FileReader();
+			const reader = new window.FileReader();
 			this.#readers.add(reader);
 			const finish = () => {
 				this.#readers.delete(reader);
@@ -2859,7 +2879,7 @@ var Editor = class extends BaseComponent {
 		});
 	}
 	/**
-	* Refreshes the popover at cursor.
+	* Refreshes the popover at the cursor.
 	*/
 	#refreshCursor() {
 		const baseNode = window.getSelection().anchorNode;
@@ -2868,7 +2888,7 @@ var Editor = class extends BaseComponent {
 			return;
 		}
 		const range = getRange(this.#editor);
-		if (this.#currentNode && range && (!range.collapsed && range.intersectsNode(this.#currentNode) || this.#currentNode.contains(baseNode))) return;
+		if (this.#currentNode && range && (!range.collapsed && range.intersectsNode(this.#currentNode) || containsNode(this.#currentNode, baseNode))) return;
 		const currentNode = $.is(baseNode, "a") ? baseNode : $.closest(baseNode, "a", this.#editor).shift();
 		if (!currentNode) {
 			this.#removePopover();
@@ -2877,25 +2897,25 @@ var Editor = class extends BaseComponent {
 		this.#refreshPopover(currentNode);
 	}
 	/**
-	* Refreshes the editor disabled.
+	* Synchronizes disabled, readonly, and accessible state.
 	*/
 	#refreshDisabled() {
-		const disabled = this.node.matches(":disabled");
+		const disabled = $.is(this.node, ":disabled");
 		const readOnly = this.node.readOnly;
 		if (disabled) $.addClass(this.#editor, this.constructor.classes.editorDisabled);
 		else $.removeClass(this.#editor, this.constructor.classes.editorDisabled);
-		this.#editor.setAttribute("contenteditable", String(!disabled && !readOnly));
-		this.#editor.setAttribute("tabindex", disabled ? "-1" : this.node.getAttribute("tabindex") || "0");
+		$.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
+		$.setAttribute(this.#editor, "tabindex", disabled ? "-1" : $.getAttribute(this.node, "tabindex") || "0");
 		this.#source.disabled = disabled;
 		this.#source.readOnly = readOnly;
 		for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
-			handle.setAttribute("tabindex", disabled || readOnly ? "-1" : "0");
-			handle.setAttribute("aria-disabled", String(disabled || readOnly));
+			$.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
+			$.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
 		}
 		for (const surface of [this.#editor, this.#source]) {
-			surface.setAttribute("aria-disabled", String(disabled));
-			surface.setAttribute("aria-readonly", String(readOnly));
-			surface.setAttribute("aria-required", String(this.node.required));
+			$.setAttribute(surface, "aria-disabled", String(disabled));
+			$.setAttribute(surface, "aria-readonly", String(readOnly));
+			$.setAttribute(surface, "aria-required", String(this.node.required));
 			for (const name of [
 				"aria-label",
 				"aria-labelledby",
@@ -2905,15 +2925,15 @@ var Editor = class extends BaseComponent {
 				"dir",
 				"lang"
 			]) {
-				const value = this.node.getAttribute(name) || (name === "aria-labelledby" && !this.node.hasAttribute("aria-label") ? this.#labelledBy : null);
-				if (value) surface.setAttribute(name, value);
-				else surface.removeAttribute(name);
+				const value = $.getAttribute(this.node, name) || (name === "aria-labelledby" && !$.hasAttribute(this.node, "aria-label") ? this.#labelledBy : null);
+				if (value) $.setAttribute(surface, name, value);
+				else $.removeAttribute(surface, name);
 			}
 		}
-		this.#container.classList.toggle("form-error", this.node.classList.contains("form-error"));
+		$[$.hasClass(this.node, "form-error") ? "addClass" : "removeClass"](this.#container, "form-error");
 		if (disabled || readOnly) {
 			this.#removePopover();
-			for (const toggle of this.#toolbar.querySelectorAll("[data-ui-toggle=\"dropdown\"]")) Dropdown.init(toggle).hide();
+			for (const toggle of $.find("[data-ui-toggle=\"dropdown\"]", this.#toolbar)) Dropdown.init(toggle).hide();
 		}
 	}
 	/**
@@ -2973,7 +2993,7 @@ var Editor = class extends BaseComponent {
 			});
 			reference = this.#imgCursor;
 		}
-		const originalPlacement = reference.getAttribute("data-ui-placement");
+		const originalPlacement = $.getAttribute(reference, "data-ui-placement");
 		this.#popper = new Popper(this.#popover, {
 			reference,
 			arrow: this.#popoverArrow,
@@ -2982,9 +3002,9 @@ var Editor = class extends BaseComponent {
 			position: "start",
 			minContact: 0,
 			afterUpdate: (_, anchor) => {
-				if (this.#editor?.contains(anchor)) {
-					if (originalPlacement === null) anchor.removeAttribute("data-ui-placement");
-					else anchor.setAttribute("data-ui-placement", originalPlacement);
+				if (containsNode(this.#editor, anchor)) {
+					if (originalPlacement === null) $.removeAttribute(anchor, "data-ui-placement");
+					else $.setAttribute(anchor, "data-ui-placement", originalPlacement);
 				}
 			}
 		});
@@ -3080,7 +3100,7 @@ var Editor = class extends BaseComponent {
 		this.#releaseDisplay = $.setStyleLock(this.node, "display", "none", { important: true });
 		$.setAttribute(this.node, { "aria-hidden": true });
 		$.insertBefore(this.#container, this.node);
-		if (this.#resizeBar) this.#resizeBar.setAttribute("aria-valuenow", String(Math.round(this.#editorBody.getBoundingClientRect().height)));
+		if (this.#resizeBar) $.setAttribute(this.#resizeBar, "aria-valuenow", String(Math.round($.rect(this.#editorBody).height)));
 	}
 	/**
 	* Renders a button.
@@ -3329,7 +3349,7 @@ var Editor = class extends BaseComponent {
 		$.append(buttonGroup, dropGroup);
 		this.#ownComponent(Dropdown.init(button));
 		this.listen(document, "keydown.ui.editor", (event) => {
-			if (event.code === "Escape" && dropdown.contains(document.activeElement)) button.focus();
+			if (event.code === "Escape" && containsNode(dropdown, document.activeElement)) $.focus(button);
 		}, { capture: true });
 	}
 	/**
@@ -3360,7 +3380,7 @@ var Editor = class extends BaseComponent {
 		} finally {
 			this.#observe();
 		}
-		if (this.node && previous !== this.node.value) $.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
+		if (this.node && previous !== $.getValue(this.node)) $.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 	}
 	/**
 	* Sets data for a toolbar action.
@@ -3419,17 +3439,17 @@ var Editor = class extends BaseComponent {
 			content: container,
 			cancelText: this.constructor.lang.modals.cancel,
 			submitText: this.constructor.lang.modals.insertImage,
-			onSubmit: (_) => {
+			onSubmit: () => {
 				selectRange(range);
 				const files = $.getProperty(fileInput, "files");
 				const src = $.getValue(urlInput);
 				if (files.length) this.options.imageUpload.call(this, files);
 				else if (src) this.insertImage(src);
 			},
-			onShown: (_) => {
+			onShown: () => {
 				$.focus(fileInput);
 			},
-			onHidden: (_) => {
+			onHidden: () => {
 				this.#removeModal();
 				if (this.node) {
 					selectRange(originalRange);
@@ -3484,17 +3504,17 @@ var Editor = class extends BaseComponent {
 			content: container,
 			cancelText: this.constructor.lang.modals.cancel,
 			submitText: this.constructor.lang.modals.insertLink,
-			onSubmit: (_) => {
+			onSubmit: () => {
 				selectRange(range);
 				const text = $.getValue(textInput);
 				const href = $.getValue(urlInput);
 				const newWindow = $.is(newWindowInput, ":checked");
 				this.insertLink(href, text, newWindow);
 			},
-			onShown: (_) => {
+			onShown: () => {
 				$.focus(urlInput);
 			},
-			onHidden: (_) => {
+			onHidden: () => {
 				this.#removeModal();
 				if (this.node) {
 					selectRange(originalRange);
@@ -3503,10 +3523,10 @@ var Editor = class extends BaseComponent {
 			}
 		});
 		const controller = this.#ownComponent(Modal.init(this.#modal));
-		controller.listen(textInput, "input.ui.editor", (_) => {
+		controller.listen(textInput, "input.ui.editor", () => {
 			hasText = !!$.getValue(textInput);
 		});
-		controller.listen(urlInput, "input.ui.editor", (_) => {
+		controller.listen(urlInput, "input.ui.editor", () => {
 			if (hasText) return;
 			const url = $.getValue(urlInput);
 			$.setValue(textInput, url);
@@ -3542,7 +3562,7 @@ var Editor = class extends BaseComponent {
 			content: container,
 			cancelText: this.constructor.lang.modals.cancel,
 			submitText: this.constructor.lang.modals.insertVideo,
-			onSubmit: (_) => {
+			onSubmit: () => {
 				selectRange(range);
 				const url = $.getValue(urlInput);
 				let id;
@@ -3551,13 +3571,13 @@ var Editor = class extends BaseComponent {
 					if (parsed.protocol === "https:" && (parsed.hostname === "youtu.be" || ["youtube.com", "www.youtube.com"].includes(parsed.hostname) && parsed.pathname === "/watch")) id = parsed.hostname === "youtu.be" ? parsed.pathname.slice(1) : parsed.searchParams.get("v");
 				} catch {}
 				if (!id || !/^[\w-]+$/.test(id)) {
-					urlInput.setAttribute("aria-invalid", "true");
+					$.setAttribute(urlInput, "aria-invalid", "true");
 					$.addClass(urlGroup, this.constructor.classes.formError);
 					$.setText(urlInvalidFeedback, this.constructor.lang.modals.videoUrlInvalid);
 					return false;
 				}
 				$.removeClass(urlGroup, this.constructor.classes.formError);
-				urlInput.removeAttribute("aria-invalid");
+				$.removeAttribute(urlInput, "aria-invalid");
 				const video = $.create("iframe", { attributes: {
 					width: 560,
 					height: 315,
@@ -3569,10 +3589,10 @@ var Editor = class extends BaseComponent {
 				const html = $.getProperty(video, "outerHTML");
 				this.insertHtml(html);
 			},
-			onShown: (_) => {
+			onShown: () => {
 				$.focus(urlInput);
 			},
-			onHidden: (_) => {
+			onHidden: () => {
 				this.#removeModal();
 				if (this.node) {
 					selectRange(originalRange);
@@ -3643,9 +3663,9 @@ var Editor = class extends BaseComponent {
 		$.addClass(dropdown, this.constructor.classes.tableDropdown);
 		$.append(dropdown, container);
 		$.append(dropdown, info);
-		this.listen(container, "click.ui.editor", (e) => {
-			const cols = $.getDataset(e.currentTarget, "uiColumn");
-			const rows = $.getDataset(e.currentTarget, "uiRow");
+		this.listen(container, "click.ui.editor", (event) => {
+			const cols = $.getDataset(event.currentTarget, "uiColumn");
+			const rows = $.getDataset(event.currentTarget, "uiRow");
 			const container = $.create("div");
 			const table = $.create("table", { class: this.constructor.classes.table });
 			const tbody = $.create("tbody");
@@ -3664,9 +3684,9 @@ var Editor = class extends BaseComponent {
 			const html = $.getHtml(container);
 			this.insertHtml(html);
 		}, { delegate: "button" });
-		this.listen(container, "mouseover.ui.editor focusin.ui.editor", (e) => {
-			const targetCol = $.getDataset(e.currentTarget, "uiColumn");
-			const targetRow = $.getDataset(e.currentTarget, "uiRow");
+		this.listen(container, "mouseover.ui.editor focusin.ui.editor", (event) => {
+			const targetCol = $.getDataset(event.currentTarget, "uiColumn");
+			const targetRow = $.getDataset(event.currentTarget, "uiRow");
 			const colMin = Math.max(targetCol + 1, 4);
 			const rowMin = Math.max(targetRow + 1, 4);
 			const links = $.find("button", container);
@@ -3688,12 +3708,12 @@ var Editor = class extends BaseComponent {
 	* @param {(cell: HTMLTableCellElement, row: HTMLTableRowElement, table: HTMLTableElement) => void} callback The callback.
 	*/
 	#updateTable(td, callback) {
-		const table = td.closest("table");
-		if (!table || !this.#editor.contains(table)) return;
+		const table = $.closest(td, "table")[0];
+		if (!table || !containsNode(this.#editor, table)) return;
 		this.#observe(false);
 		try {
-			callback(td, td.closest("tr"), table);
-			if (this.#editor.contains(td)) selectNode(td).collapse(true);
+			callback(td, $.closest(td, "tr")[0], table);
+			if (containsNode(this.#editor, td)) selectNode(td).collapse(true);
 			this.#normalize();
 			this.#updateValue();
 		} finally {
@@ -3720,9 +3740,9 @@ var Editor = class extends BaseComponent {
 		});
 		$.setValue(this.node, html);
 		$.setValue(this.#source, html);
-		if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
-			this.#editor.removeAttribute("aria-invalid");
-			this.#source.removeAttribute("aria-invalid");
+		if (this.node.validity.valid && !$.hasAttribute(this.node, "aria-invalid")) {
+			$.removeAttribute(this.#editor, "aria-invalid");
+			$.removeAttribute(this.#source, "aria-invalid");
 		}
 		$.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 	}
@@ -3736,7 +3756,7 @@ var Editor = class extends BaseComponent {
 			this.#checkEmpty();
 			this.#updateValue();
 		});
-		this.#observer = new MutationObserver((records) => {
+		this.#observer = new window.MutationObserver((records) => {
 			if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) changed();
 		});
 		this.#observe();

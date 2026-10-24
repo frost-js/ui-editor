@@ -3,6 +3,9 @@
 import $ from '@fr0st/query';
 import { getRange } from './selection.js';
 
+const document = $.getContext();
+const window = $.getWindow();
+
 /**
  * @typedef {object} EditorSharedEvents
  * @property {() => void} showDropTarget Shows the active drop target.

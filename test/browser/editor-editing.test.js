@@ -2,6 +2,67 @@ import { expect, test } from '#test';
 import { createEditor, selectContents } from '../setup/editor.js';
 
 test.describe('Editor editing', () => {
+    for (const [method, property, expected, value] of [
+        ['backColor', 'background-color', 'rgb(255, 255, 0)', '#ffff00'],
+        ['fontName', 'font-family', 'serif', 'serif'],
+        ['foreColor', 'color', 'rgb(255, 0, 0)', '#ff0000'],
+        ['underline', 'text-decoration-line', 'underline'],
+    ]) {
+        test.describe(`#${method}`, () => {
+            test(`applies ${method} to a range and retains plain text on undo`, async ({ page }) => {
+                await createEditor(page, '<p>Formatted text</p>');
+                await selectContents(page, '.editor p');
+                await page.evaluate(({ method, value }) => window.editor[method](value), {
+                    method,
+                    value,
+                });
+
+                const formatted = page.locator('.editor').getByText('Formatted text', { exact: true });
+
+                await expect(formatted).toHaveCSS(property, expected);
+                await expect(page.locator('.editor')).toHaveText('Formatted text');
+                await page.evaluate(() => window.editor.undo());
+
+                await expect(page.locator('#editor')).toHaveValue('<p>Formatted text</p>');
+            });
+        });
+    }
+
+    test.describe('#fontSize and #removeFormat', () => {
+        test('sets a configured font size and removes inline formatting', async ({ page }) => {
+            await createEditor(page, '<p>Size</p>', { buttons: [['fontSize', 'removeFormat', 'source']] });
+            await selectContents(page, '.editor p');
+            await page.evaluate(() => window.editor.fontSize(24));
+
+            await expect(page.locator('.editor').getByText('Size', { exact: true })).toHaveCSS('font-size', '24px');
+            await expect(page.locator('.editor')).toHaveText('Size');
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
+            await expect(page.locator('.editor-source')).toHaveValue(/Size/);
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
+            await expect(page.locator('.editor')).toHaveText('Size');
+            await selectContents(page, '.editor');
+            await page.getByRole('button', { name: 'Remove Formatting', exact: true }).click();
+
+            await expect(page.locator('.editor')).toHaveText('Size');
+            await expect(page.locator('.editor [style]')).toHaveCount(0);
+        });
+    });
+
+    test.describe('#insertHorizontalRule', () => {
+        test('inserts a horizontal rule and undoes it without dropping surrounding text', async ({ page }) => {
+            await createEditor(page);
+            await page.evaluate(() => window.editor.insertHorizontalRule());
+
+            await expect(page.locator('.editor hr')).toHaveCount(1);
+            await expect(page.locator('.editor')).toHaveText('Hello world');
+            await page.evaluate(() => window.editor.undo());
+
+            await expect(page.locator('.editor hr')).toHaveCount(0);
+        });
+    });
+
     test.describe('#insertNode', () => {
         test('inserts a trusted element with history and honors disabled state', async ({ page }) => {
             await createEditor(page);
@@ -35,105 +96,8 @@ test.describe('Editor editing', () => {
         });
     });
 
-    test.describe('inline formatting', () => {
-        for (const [method, property, expected, value] of [
-            ['underline', 'text-decoration-line', 'underline'],
-            ['foreColor', 'color', 'rgb(255, 0, 0)', '#ff0000'],
-            ['backColor', 'background-color', 'rgb(255, 255, 0)', '#ffff00'],
-            ['fontName', 'font-family', 'serif', 'serif'],
-        ]) {
-            test(`applies ${method} to a range and retains plain text on undo`, async ({ page }) => {
-                await createEditor(page, '<p>Formatted text</p>');
-                await selectContents(page, '.editor p');
-                await page.evaluate(({ method, value }) => window.editor[method](value), {
-                    method,
-                    value,
-                });
-
-                const formatted = page.locator('.editor').getByText('Formatted text', { exact: true });
-
-                await expect(formatted).toHaveCSS(property, expected);
-                await expect(page.locator('.editor')).toHaveText('Formatted text');
-                await page.evaluate(() => window.editor.undo());
-
-                await expect(page.locator('#editor')).toHaveValue('<p>Formatted text</p>');
-            });
-        }
-
-        test('sets a configured font size and removes inline formatting', async ({ page }) => {
-            await createEditor(page, '<p>Size</p>', { buttons: [['fontSize', 'removeFormat', 'source']] });
-            await selectContents(page, '.editor p');
-            await page.evaluate(() => window.editor.fontSize(24));
-
-            await expect(page.locator('.editor').getByText('Size', { exact: true })).toHaveCSS('font-size', '24px');
-            await expect(page.locator('.editor')).toHaveText('Size');
-            await page.getByRole('button', { name: 'View Source', exact: true }).click();
-
-            await expect(page.locator('.editor-source')).toHaveValue(/Size/);
-            await page.getByRole('button', { name: 'View Source', exact: true }).click();
-
-            await expect(page.locator('.editor')).toHaveText('Size');
-            await selectContents(page, '.editor');
-            await page.getByRole('button', { name: 'Remove Formatting', exact: true }).click();
-
-            await expect(page.locator('.editor')).toHaveText('Size');
-            await expect(page.locator('.editor [style]')).toHaveCount(0);
-        });
-
-        for (const [method, tag] of [['subscript', 'sub'], ['superscript', 'sup']]) {
-            test(`retains semantic ${method} formatting`, async ({ page }) => {
-                await createEditor(page, '<p>Formatted text</p>');
-                await selectContents(page, '.editor p');
-                await page.evaluate((method) => window.editor[method](), method);
-
-                await expect(page.locator(`.editor ${tag}`)).toHaveText('Formatted text');
-                await page.evaluate(() => window.editor.undo());
-
-                await expect(page.locator('#editor')).toHaveValue('<p>Formatted text</p>');
-            });
-        }
-
-        test('dispatches strikethrough to the public editor method', async ({ page }) => {
-            await createEditor(page, '<p>Strike this</p>', { buttons: [['strikethrough']] });
-            await selectContents(page, '.editor p');
-            await page.getByRole('button', { name: 'Strikethrough', exact: true }).click();
-
-            await expect(page.locator('.editor')).toHaveText('Strike this');
-            expect(await page.evaluate(() => document.queryCommandState('strikethrough'))).toBe(true);
-        });
-    });
-
-    test.describe('block formatting', () => {
-        for (const [method, alignment] of [
-            ['justifyLeft', 'left'],
-            ['justifyRight', 'right'],
-            ['justifyCenter', 'center'],
-            ['justifyFull', 'justify'],
-        ]) {
-            test(`aligns a paragraph with ${method}`, async ({ page }) => {
-                await createEditor(page);
-                await selectContents(page, '.editor p');
-                await page.evaluate((method) => window.editor[method](), method);
-
-                await expect(page.locator('.editor p')).toHaveCSS('text-align', alignment === 'left' ? /^(left|start)$/ : alignment);
-                await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
-            });
-        }
-
-        test('inserts a horizontal rule and undoes it without dropping surrounding text', async ({ page }) => {
-            await createEditor(page);
-            await page.evaluate(() => window.editor.insertHorizontalRule());
-
-            await expect(page.locator('.editor hr')).toHaveCount(1);
-            await expect(page.locator('.editor')).toHaveText('Hello world');
-            await page.evaluate(() => window.editor.undo());
-
-            await expect(page.locator('.editor hr')).toHaveCount(0);
-        });
-    });
-
-    test.describe('lists', () => {
-        for (const [method, tag] of [['insertOrderedList', 'ol'], ['insertUnorderedList', 'ul']]) {
+    for (const [method, tag] of [['insertOrderedList', 'ol'], ['insertUnorderedList', 'ul']]) {
+        test.describe(`#${method}`, () => {
             test(`creates a list with ${method} and handles Tab/Shift+Tab`, async ({ page }) => {
                 await createEditor(page, '<p>First</p><p>Second</p>');
                 await selectContents(page, '.editor');
@@ -153,8 +117,52 @@ test.describe('Editor editing', () => {
 
                 await expect(page.locator(`.editor > ${tag} > li`)).toHaveText(['First', 'Second']);
             });
-        }
+        });
+    }
+
+    for (const [method, alignment] of [
+        ['justifyCenter', 'center'],
+        ['justifyFull', 'justify'],
+        ['justifyLeft', 'left'],
+        ['justifyRight', 'right'],
+    ]) {
+        test.describe(`#${method}`, () => {
+            test(`aligns a paragraph with ${method}`, async ({ page }) => {
+                await createEditor(page);
+                await selectContents(page, '.editor p');
+                await page.evaluate((method) => window.editor[method](), method);
+
+                await expect(page.locator('.editor p')).toHaveCSS('text-align', alignment === 'left' ? /^(left|start)$/ : alignment);
+                await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+            });
+        });
+    }
+
+    test.describe('#strikethrough', () => {
+        test('dispatches strikethrough to the public editor method', async ({ page }) => {
+            await createEditor(page, '<p>Strike this</p>', { buttons: [['strikethrough']] });
+            await selectContents(page, '.editor p');
+            await page.getByRole('button', { name: 'Strikethrough', exact: true }).click();
+
+            await expect(page.locator('.editor')).toHaveText('Strike this');
+            expect(await page.evaluate(() => document.queryCommandState('strikethrough'))).toBe(true);
+        });
     });
+
+    for (const [method, tag] of [['subscript', 'sub'], ['superscript', 'sup']]) {
+        test.describe(`#${method}`, () => {
+            test(`retains semantic ${method} formatting`, async ({ page }) => {
+                await createEditor(page, '<p>Formatted text</p>');
+                await selectContents(page, '.editor p');
+                await page.evaluate((method) => window.editor[method](), method);
+
+                await expect(page.locator(`.editor ${tag}`)).toHaveText('Formatted text');
+                await page.evaluate(() => window.editor.undo());
+
+                await expect(page.locator('#editor')).toHaveValue('<p>Formatted text</p>');
+            });
+        });
+    }
 
     test.describe('keyboard editing', () => {
         test('outdents an empty indented paragraph on Backspace', async ({ page }) => {

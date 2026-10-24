@@ -74,12 +74,15 @@
             <details>
                 <summary>Custom plugin example</summary>
                 <pre class="demo-code"><code>UI.Editor.plugins.greeting = {
-    content: "Hello",
-    title: "Insert greeting",
-    action() { this.insertText("Hello from a custom plugin! "); }
+    content: 'Hello',
+    title: 'Insert greeting',
+    action() {
+        this.insertText('Hello from a custom plugin! ');
+    },
 };
+
 UI.Editor.init(textarea, {
-    buttons: [["bold", "italic", "greeting"], ["source"]]
+    buttons: [['bold', 'italic', 'greeting'], ['source']],
 });</code></pre>
             </details>
         </section>
