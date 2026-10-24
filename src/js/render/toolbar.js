@@ -1,5 +1,6 @@
 /** @import Editor from './../editor.js'; */
 import $ from '@fr0st/query';
+import { Dropdown } from '@fr0st/ui';
 
 /**
  * Render the toolbar.
@@ -13,7 +14,8 @@ export function renderToolbar(editor) {
     editor._toolbar = $.create('div', {
         class: editor.constructor.classes.toolbarButtons,
         attributes: {
-            role: 'toolbar',
+            'role': 'toolbar',
+            'aria-label': editor.constructor.lang.toolbar,
         },
     });
 
@@ -82,7 +84,7 @@ export function renderToolbarDropdown(editor, buttonGroup, button, dropdownConte
     });
     $.append(dropGroup, button);
 
-    const dropdown = $.create('ul', {
+    const dropdown = $.create('div', {
         class: editor.constructor.classes.dropdown,
     });
 
@@ -109,6 +111,12 @@ export function renderToolbarDropdown(editor, buttonGroup, button, dropdownConte
 
     $.append(dropGroup, dropdown);
     $.append(buttonGroup, dropGroup);
+    editor._ownComponent(Dropdown.init(button));
+    editor.listen(document, 'keydown.ui.editor', (event) => {
+        if (event.code === 'Escape' && dropdown.contains(document.activeElement)) {
+            button.focus();
+        }
+    }, { capture: true });
 }
 
 /**

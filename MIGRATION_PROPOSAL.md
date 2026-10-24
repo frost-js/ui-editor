@@ -2,7 +2,7 @@
 
 Bring `@fr0st/ui-editor` into line with the modern sibling `../ui-*` projects while preserving its editing features and supported customization hooks. Deliver the migration in the order below, with regression coverage established before changing editor behavior.
 
-Steps 1–5 are implemented. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
+Steps 1–6 are implemented. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
 
 The starting point is commit `dc4c495`, which preserves the existing normalization, indentation, history, source-mode, bundle, and ESLint changes. JavaScript syntax checks passed for 23 files at that checkpoint; browser behavior and build reproducibility still need verification.
 
@@ -102,14 +102,14 @@ Acceptance: the editor works with current Frost dependencies, uses the current l
 
 ## 6. Modernize styles, accessibility, and native form behavior
 
-- [ ] Rename `src/scss/vars.scss` to `_vars.scss`, replace `@import` with `@use`/`@forward`, and preserve the old package import path through an explicit export alias if needed.
-- [ ] Align toolbar, dropdown, modal, input, validation, button, and focus styling with Frost UI 4. Audit old utility classes, ripple markup, and CSS tokens against current UI components.
-- [ ] Expose component CSS custom properties backed by Sass defaults, following sibling theme conventions. Avoid unscoped Sass variable names that can collide with host styles.
-- [ ] Use logical layout properties where appropriate. Verify light/dark themes, RTL, narrow containers, fullscreen mode, popover positioning, and image/editor resizing.
-- [ ] Preserve visible keyboard focus and accessible names; propagate textarea label/help/error associations to the editing surface. Verify toolbar controls, dropdowns, dialogs, Escape handling, and focus restoration.
-- [ ] Support reduced motion and forced-colors behavior where the component supplies custom styling.
-- [ ] Keep textarea submission, source mode, programmatic changes, and editor content synchronized with a documented event contract. Test native reset, canceled reset, disabled fields/fieldsets, and existing validation behavior.
-- [ ] Define HTML sanitization and URL handling for initial content, source mode, insertion, and paste. Test supported formatting and media before adopting a sanitizer; document trusted customization hooks and any intentional output changes.
+- [x] Rename `src/scss/vars.scss` to `_vars.scss`, replace `@import` with `@use`/`@forward`, and preserve the old package import path through an explicit export alias if needed.
+- [x] Align toolbar, dropdown, modal, input, validation, button, and focus styling with Frost UI 4. Audit old utility classes, ripple markup, and CSS tokens against current UI components.
+- [x] Expose component CSS custom properties backed by Sass defaults, following sibling theme conventions. Avoid unscoped Sass variable names that can collide with host styles.
+- [x] Use logical layout properties where appropriate. Verify light/dark themes, RTL, narrow containers, fullscreen mode, popover positioning, and image/editor resizing.
+- [x] Preserve visible keyboard focus and accessible names; propagate textarea label/help/error associations to the editing surface. Verify toolbar controls, dropdowns, dialogs, Escape handling, and focus restoration.
+- [x] Support reduced motion and forced-colors behavior where the component supplies custom styling.
+- [x] Keep textarea submission, source mode, programmatic changes, and editor content synchronized with a documented event contract. Test native reset, canceled reset, disabled fields/fieldsets, and existing validation behavior.
+- [x] Define HTML sanitization and URL handling for initial content, source mode, insertion, and paste. Test supported formatting and media before adopting a sanitizer; document trusted customization hooks and any intentional output changes.
 
 Acceptance: styles fit the current UI system, keyboard and form behavior are consistent, and content handling has a documented, tested contract.
 
@@ -185,15 +185,18 @@ src/
     config.js                 # Defaults, classes, and language
     content.js                # Content synchronization and command helpers
     events.js                 # Managed instance listeners
+    form.js                   # Native values, labels, validation, and reset
     index.js                  # Registration and default export
     helpers.js                # Shared listeners with exact cleanup
     history.js
     icons.js
+    modals.js                 # Owned dialogs and input factories
     nodes.js
     normalize.js
     plugins.js
     popovers.js               # Customizable popover definitions
     positioning.js
+    sanitize.js               # Supported HTML, presentation styles, and URL policy
     render/
       dropdowns.js
       editor.js
@@ -236,12 +239,12 @@ The checkpoint at `dc4c495` defines the starting API. The public contracts below
 - `Editor.init(textarea, options)` reuses an existing instance. The registered fQuery method is `$(textarea).editor(options)`, with string dispatch such as `$(textarea).editor('bold')`.
 - Formatting methods: `backColor(value)`, `bold()`, `fontName(value)`, `fontSize(value)`, `formatBlock(value)`, `foreColor(value)`, `italic()`, `justifyCenter()`, `justifyFull()`, `justifyLeft()`, `justifyRight()`, `removeFormat()`, `strikethrough()`, `subscript()`, `superscript()`, and `underline()`.
 - Structure and insertion methods: `indent()`, `outdent()`, `insertHorizontalRule()`, `insertHTML(value)`, `insertImage(src)`, `insertLink(href, text, newWindow)`, `insertText(value)`, `insertOrderedList()`, `insertUnorderedList()`, and `unlink()`.
-- State and lifecycle methods: `undo()`, `redo()`, `disable()`, `enable()`, and `dispose()`.
+- State and lifecycle methods: `undo()`, `redo()`, `disable()`, `enable()`, `refresh()`, and `dispose()`. `refresh()` reloads programmatic textarea changes without emitting an editor change event.
 - Source and fullscreen views are toolbar plugin actions, not public class methods. Content is read from the original textarea; there is no existing editor `getValue()` or `setValue()` method to preserve.
 
 ### Options and defaults
 
-| Option | Checkpoint default and behavior |
+| Option | Current default and behavior |
 | --- | --- |
 | `buttons` | `null`; use `Editor.buttons`, an array of toolbar groups |
 | `fonts` | `null`; use `Editor.fonts` and filter to available fonts |
@@ -251,16 +254,19 @@ The checkpoint at `dc4c495` defines the starting API. The public contracts below
 | `historyLimit` | `1000`; cap stored history entries |
 | `popovers` | Image size/float/removal actions, link display/edit/unlink, and table row/column/removal actions |
 | `imageUpload(files)` | Read files as data URLs, insert fulfilled results, and return a completion promise; callback `this` is the editor, and pending default reads are aborted on disposal |
-| `keyDown(event)` | Ctrl+B/I/U/Y/Z invokes formatting or history methods; callback `this` is the editor |
+| `keyDown(event)` | Ctrl or Meta+B/I/U/Y/Z invokes formatting or history; Shift+Ctrl/Meta+Z redoes; callback `this` is the editor |
+| `sanitize(html)` | Synchronous default HTML policy preserving supported editor content; a custom callback replaces that policy and returns trusted HTML |
 
 Frost UI resolves `data-ui-*` options on the textarea, such as `data-ui-height`, `data-ui-resizable`, and `data-ui-history-limit`. The `data-ui-toggle="editor"` marker can select elements for explicit initialization through `$('[data-ui-toggle="editor"]').editor()`; data attributes alone do not initialize the editor. Generated `data-ui-action`, `data-ui-command`, and `data-ui-value` attributes route toolbar actions; generated dropdowns use the standard UI dropdown marker. Attribute options are subject to the shared parser; callbacks must be configured in JavaScript.
 
 ### Events and content synchronization
 
 - `init.ui.editor` fires on the textarea after rendering, event setup, normalization, and disabled-state refresh.
-- Focus and blur on the contenteditable surface forward `focus.ui.editor` and `blur.ui.editor` to the textarea.
-- `_updateValue()` emits `change.ui.editor` when serialized content differs from the textarea. Source changes update the textarea and emit that event; returning to visual mode normalizes and commits the source HTML as one history operation. Viewing source without editing preserves redo.
+- Focus and blur on either editing view forward `focus.ui.editor` and `blur.ui.editor` to the textarea.
+- `_updateValue()` emits `change.ui.editor` when serialized content differs from the textarea. Source input immediately sanitizes and updates the textarea, emitting that event only when its submitted value changes; returning to visual mode normalizes and commits the source HTML as one history operation. Viewing source without editing preserves redo.
 - Undo/redo restores serialized content and selection, including backward selections, and emits `change.ui.editor` when the textarea value changes.
+- External `input`/`change` events reload a programmatically assigned textarea value; internal change events carry `skipUpdate` to avoid reloading the current selection. Applications can also call `refresh()`.
+- Native reset reloads defaults after the cancelable reset event completes, clears history, and emits no editor change event. Canceled reset leaves editing state intact. Empty rich/source scaffolding submits as an empty string for native required validation.
 - A change callback observes synchronized textarea content. Event counts may vary with browser editing events and mutation delivery; this stage does not promise one event per keystroke.
 
 ### Supported customization and existing internal dependencies
@@ -282,7 +288,7 @@ The browser suite records concrete examples before the larger refactor:
 - Indentation keeps selected text inside valid block wrappers and nests list items under their preceding sibling. Outdent removes one wrapper or list nesting level, preserves unselected siblings and blockquotes, and retains selection text and direction.
 - Typing followed by undo/redo restores the previous/next content and a selection inside the editor.
 
-Browser-produced formatting HTML can differ between engines. Preserve semantic formatting rather than requiring one browser's `execCommand` serialization everywhere. The existing normalization code is not a sanitizer, and retaining markup is not a guarantee that arbitrary input is safe.
+Browser-produced formatting HTML can differ between engines. Preserve semantic formatting rather than requiring one browser's `execCommand` serialization everywhere. Normalization is separate from sanitization. Step 6 adds the HTML policy described below before initial rendering, source submission/rendering, HTML insertion, paste, and external value reloads; application extension DOM/HTML remains trusted.
 
 ### Resolved defects and remaining migration work
 
@@ -290,10 +296,10 @@ Browser-produced formatting HTML can differ between engines. Preserve semantic f
 - The `debugger` statement and unfinished normalization branch have been removed. Normalization now splits phrasing wrappers around nested blocks while retaining both inline fragments, selection boundaries, and surrounding content.
 - Initial content now seeds history even when initialization leaves the HTML unchanged, so undo restores the state before the first edit. Zero, negative, and non-finite history limits are bounded safely.
 - Text-selection indentation and outdent now use DOM operations consistently across Chromium, Firefox, and WebKit. Tests cover partial and backward selections, collapsed carets, multiple paragraphs, selected siblings, and ordered/unordered list nesting.
-- The malformed ARIA names have been corrected to `aria-multiline`, `aria-modal`, and `aria-haspopup`. Full label propagation and accessibility styling remain step 6.
-- Disposal restoration, failed initialization cleanup, default upload cancellation, and managed listener/resource ownership are complete. Native form reset/validation, full keyboard consistency, sanitization, URL handling, and complete editing coverage remain in steps 6–7.
+- The malformed ARIA names have been corrected to `aria-multiline`, `aria-modal`, and `aria-haspopup`. Label/help/error propagation, visible focus, native keyboard controls, Escape restoration, and logical layout are implemented in step 6.
+- Disposal restoration, failed initialization cleanup, default upload cancellation, and managed listener/resource ownership are complete. Step 6 adds native form reset/validation, keyboard consistency, sanitization, and URL handling. Broader editing coverage remains step 7.
 - The ESM package entry, newer peer majors, changed Node requirements, and any later internal hook changes need release migration notes. Keep the package version unchanged until release preparation.
-- Retain the existing repository URLs until the destination is confirmed. No repository transfer, CI deployment, npm publication, or version release is part of steps 1–5.
+- Retain the existing repository URLs until the destination is confirmed. No repository transfer, CI deployment, npm publication, or version release is part of steps 1–6.
 
 ### Verification at the steps 1 through 4 checkpoint
 
@@ -325,4 +331,22 @@ Use `npx playwright install --with-deps` to install browser binaries on a fresh 
 - The complete Playwright suite passes 153 cases across Chromium, Firefox, and WebKit, with no expected-failure annotations or skipped tests.
 - Coverage generation, package contents, and reproducible distribution builds are verified alongside the browser suite. Source line coverage is 76.30%; the broader coverage target remains step 7.
 
-Steps 6–10 remain pending, including Sass modules/current styling, native form and accessibility work, broader coverage, CI/release automation, consolidated demos, and the complete README/release migration guide.
+### Step 6 implementation and compatibility notes
+
+- Sass uses `@use`/`@forward` and `_vars.scss`. The package's old `src/scss/vars.scss` export resolves to the partial. Configurable package imports and that alias have been verified with Sass's Node package importer. Rename `$btn-border-color` to `$btn-editor-border-color`, and the editor/outline button `focus-shadow-rgb` defaults to `focus-shadow-color` for the Frost UI 4 token. Component parts expose CSS custom properties backed by scoped Sass defaults.
+- Existing `input-filled`, `form-input`, checkbox, modal, and `form-error` classes were checked against installed Frost UI 4. Input fields retain those supported classes; `text-muted` becomes `text-body-secondary`, unused `ripple-line` markup is removed, file inputs and checkbox labels receive current classes, and dialog feedback has description/error associations.
+- Logical sizing, new logical indentation, responsive scrollable dropdowns, current button focus tokens, explicit focus outlines, reduced motion, and forced-colors rules cover current themes and narrow/RTL layouts. Image cursor and resize handle geometry remains physical to match pointer coordinates. Pointer and keyboard resize controls remain available.
+- Textarea labels and ARIA help/error/required/readonly state reach both editing views. Dropdown choices and table cells are native named buttons; dropdown/dialog Escape restores focus, context toolbars dismiss with Escape, and source Tab permits leaving the control. Ctrl/Meta formatting and undo/redo shortcuts are supported. Source retains Ctrl+Tab indentation.
+- `refresh()` and external textarea `input`/`change` events reload programmatic values. Source input updates the submitted value immediately. Native reset/canceled reset, disabled fields/fieldsets (including first-legend exceptions), readonly source viewing, native required/custom validity, and disposal of pending reset work are covered. Rich/source empty scaffolding serializes as an empty native value. Content observation excludes surface presentation attributes and cannot overwrite active source edits.
+- Default HTML sanitization preserves editor formatting, lists, tables, selected presentation styles, raster data uploads, and supported HTTPS YouTube embeds. It removes scripts, SVG, controls, arbitrary embeds, event attributes, IDs, unsafe URL schemes, and resource-loading/layout CSS. Relative/HTTP(S) links and images, mailto/tel links, and PNG/JPEG/GIF/WebP/AVIF base64 images are supported. New-window links receive `noopener noreferrer`; embeds get a sandbox, referrer policy, and accessible title. Link/image/video dialogs show invalid URL feedback.
+- A synchronous `sanitize(html)` option replaces the HTML policy and returns trusted HTML. Toolbar/icon HTML, plugin renderers, direct DOM changes, and `_insertNode` remain trusted customization boundaries. Public link/image insertion still checks URLs. The README documents this policy and the form/event/style contract; output filtering, empty-value serialization, logical indentation, Sass default renames, and source keyboard changes require release migration notes.
+
+### Step 6 verification
+
+- `npm run lint` and `npm run lint:sass:unused` pass, with no unused Sass defaults or deprecated Sass imports. Every configured default class has a rule in the installed Frost UI or editor stylesheet; the final utility rename was checked with lint and the three-browser integration suite.
+- The complete browser suite passes 240 tests across Chromium, Firefox, and WebKit, with no skipped or expected-failure cases. It covers native submission/reset/canceled reset, programmatic reloads, disabled/readonly/validation states, labels and focus, dialogs/dropdowns, keyboard and pointer lifecycle, themes/RTL/mobile sizing, HTML/URL filtering, trusted sanitizer replacement, and supported formatting/media. HTML insertion after disposal remains a safe no-op.
+- `npm run test:coverage -- --workers=3` passes all 80 Chromium cases with no errors. Source line coverage is 82.23% (statements 80.59%, branches 75.72%, functions 77.81%); the broader coverage target remains step 7.
+- Light/dark RTL layouts and the responsive style dropdown were visually checked at a narrow viewport using local assets. Browser assertions also check forced colors, reduced motion, fullscreen, resize handles, and image overlay geometry.
+- Configurable Sass module imports and the legacy package export pass in a temporary consumer using Sass's Node package importer. `npm pack --dry-run` includes 42 files, all 12 distribution artifacts, and the new source modules, excluding tests, reports, and temporary files. Repeated builds produce identical distribution files and source maps.
+
+Steps 7–10 remain pending: broader coverage, CI/release automation, consolidated demos, and the complete README/release migration guide.

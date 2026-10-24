@@ -27,6 +27,7 @@ export function highlightImage(editor, image) {
         height: `${imgHeight + 2}px`,
     });
 
+    editor._imgResize.setAttribute('aria-valuenow', String(imgWidth));
     $.setText(editor._imgSize, `${imgWidth}x${imgHeight}`);
 
     if (imgWidth < 100 || imgHeight < 50) {

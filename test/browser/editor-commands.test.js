@@ -9,7 +9,7 @@ test('preserves a backward partial selection through indent and outdent', async 
         getSelection().setBaseAndExtent(text, 5, text, 2);
         window.editor.indent();
     });
-    await expect(page.locator('.editor div[style*="margin-left"]')).toHaveText('Hello world');
+    await expect(page.locator('.editor div[style*="margin-inline-start"]')).toHaveText('Hello world');
     expect(await page.evaluate(() => getSelection().toString())).toBe('llo');
     expect(await page.evaluate(() => {
         const selection = getSelection();
@@ -31,9 +31,9 @@ test('changes one level of indentation at a collapsed caret', async ({ page }) =
         window.editor.indent();
         window.editor.indent();
     });
-    await expect(page.locator('.editor div[style*="margin-left"]')).toHaveCount(2);
+    await expect(page.locator('.editor div[style*="margin-inline-start"]')).toHaveCount(2);
     await page.evaluate(() => window.editor.outdent());
-    await expect(page.locator('.editor div[style*="margin-left"]')).toHaveCount(1);
+    await expect(page.locator('.editor div[style*="margin-inline-start"]')).toHaveCount(1);
     await page.evaluate(() => window.editor.outdent());
     await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', '<p>Hello world</p>');
 });
@@ -58,11 +58,11 @@ test('outdents only the selected paragraph from a shared wrapper', async ({ page
 
 for (const tag of ['ul', 'ol']) {
     test(`nests and outdents a list item inside its previous sibling (${tag})`, async ({ page }) => {
-        const html = `<${tag}><li id="a">One</li><li id="b">Two</li><li id="c">Three</li></${tag}>`;
+        const html = `<${tag}><li class="a">One</li><li class="b">Two</li><li class="c">Three</li></${tag}>`;
         await createEditor(page, html);
-        await selectContents(page, '.editor #b');
+        await selectContents(page, '.editor .b');
         await page.evaluate(() => window.editor.indent());
-        await expect(page.locator(`.editor > ${tag} > #a > ${tag} > #b`)).toHaveText('Two');
+        await expect(page.locator(`.editor > ${tag} > .a > ${tag} > .b`)).toHaveText('Two');
         await expect(page.locator(`.editor ${tag} > ${tag}`)).toHaveCount(0);
         await page.evaluate(() => window.editor.outdent());
         await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
@@ -133,5 +133,5 @@ test('indents a bare inline run without moving unrelated text across paragraphs'
         getSelection().setBaseAndExtent(text, 0, text, text.textContent.length);
         window.editor.indent();
     });
-    await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', 'Before<p>Middle</p><div style="margin-left: 2em;"><p>After</p></div>');
+    await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', 'Before<p>Middle</p><div style="margin-inline-start: 2em;"><p>After</p></div>');
 });

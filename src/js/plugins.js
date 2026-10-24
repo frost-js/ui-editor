@@ -139,7 +139,7 @@ export default {
             if ($.isVisible(this._sourceContainer)) {
                 this._observe(false);
                 try {
-                    $.setHtml(this._editor, value);
+                    $.setHtml(this._editor, this.options.sanitize(value));
                     this._normalize();
                     this._checkEmpty();
                     const html = $.getHtml(this._editor);

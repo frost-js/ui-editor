@@ -2,6 +2,7 @@
 /** @import { EditorHistoryEntry, EditorSelectionData } from './types.js'; */
 
 import $ from '@fr0st/query';
+import { notifyChange, serialize } from './form.js';
 
 /**
  * Gets a descendant by its child indexes, returning null for stale paths.
@@ -77,12 +78,13 @@ export function restoreHistory(editor, { html, selectionData = null }) {
     if (!editor.node) {
         return;
     }
-    const changed = $.getValue(editor.node) !== html;
+    const previous = $.getValue(editor.node);
     editor._observe(false);
     try {
         $.setHtml(editor._editor, html);
-        $.setValue(editor.node, html);
-        $.setValue(editor._source, html);
+        const value = serialize(editor._editor);
+        $.setValue(editor.node, value);
+        $.setValue(editor._source, value);
         editor._focusEditor();
         if (!editor.node) {
             return;
@@ -99,11 +101,12 @@ export function restoreHistory(editor, { html, selectionData = null }) {
             selection.collapseToEnd();
         }
         editor._checkEmpty();
+        editor._refreshDisabled();
         editor._refreshToolbar();
     } finally {
         editor._observe();
     }
-    if (changed) {
-        $.triggerEvent(editor.node, 'change.ui.editor');
+    if (editor.node && previous !== editor.node.value) {
+        notifyChange(editor);
     }
 }

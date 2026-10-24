@@ -33,9 +33,12 @@ export function render(editor) {
 
     // hide the input node
     $.hide(editor.node);
-    $.setAttribute(editor.node, { tabindex: -1 });
+    $.setAttribute(editor.node, { 'aria-hidden': true });
 
     $.insertBefore(editor._container, editor.node);
+    if (editor._resizeBar) {
+        editor._resizeBar.setAttribute('aria-valuenow', String(Math.round(editor._editorBody.getBoundingClientRect().height)));
+    }
 }
 
 /**
@@ -137,6 +140,13 @@ export function renderEditor(editor) {
 
     editor._imgResize = $.create('div', {
         class: editor.constructor.classes.imgResize,
+        attributes: {
+            'role': 'slider',
+            'tabindex': 0,
+            'aria-label': editor.constructor.lang.resizeImage,
+            'aria-valuemin': 1,
+            'aria-valuenow': 1,
+        },
     });
 
     $.hide(editor._imgHighlight);
@@ -157,10 +167,17 @@ export function renderEditor(editor) {
 export function renderResize(editor) {
     editor._resizeBar = $.create('div', {
         class: editor.constructor.classes.resizeBar,
+        attributes: {
+            'role': 'separator',
+            'tabindex': 0,
+            'aria-label': editor.constructor.lang.resizeEditor,
+            'aria-orientation': 'horizontal',
+            'aria-valuenow': 0,
+        },
     });
 
     for (let i = 0; i < 3; i++) {
-        const hr = $.create('hr');
+        const hr = $.create('hr', { attributes: { 'aria-hidden': true } });
         $.append(editor._resizeBar, hr);
     }
 
@@ -182,6 +199,7 @@ export function renderSource(editor) {
 
     editor._lineNumbers = $.create('div', {
         class: editor.constructor.classes.sourceLines,
+        attributes: { 'aria-hidden': true },
     });
 
     editor._sourceScroll = $.create('div', {

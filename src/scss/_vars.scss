@@ -1,0 +1,35 @@
+$editor-img-highlight-bg: var(--ui-border-color-translucent) !default;
+$editor-img-highlight-border-color: var(--ui-body-color) !default;
+$editor-img-highlight-border-width: var(--ui-border-width) !default;
+$editor-img-cursor-size: 2rem !default;
+$editor-img-size-bg: var(--ui-tertiary-color) !default;
+$editor-img-size-color: var(--ui-body-bg) !default;
+$editor-img-resize-size: 5px !default;
+$editor-img-resize-bg: var(--ui-body-color) !default;
+
+$editor-drop-target-bg: var(--ui-body-bg) !default;
+
+$editor-link-url-max-width: 200px !default;
+$editor-color-height: 20px !default;
+
+$btn-editor-bg: transparent !default;
+$btn-editor-border-color: transparent !default;
+$btn-editor-color: var(--ui-body-color) !default;
+$btn-editor-hover-bg: var(--ui-tertiary-bg) !default;
+$btn-editor-hover-border-color: transparent !default;
+$btn-editor-active-bg: rgba(var(--ui-body-color-rgb), .2) !default;
+$btn-editor-focus-shadow-color: var(--ui-primary) !default;
+
+$btn-outline-editor-bg: transparent !default;
+$btn-outline-editor-border-color: var(--ui-body-color) !default;
+$btn-outline-editor-color: var(--ui-body-color) !default;
+$btn-outline-editor-hover-bg: rgba(var(--ui-body-color-rgb), .2) !default;
+$btn-outline-editor-hover-border-color: var(--ui-body-color) !default;
+$btn-outline-editor-active-bg: var(--ui-body-color) !default;
+$btn-outline-editor-active-border-color: var(--ui-body-color) !default;
+$btn-outline-editor-active-color: var(--ui-body-bg) !default;
+$btn-outline-editor-focus-shadow-color: var(--ui-primary) !default;
+
+$editor-focus-color: var(--ui-primary) !default;
+$editor-focus-width: var(--ui-focus-ring-width) !default;
+$editor-disabled-opacity: .5 !default;

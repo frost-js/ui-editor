@@ -8,7 +8,7 @@ import { Tooltip } from '@fr0st/ui';
  * @param {HTMLElement} dropdown The dropdown.
  */
 export function colorDropdown(editor, dropdown) {
-    const container = $.create('li', {
+    const container = $.create('div', {
         class: editor.constructor.classes.colorContainerRow,
     });
 
@@ -134,7 +134,7 @@ export function colorDropdown(editor, dropdown) {
     $.append(container, col1);
     $.append(container, col2);
 
-    $.setStyle(dropdown, { minWidth: '350px' });
+    $.setStyle(dropdown, { minInlineSize: 'min(350px, calc(100vw - 2rem))' });
     $.append(dropdown, container);
 }
 
@@ -147,14 +147,14 @@ export function fontDropdown(editor, dropdown) {
     const fonts = editor._fonts.sort();
 
     for (const font of fonts) {
-        const button = $.create('li', {
+        const button = $.create('button', {
             text: font,
             class: editor.constructor.classes.dropdownItem,
             style: {
                 fontFamily: font,
             },
             attributes: {
-                'role': 'button',
+                'type': 'button',
                 'aria-label': font,
             },
         });
@@ -181,11 +181,11 @@ export function fontSizeDropdown(editor, dropdown) {
     const sizes = Object.values(editor.constructor.fontSizes);
 
     for (const size of sizes) {
-        const button = $.create('li', {
+        const button = $.create('button', {
             text: size,
             class: editor.constructor.classes.dropdownItem,
             attributes: {
-                'role': 'button',
+                'type': 'button',
                 'aria-label': size,
             },
         });
@@ -210,10 +210,10 @@ export function fontSizeDropdown(editor, dropdown) {
  */
 export function styleDropdown(editor, dropdown) {
     for (const tag of editor.constructor.styles) {
-        const button = $.create('li', {
+        const button = $.create('button', {
             class: editor.constructor.classes.dropdownItem,
             attributes: {
-                'role': 'button',
+                'type': 'button',
                 'aria-label': editor.constructor.lang.styles[tag],
             },
         });
@@ -244,7 +244,7 @@ export function styleDropdown(editor, dropdown) {
  * @param {HTMLElement} dropdown The dropdown.
  */
 export function tableDropdown(editor, dropdown) {
-    const container = $.create('li');
+    const container = $.create('div');
 
     for (let i = 0; i < 10; i++) {
         const row = $.create('div', {
@@ -262,10 +262,11 @@ export function tableDropdown(editor, dropdown) {
                 $.hide(cell);
             }
 
-            const link = $.create('a', {
+            const link = $.create('button', {
                 class: editor.constructor.classes.tableLink,
                 attributes: {
-                    href: '#',
+                    'type': 'button',
+                    'aria-label': `${i + 1} × ${j + 1} table`,
                 },
                 dataset: {
                     uiColumn: j,
@@ -320,16 +321,16 @@ export function tableDropdown(editor, dropdown) {
         const html = $.getHtml(container);
 
         editor.insertHTML(html);
-    }, { delegate: 'a' });
+    }, { delegate: 'button' });
 
-    editor.listen(container, 'mouseover.ui.editor', (e) => {
+    editor.listen(container, 'mouseover.ui.editor focusin.ui.editor', (e) => {
         const targetCol = $.getDataset(e.currentTarget, 'uiColumn');
         const targetRow = $.getDataset(e.currentTarget, 'uiRow');
 
         const colMin = Math.max(targetCol + 1, 4);
         const rowMin = Math.max(targetRow + 1, 4);
 
-        const links = $.find('a', container);
+        const links = $.find('button', container);
 
         for (const element of links) {
             const col = $.getDataset(element, 'uiColumn');
@@ -350,5 +351,5 @@ export function tableDropdown(editor, dropdown) {
         }
 
         $.setText(info, `${targetCol + 1} x ${targetRow + 1}`);
-    }, { delegate: 'a' });
+    }, { delegate: 'button' });
 }

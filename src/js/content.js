@@ -1,5 +1,7 @@
 /** @import Editor from './editor.js'; */
 import $ from '@fr0st/query';
+import { Dropdown } from '@fr0st/ui';
+import { notifyChange, serialize } from './form.js';
 import { joinAdjacentNodes, normalizePhrasing, normalizeSpans, normalizeStyles } from './normalize.js';
 import { getRange, normalizeText, restoreSelection, saveSelection, selectNode, selectRange } from './selection.js';
 
@@ -20,7 +22,7 @@ export function checkEmpty(editor) {
  * @param {boolean | string} [value] The command argument.
  */
 export function execCommand(editor, command, value) {
-    if (!editor.node || $.is(editor.node, ':disabled')) {
+    if (!editor.node || ($.is(editor.node, ':disabled') || editor.node.readOnly)) {
         return;
     }
     editor._focusEditor();
@@ -97,6 +99,11 @@ export function refreshCursor(editor) {
         return;
     }
 
+    const range = getRange(editor._editor);
+    if (editor._currentNode && range && (!range.collapsed && range.intersectsNode(editor._currentNode) || editor._currentNode.contains(baseNode))) {
+        return;
+    }
+
     const currentNode = $.is(baseNode, 'a') ?
         baseNode :
         $.closest(baseNode, 'a', editor._editor).shift();
@@ -114,18 +121,40 @@ export function refreshCursor(editor) {
  * @param {Editor} editor The editor instance.
  */
 export function refreshDisabled(editor) {
-    if ($.is(editor.node, ':disabled')) {
+    const disabled = editor.node.matches(':disabled');
+    const readOnly = editor.node.readOnly;
+    if (disabled) {
         $.addClass(editor._editor, editor.constructor.classes.editorDisabled);
-        $.setStyle(editor._editor, { opacity: .5 });
-        $.removeAttribute(editor._editor, 'contenteditable');
-        $.setAttribute(editor._editor, { 'aria-disabled': true });
-        $.setAttribute(editor._source, { disabled: true });
     } else {
         $.removeClass(editor._editor, editor.constructor.classes.editorDisabled);
-        $.setStyle(editor._editor, { opacity: '' });
-        $.setAttribute(editor._editor, { contenteditable: true });
-        $.removeAttribute(editor._editor, 'aria-disabled');
-        $.removeAttribute(editor._source, 'disabled');
+    }
+    editor._editor.setAttribute('contenteditable', String(!disabled && !readOnly));
+    editor._editor.setAttribute('tabindex', disabled ? '-1' : (editor.node.getAttribute('tabindex') || '0'));
+    editor._source.disabled = disabled;
+    editor._source.readOnly = readOnly;
+    for (const handle of [editor._imgResize, editor._resizeBar].filter(Boolean)) {
+        handle.setAttribute('tabindex', disabled || readOnly ? '-1' : '0');
+        handle.setAttribute('aria-disabled', String(disabled || readOnly));
+    }
+    for (const surface of [editor._editor, editor._source]) {
+        surface.setAttribute('aria-disabled', String(disabled));
+        surface.setAttribute('aria-readonly', String(readOnly));
+        surface.setAttribute('aria-required', String(editor.node.required));
+        for (const name of ['aria-label', 'aria-labelledby', 'aria-describedby', 'aria-errormessage', 'aria-invalid', 'dir', 'lang']) {
+            const value = editor.node.getAttribute(name) || (name === 'aria-labelledby' && !editor.node.hasAttribute('aria-label') ? editor._labelledBy : null);
+            if (value) {
+                surface.setAttribute(name, value);
+            } else {
+                surface.removeAttribute(name);
+            }
+        }
+    }
+    editor._container.classList.toggle('form-error', editor.node.classList.contains('form-error'));
+    if (disabled || readOnly) {
+        editor._removePopover();
+        for (const toggle of editor._toolbar.querySelectorAll('[data-ui-toggle="dropdown"]')) {
+            Dropdown.init(toggle).hide();
+        }
     }
 }
 
@@ -224,14 +253,16 @@ export function refreshToolbar(editor) {
 
         if (
             isDisabled ||
+            (editor.node.readOnly && !['source', 'fullScreen'].includes(type)) ||
             (isSource && !['source', 'fullScreen'].includes(type)) ||
             ('disableCheck' in data && data.disableCheck.bind(editor)())
         ) {
             $.addClass(button, 'disabled');
-            $.setAttribute(button, { 'aria-disabled': true });
+            $.setAttribute(button, { 'aria-disabled': true, 'disabled': true });
         } else {
             $.removeClass(button, 'disabled');
             $.removeAttribute(button, 'aria-disabled');
+            $.removeAttribute(button, 'disabled');
         }
     }
 }
@@ -250,7 +281,7 @@ export function resetDropText(editor) {
  * @param {Editor} editor The editor instance.
  */
 export function showDropTarget(editor) {
-    if ($.is(editor.node, ':disabled') || $.isVisible(editor._sourceContainer)) {
+    if (($.is(editor.node, ':disabled') || editor.node.readOnly) || $.isVisible(editor._sourceContainer)) {
         return;
     }
 
@@ -287,7 +318,8 @@ export function updateValue(editor) {
         return;
     }
     const html = $.getHtml(editor._editor);
-    if (html === $.getValue(editor.node)) {
+    const value = serialize(editor._editor);
+    if (value === $.getValue(editor.node)) {
         if (!editor._history.length) {
             editor._addHistory({ html, selectionData: editor._getSelectionData() });
         }
@@ -295,8 +327,13 @@ export function updateValue(editor) {
     }
     editor._redoHistory = [];
     editor._addHistory({ html, selectionData: editor._getSelectionData() });
-    $.setValue(editor.node, html);
-    $.triggerEvent(editor.node, 'change.ui.editor');
+    $.setValue(editor.node, value);
+    $.setValue(editor._source, value);
+    if (editor.node.validity.valid && !editor.node.hasAttribute('aria-invalid')) {
+        editor._editor.removeAttribute('aria-invalid');
+        editor._source.removeAttribute('aria-invalid');
+    }
+    notifyChange(editor);
 }
 
 
@@ -307,7 +344,7 @@ export function updateValue(editor) {
  * @returns {HTMLElement} The new node.
  */
 export function insertNode(editor, node) {
-    if (!editor.node || $.is(editor.node, ':disabled')) {
+    if (!editor.node || ($.is(editor.node, ':disabled') || editor.node.readOnly)) {
         return null;
     }
     editor._focusEditor();

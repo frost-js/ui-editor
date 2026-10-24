@@ -77,6 +77,7 @@
  * @property {number} [historyLimit=1000] Maximum history snapshots, including the initial content; at least one.
  * @property {EditorPopoverGroups} [popovers] Image, link, and table action groups.
  * @property {EditorUploadCallback} [imageUpload] The image upload callback; the default reader is canceled on disposal.
+ * @property {(html: string) => string} [sanitize] Sanitizes HTML before initial load, source rendering, insertion, and paste; overrides are trusted.
  * @property {EditorKeyDownCallback|null} [keyDown] A keyboard callback, or null to disable shortcuts.
  */
 
@@ -119,6 +120,10 @@
 
 /**
  * @typedef {object} EditorLanguage
+ * @property {string} toolbar The toolbar name.
+ * @property {string} contextToolbar The context toolbar name.
+ * @property {string} resizeEditor The editor resize handle name.
+ * @property {string} resizeImage The image resize handle name.
  * @property {Record<string, string>} drop Drag and drop messages.
  * @property {Record<string, string>} dropdowns Dropdown labels.
  * @property {Record<string, string>} modals Dialog labels and messages.
@@ -145,6 +150,7 @@
 /**
  * @typedef {object} EditorModalOptions
  * @property {string} [title] The dialog title.
+ * @property {HTMLElement} [returnFocus] The invoking control to refocus after closing.
  * @property {HTMLElement} [content] The dialog content.
  * @property {boolean} [fullScreen=false] Whether to use a fullscreen dialog.
  * @property {string} [cancelText] The cancel label.

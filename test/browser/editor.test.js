@@ -107,10 +107,10 @@ test('indents and outdents a text selection without losing its indentation', asy
     });
     await expect(page.locator('.editor')).toHaveText('Hello world');
 
-    await expect(page.locator('.editor div[style*="margin-left"]')).toHaveText('Hello world');
+    await expect(page.locator('.editor div[style*="margin-inline-start"]')).toHaveText('Hello world');
     await page.evaluate(() => window.editor.outdent());
     await expect(page.locator('.editor')).toHaveText('Hello world');
-    await expect(page.locator('.editor div[style*="margin-left"]')).toHaveCount(0);
+    await expect(page.locator('.editor div[style*="margin-inline-start"]')).toHaveCount(0);
 });
 
 test('restores the textarea and releases its registered instance on disposal', async ({ page }) => {

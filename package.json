@@ -70,7 +70,8 @@
             "default": "./dist/frost-ui-editor.esm.js"
         },
         "./dist/*": "./dist/*",
-        "./src/*": "./src/*"
+        "./src/*": "./src/*",
+        "./src/scss/vars.scss": "./src/scss/_vars.scss"
     },
     "module": "./dist/frost-ui-editor.esm.js",
     "jsdelivr": "./dist/frost-ui-editor.min.js",

@@ -1,10 +1,13 @@
 /** @import Editor from './editor.js'; */
 /** @import { EditorOptions, EditorLanguage } from './types.js'; */
 
+import { sanitizeHTML } from './sanitize.js';
+
 // Editor defaults
 /** @type {EditorOptions} */
 export const defaults = {
     buttons: null,
+    sanitize: sanitizeHTML,
     popovers: {
         image: [
             ['imageFull', 'imageHalf', 'imageQuarter', 'imageOriginal'],
@@ -44,12 +47,12 @@ export const defaults = {
      * @param {KeyboardEvent} e The keyboard event.
      */
     keyDown(e) {
-        if (!e.ctrlKey) {
+        if ((!e.ctrlKey && !e.metaKey) || e.altKey) {
             return;
         }
 
         let action;
-        switch (e.key) {
+        switch (e.key.toLowerCase()) {
             case 'b':
                 action = 'bold';
                 break;
@@ -63,7 +66,7 @@ export const defaults = {
                 action = 'redo';
                 break;
             case 'z':
-                action = 'undo';
+                action = e.shiftKey ? 'redo' : 'undo';
                 break;
             default:
                 return;
@@ -86,6 +89,7 @@ export const classes = {
     btnGroup: 'btn-group me-1 mb-1',
     btnIcon: 'pe-none',
     checkbox: 'input-check',
+    checkboxLabel: 'form-check-label',
     checkboxContainer: 'form-check',
     color: 'editor-color flex-grow-1 d-block border-0',
     colorBtnContent: 'fw-bold d-inline-block px-1 pe-none',
@@ -96,7 +100,7 @@ export const classes = {
     colorLabelContainer: 'p-2',
     colorRow: 'd-flex flex-row px-2',
     container: 'card shadow-sm',
-    dropdown: 'dropdown-menu',
+    dropdown: 'editor-dropdown dropdown-menu',
     dropdownButtons: 'pt-2 pe-1 pb-1 ps-2 text-nowrap',
     dropdownGroup: 'btn-group',
     dropdownItem: 'dropdown-item',
@@ -104,21 +108,20 @@ export const classes = {
     dropdownToggle: 'dropdown-toggle',
     dropHover: 'text-primary',
     dropTarget: 'editor-drop-target position-absolute w-100 text-center rounded',
-    dropText: 'position-absolute top-50 translate-middle h5 pe-none',
-    editor: 'editor w-100 p-2 outline-0',
+    dropText: 'position-absolute top-50 start-50 translate-middle h5 pe-none',
+    editor: 'editor w-100 p-2',
     editorBody: 'card-body d-flex p-0',
     editorContainer: 'editor-container position-relative',
-    editorDisabled: 'bg-body-tertiary pe-none',
+    editorDisabled: 'editor-disabled',
     editorScroll: 'editor-scroll d-block w-100 overflow-auto',
     formError: 'form-error',
     formGroup: 'mb-2',
-    imgCursor: 'editor-img-cursor position-absolute translate-middle pe-none',
+    imgCursor: 'editor-img-cursor position-absolute pe-none',
     imgHighlight: 'editor-img-highlight position-absolute pe-none',
-    imgResize: 'editor-img-resize position-absolute top-100 start-100 translate-middle pe-auto',
+    imgResize: 'editor-img-resize position-absolute pe-auto',
     imgSize: 'editor-img-size position-absolute bottom-0 end-0 text-end me-2 mb-2 py-1 px-3 rounded',
     input: 'input-filled',
     inputContainer: 'form-input',
-    inputRipple: 'ripple-line',
     invalidFeedback: 'invalid-feedback',
     linkUrl: 'editor-link-url d-inline-block text-truncate me-1',
     modal: 'modal',
@@ -136,7 +139,7 @@ export const classes = {
     popoverArrow: 'popover-arrow',
     popoverBody: 'popover-body mb-n1 ms-n2 me-n3',
     resizeBar: 'editor-resize card-footer',
-    source: 'editor-source font-monospace outline-0 border-0 p-2 mb-0 w-100',
+    source: 'editor-source font-monospace border-0 p-2 mb-0 w-100',
     sourceContainer: 'd-flex h-100',
     sourceLines: 'font-monospace bg-body-secondary p-2 mb-0 border-end',
     sourceOuter: 'w-100 overflow-hidden',
@@ -146,8 +149,8 @@ export const classes = {
     tableCell: 'flex-column',
     tableDropdown: 'p-2',
     tableHover: 'bg-primary',
-    tableInfo: 'text-muted',
-    tableLink: 'editor-table-link d-block border border-dark p-2 rounded-0',
+    tableInfo: 'text-body-secondary',
+    tableLink: 'editor-table-link d-block border p-2 rounded-0',
     tableRow: 'd-flex flex-row',
     toolbar: 'card-header pt-1 pe-0 pb-0 ps-1',
     toolbarButtons: 'btn-toolbar',
@@ -156,6 +159,10 @@ export const classes = {
 // Editor lang
 /** @type {EditorLanguage} */
 export const lang = {
+    resizeEditor: 'Resize editor',
+    resizeImage: 'Image width',
+    toolbar: 'Formatting',
+    contextToolbar: 'Context formatting',
     drop: {
         drop: 'Drop image or text',
         dropHere: 'Drop image or text here',
@@ -179,6 +186,7 @@ export const lang = {
         linkUrl: 'Link URL',
         videoUrl: 'Video URL',
         videoUrlInvalid: 'Invalid video URL.',
+        urlInvalid: 'Enter a supported URL.',
     },
     plugins: {
         alignCenter: 'Align Center',

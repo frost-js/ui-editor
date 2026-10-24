@@ -1,4 +1,4 @@
-import { BaseComponent, Modal, Popper, Tooltip, generateId, initComponent } from "@fr0st/ui";
+import { BaseComponent, Dropdown, Modal, Popper, Tooltip, generateId, initComponent } from "@fr0st/ui";
 import $ from "@fr0st/query";
 
 // src/js/normalize.js
@@ -287,7 +287,7 @@ function indentBlocks(blocks) {
 		return;
 	}
 	const wrapper = document.createElement("div");
-	wrapper.style.marginLeft = "2em";
+	wrapper.style.marginInlineStart = "2em";
 	first.before(wrapper);
 	wrapper.append(...blocks);
 }
@@ -331,7 +331,7 @@ function outdentBlocks(blocks, root) {
 	const wrappers = /* @__PURE__ */ new Set();
 	for (const block of blocks) {
 		let wrapper = block;
-		while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginLeft) > 0)) wrapper = wrapper.parentElement;
+		while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginInlineStart || wrapper.style.marginLeft) > 0)) wrapper = wrapper.parentElement;
 		if (wrapper && wrapper !== root) wrappers.add(wrapper);
 	}
 	for (const wrapper of wrappers) {
@@ -353,7 +353,7 @@ function outdentBlocks(blocks, root) {
 * @param {boolean} outdent Whether to remove one indentation level.
 */
 function changeIndent(editor, outdent) {
-	if (!editor.node || $.is(editor.node, ":disabled")) return;
+	if (!editor.node || $.is(editor.node, ":disabled") || editor.node.readOnly) return;
 	editor._focusEditor();
 	if (!editor.node) return;
 	const range = getRange(editor._editor);
@@ -394,12 +394,106 @@ function changeIndent(editor, outdent) {
 	}
 }
 
+// src/js/sanitize.js
+var tags = Object.fromEntries("a abbr b bdi bdo blockquote br caption cite code col colgroup dd del div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i iframe img ins kbd li mark ol p pre q s samp small span strong sub sup table tbody td tfoot th thead time tr u ul var wbr".split(" ").map((tag) => [tag, []]));
+Object.assign(tags, {
+	"*": [
+		"class",
+		"title",
+		"dir",
+		"lang",
+		"style"
+	],
+	"a": [
+		"href",
+		"target",
+		"rel"
+	],
+	"img": [
+		"src",
+		"alt",
+		"width",
+		"height"
+	],
+	"iframe": [
+		"src",
+		"title",
+		"width",
+		"height",
+		"allowfullscreen",
+		"frameborder"
+	],
+	"ol": [
+		"start",
+		"reversed",
+		"type"
+	],
+	"li": ["value"],
+	"td": ["colspan", "rowspan"],
+	"th": [
+		"colspan",
+		"rowspan",
+		"scope"
+	],
+	"col": ["span"],
+	"colgroup": ["span"]
+});
+var styles$1 = new Set("color background-color font-family font-size font-weight font-style text-decoration text-decoration-line text-align vertical-align white-space margin-left margin-right margin-inline-start margin-inline-end width height max-width max-height inline-size block-size max-inline-size max-block-size float".split(" "));
+/**
+* Checks an editor URL, including relative links and raster image uploads.
+* @param {string} value The URL.
+* @param {'link'|'image'|'video'} [kind='link'] The destination type.
+* @returns {boolean} Whether the URL is supported.
+*/
+function isSafeURL(value, kind = "link") {
+	try {
+		const url = new URL(value, document.baseURI);
+		if (kind === "video") return url.protocol === "https:" && ["www.youtube.com", "www.youtube-nocookie.com"].includes(url.hostname) && /^\/embed\/[\w-]+$/.test(url.pathname);
+		if (kind === "image" && /^data:image\/(?:png|gif|jpeg|webp|avif);base64,[a-z\d+/=\s]+$/i.test(value)) return true;
+		return ["http:", "https:"].includes(url.protocol) || kind === "link" && ["mailto:", "tel:"].includes(url.protocol);
+	} catch {
+		return false;
+	}
+}
+/**
+* Sanitizes supported editor markup before it reaches the live DOM.
+* @param {string} html Untrusted HTML.
+* @returns {string} Supported HTML with safe URLs and presentation styles.
+*/
+function sanitizeHTML(html) {
+	const template = document.createElement("template");
+	template.innerHTML = $.sanitize(html, tags);
+	for (const node of template.content.querySelectorAll("*")) {
+		for (const property of [...node.style]) {
+			const value = node.style.getPropertyValue(property);
+			if (!styles$1.has(property) || /url\s*\(|expression\s*\(|var\s*\(|[\\@]/i.test(value)) node.style.removeProperty(property);
+		}
+		if (!node.style.length) node.removeAttribute("style");
+		for (const [attribute, kind] of [["href", "link"], ["src", node.localName === "iframe" ? "video" : "image"]]) if (node.hasAttribute(attribute) && !isSafeURL(node.getAttribute(attribute), kind)) node.removeAttribute(attribute);
+		if (node.localName === "iframe") {
+			if (!node.hasAttribute("src")) {
+				node.remove();
+				continue;
+			}
+			node.setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation");
+			node.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+			if (!node.hasAttribute("title")) node.setAttribute("title", "YouTube video");
+		}
+		if (node.localName === "a") {
+			if (node.getAttribute("target") === "_blank") node.setAttribute("rel", "noopener noreferrer");
+			else node.removeAttribute("target");
+		}
+	}
+	return template.innerHTML;
+}
+
 // src/js/config.js
 /** @import Editor from './editor.js'; */
 /** @import { EditorOptions, EditorLanguage } from './types.js'; */
 /** @type {EditorOptions} */
 var defaults = {
 	buttons: null,
+	sanitize: sanitizeHTML,
 	popovers: {
 		image: [
 			[
@@ -448,9 +542,9 @@ var defaults = {
 	* @param {KeyboardEvent} e The keyboard event.
 	*/
 	keyDown(e) {
-		if (!e.ctrlKey) return;
+		if (!e.ctrlKey && !e.metaKey || e.altKey) return;
 		let action;
-		switch (e.key) {
+		switch (e.key.toLowerCase()) {
 			case "b":
 				action = "bold";
 				break;
@@ -464,7 +558,7 @@ var defaults = {
 				action = "redo";
 				break;
 			case "z":
-				action = "undo";
+				action = e.shiftKey ? "redo" : "undo";
 				break;
 			default: return;
 		}
@@ -482,6 +576,7 @@ var classes = {
 	btnGroup: "btn-group me-1 mb-1",
 	btnIcon: "pe-none",
 	checkbox: "input-check",
+	checkboxLabel: "form-check-label",
 	checkboxContainer: "form-check",
 	color: "editor-color flex-grow-1 d-block border-0",
 	colorBtnContent: "fw-bold d-inline-block px-1 pe-none",
@@ -492,7 +587,7 @@ var classes = {
 	colorLabelContainer: "p-2",
 	colorRow: "d-flex flex-row px-2",
 	container: "card shadow-sm",
-	dropdown: "dropdown-menu",
+	dropdown: "editor-dropdown dropdown-menu",
 	dropdownButtons: "pt-2 pe-1 pb-1 ps-2 text-nowrap",
 	dropdownGroup: "btn-group",
 	dropdownItem: "dropdown-item",
@@ -500,21 +595,20 @@ var classes = {
 	dropdownToggle: "dropdown-toggle",
 	dropHover: "text-primary",
 	dropTarget: "editor-drop-target position-absolute w-100 text-center rounded",
-	dropText: "position-absolute top-50 translate-middle h5 pe-none",
-	editor: "editor w-100 p-2 outline-0",
+	dropText: "position-absolute top-50 start-50 translate-middle h5 pe-none",
+	editor: "editor w-100 p-2",
 	editorBody: "card-body d-flex p-0",
 	editorContainer: "editor-container position-relative",
-	editorDisabled: "bg-body-tertiary pe-none",
+	editorDisabled: "editor-disabled",
 	editorScroll: "editor-scroll d-block w-100 overflow-auto",
 	formError: "form-error",
 	formGroup: "mb-2",
-	imgCursor: "editor-img-cursor position-absolute translate-middle pe-none",
+	imgCursor: "editor-img-cursor position-absolute pe-none",
 	imgHighlight: "editor-img-highlight position-absolute pe-none",
-	imgResize: "editor-img-resize position-absolute top-100 start-100 translate-middle pe-auto",
+	imgResize: "editor-img-resize position-absolute pe-auto",
 	imgSize: "editor-img-size position-absolute bottom-0 end-0 text-end me-2 mb-2 py-1 px-3 rounded",
 	input: "input-filled",
 	inputContainer: "form-input",
-	inputRipple: "ripple-line",
 	invalidFeedback: "invalid-feedback",
 	linkUrl: "editor-link-url d-inline-block text-truncate me-1",
 	modal: "modal",
@@ -532,7 +626,7 @@ var classes = {
 	popoverArrow: "popover-arrow",
 	popoverBody: "popover-body mb-n1 ms-n2 me-n3",
 	resizeBar: "editor-resize card-footer",
-	source: "editor-source font-monospace outline-0 border-0 p-2 mb-0 w-100",
+	source: "editor-source font-monospace border-0 p-2 mb-0 w-100",
 	sourceContainer: "d-flex h-100",
 	sourceLines: "font-monospace bg-body-secondary p-2 mb-0 border-end",
 	sourceOuter: "w-100 overflow-hidden",
@@ -542,14 +636,18 @@ var classes = {
 	tableCell: "flex-column",
 	tableDropdown: "p-2",
 	tableHover: "bg-primary",
-	tableInfo: "text-muted",
-	tableLink: "editor-table-link d-block border border-dark p-2 rounded-0",
+	tableInfo: "text-body-secondary",
+	tableLink: "editor-table-link d-block border p-2 rounded-0",
 	tableRow: "d-flex flex-row",
 	toolbar: "card-header pt-1 pe-0 pb-0 ps-1",
 	toolbarButtons: "btn-toolbar"
 };
 /** @type {EditorLanguage} */
 var lang = {
+	resizeEditor: "Resize editor",
+	resizeImage: "Image width",
+	toolbar: "Formatting",
+	contextToolbar: "Context formatting",
 	drop: {
 		drop: "Drop image or text",
 		dropHere: "Drop image or text here"
@@ -572,7 +670,8 @@ var lang = {
 		linkText: "Link Text",
 		linkUrl: "Link URL",
 		videoUrl: "Video URL",
-		videoUrlInvalid: "Invalid video URL."
+		videoUrlInvalid: "Invalid video URL.",
+		urlInvalid: "Enter a supported URL."
 	},
 	plugins: {
 		alignCenter: "Align Center",
@@ -638,6 +737,117 @@ var lang = {
 	}
 };
 
+// src/js/form.js
+/** @import Editor from './editor.js'; */
+/**
+* Emits the existing change contract without reloading our own content.
+* @param {Editor} editor The editor.
+*/
+function notifyChange(editor) {
+	$.triggerEvent(editor.node, "change.ui.editor", { data: { skipUpdate: true } });
+}
+/**
+* Serializes empty editing scaffolding as an empty native value.
+* @param {HTMLElement|DocumentFragment} surface The surface.
+* @param {string} [html] Its serialized HTML.
+* @returns {string} The submitted HTML.
+*/
+function serialize(surface, html = surface.innerHTML) {
+	return !surface.textContent.trim() && !surface.querySelector("img, iframe, hr, table") ? "" : html;
+}
+/**
+* Loads an external value and starts a fresh history after native reset.
+* @param {Editor} editor The editor.
+* @param {boolean} [reset=false] Whether to clear history.
+*/
+function loadValue(editor, reset = false) {
+	editor._observe(false);
+	try {
+		editor._editor.innerHTML = editor.options.sanitize(editor.node.value);
+		editor._normalize();
+		editor._checkEmpty();
+		editor.node.value = serialize(editor._editor);
+		editor._source.value = editor.node.value;
+		editor._lastRange = null;
+		if (reset) {
+			editor._history = [];
+			editor._redoHistory = [];
+		}
+		if (editor._history.at(-1)?.html !== editor._editor.innerHTML) editor._redoHistory = [];
+		editor._addHistory({ html: editor._editor.innerHTML });
+		editor._refreshDisabled();
+		editor._refreshToolbar();
+		editor._refreshLineNumbers();
+	} finally {
+		editor._observe();
+	}
+}
+/**
+* Attaches native form, label, validation, and state synchronization.
+* @param {Editor} editor The editor.
+*/
+function eventsForm(editor) {
+	const focus = () => {
+		if (editor.node && !editor.node.matches(":disabled")) ($.isVisible(editor._sourceContainer) ? editor._source : editor._editor).focus();
+	};
+	const labels = [...editor.node.labels];
+	const generated = [];
+	for (const label of labels) {
+		if (!label.id) {
+			label.id = generateId("editor-label");
+			generated.push([label, label.id]);
+		}
+		editor.listen(label, "click.ui.editor", (event) => {
+			if (event.target === label || !event.target.closest("a, button, input, select, textarea")) {
+				event.preventDefault();
+				focus();
+			}
+		});
+	}
+	editor._labelledBy = labels.map((label) => label.id).join(" ");
+	editor._refreshDisabled();
+	editor.listen(editor.node, "focus.ui.editor", (event) => {
+		if (event.target === document.activeElement) focus();
+	});
+	editor.listen(editor.node, "invalid.ui.editor", (event) => {
+		event.preventDefault();
+		editor._editor.setAttribute("aria-invalid", "true");
+		editor._source.setAttribute("aria-invalid", "true");
+		focus();
+	});
+	editor.listen(editor.node, "input.ui.editor change.ui.editor", (event) => {
+		if (!event.skipUpdate) loadValue(editor);
+	});
+	const timers = /* @__PURE__ */ new Set();
+	editor.listen(editor.node.ownerDocument, "reset.ui.editor", (event) => {
+		if (event.target !== editor.node.form) return;
+		const timer = setTimeout(() => {
+			timers.delete(timer);
+			if (editor.node && !event.defaultPrevented) {
+				editor._removePopover();
+				loadValue(editor, true);
+			}
+		}, 0);
+		timers.add(timer);
+	});
+	const observer = new MutationObserver(() => {
+		if (editor.node) {
+			editor._refreshDisabled();
+			editor._refreshToolbar();
+		}
+	});
+	observer.observe(editor.node, { attributes: true });
+	for (const fieldset of $.parents(editor.node, "fieldset")) observer.observe(fieldset, {
+		attributes: true,
+		attributeFilter: ["disabled"]
+	});
+	editor._onDispose(() => {
+		observer.disconnect();
+		for (const timer of timers) clearTimeout(timer);
+		for (const [label, id] of generated) if (label.id === id) label.removeAttribute("id");
+	});
+}
+
 // src/js/content.js
 /** @import Editor from './editor.js'; */
 /**
@@ -654,7 +864,7 @@ function checkEmpty(editor) {
 * @param {boolean | string} [value] The command argument.
 */
 function execCommand(editor, command, value) {
-	if (!editor.node || $.is(editor.node, ":disabled")) return;
+	if (!editor.node || $.is(editor.node, ":disabled") || editor.node.readOnly) return;
 	editor._focusEditor();
 	if (!editor.node) return;
 	editor._addHistory({
@@ -719,6 +929,8 @@ function refreshCursor(editor) {
 		editor._removePopover();
 		return;
 	}
+	const range = getRange(editor._editor);
+	if (editor._currentNode && range && (!range.collapsed && range.intersectsNode(editor._currentNode) || editor._currentNode.contains(baseNode))) return;
 	const currentNode = $.is(baseNode, "a") ? baseNode : $.closest(baseNode, "a", editor._editor).shift();
 	if (!currentNode) {
 		editor._removePopover();
@@ -731,18 +943,40 @@ function refreshCursor(editor) {
 * @param {Editor} editor The editor instance.
 */
 function refreshDisabled(editor) {
-	if ($.is(editor.node, ":disabled")) {
-		$.addClass(editor._editor, editor.constructor.classes.editorDisabled);
-		$.setStyle(editor._editor, { opacity: .5 });
-		$.removeAttribute(editor._editor, "contenteditable");
-		$.setAttribute(editor._editor, { "aria-disabled": true });
-		$.setAttribute(editor._source, { disabled: true });
-	} else {
-		$.removeClass(editor._editor, editor.constructor.classes.editorDisabled);
-		$.setStyle(editor._editor, { opacity: "" });
-		$.setAttribute(editor._editor, { contenteditable: true });
-		$.removeAttribute(editor._editor, "aria-disabled");
-		$.removeAttribute(editor._source, "disabled");
+	const disabled = editor.node.matches(":disabled");
+	const readOnly = editor.node.readOnly;
+	if (disabled) $.addClass(editor._editor, editor.constructor.classes.editorDisabled);
+	else $.removeClass(editor._editor, editor.constructor.classes.editorDisabled);
+	editor._editor.setAttribute("contenteditable", String(!disabled && !readOnly));
+	editor._editor.setAttribute("tabindex", disabled ? "-1" : editor.node.getAttribute("tabindex") || "0");
+	editor._source.disabled = disabled;
+	editor._source.readOnly = readOnly;
+	for (const handle of [editor._imgResize, editor._resizeBar].filter(Boolean)) {
+		handle.setAttribute("tabindex", disabled || readOnly ? "-1" : "0");
+		handle.setAttribute("aria-disabled", String(disabled || readOnly));
+	}
+	for (const surface of [editor._editor, editor._source]) {
+		surface.setAttribute("aria-disabled", String(disabled));
+		surface.setAttribute("aria-readonly", String(readOnly));
+		surface.setAttribute("aria-required", String(editor.node.required));
+		for (const name of [
+			"aria-label",
+			"aria-labelledby",
+			"aria-describedby",
+			"aria-errormessage",
+			"aria-invalid",
+			"dir",
+			"lang"
+		]) {
+			const value = editor.node.getAttribute(name) || (name === "aria-labelledby" && !editor.node.hasAttribute("aria-label") ? editor._labelledBy : null);
+			if (value) surface.setAttribute(name, value);
+			else surface.removeAttribute(name);
+		}
+	}
+	editor._container.classList.toggle("form-error", editor.node.classList.contains("form-error"));
+	if (disabled || readOnly) {
+		editor._removePopover();
+		for (const toggle of editor._toolbar.querySelectorAll("[data-ui-toggle=\"dropdown\"]")) Dropdown.init(toggle).hide();
 	}
 }
 /**
@@ -802,12 +1036,16 @@ function refreshToolbar(editor) {
 			$.removeClass(button, "active");
 			$.removeAttribute(button, "aria-pressed");
 		}
-		if (isDisabled || isSource && !["source", "fullScreen"].includes(type) || "disableCheck" in data && data.disableCheck.bind(editor)()) {
+		if (isDisabled || editor.node.readOnly && !["source", "fullScreen"].includes(type) || isSource && !["source", "fullScreen"].includes(type) || "disableCheck" in data && data.disableCheck.bind(editor)()) {
 			$.addClass(button, "disabled");
-			$.setAttribute(button, { "aria-disabled": true });
+			$.setAttribute(button, {
+				"aria-disabled": true,
+				"disabled": true
+			});
 		} else {
 			$.removeClass(button, "disabled");
 			$.removeAttribute(button, "aria-disabled");
+			$.removeAttribute(button, "disabled");
 		}
 	}
 }
@@ -824,7 +1062,7 @@ function resetDropText(editor) {
 * @param {Editor} editor The editor instance.
 */
 function showDropTarget(editor) {
-	if ($.is(editor.node, ":disabled") || $.isVisible(editor._sourceContainer)) return;
+	if ($.is(editor.node, ":disabled") || editor.node.readOnly || $.isVisible(editor._sourceContainer)) return;
 	$.show(editor._dropTarget);
 }
 /**
@@ -852,7 +1090,8 @@ function showSource(editor) {
 function updateValue(editor) {
 	if (!editor.node) return;
 	const html = $.getHtml(editor._editor);
-	if (html === $.getValue(editor.node)) {
+	const value = serialize(editor._editor);
+	if (value === $.getValue(editor.node)) {
 		if (!editor._history.length) editor._addHistory({
 			html,
 			selectionData: editor._getSelectionData()
@@ -864,8 +1103,13 @@ function updateValue(editor) {
 		html,
 		selectionData: editor._getSelectionData()
 	});
-	$.setValue(editor.node, html);
-	$.triggerEvent(editor.node, "change.ui.editor");
+	$.setValue(editor.node, value);
+	$.setValue(editor._source, value);
+	if (editor.node.validity.valid && !editor.node.hasAttribute("aria-invalid")) {
+		editor._editor.removeAttribute("aria-invalid");
+		editor._source.removeAttribute("aria-invalid");
+	}
+	notifyChange(editor);
 }
 /**
 * Insert a (cloned) node into the editor.
@@ -874,7 +1118,7 @@ function updateValue(editor) {
 * @returns {HTMLElement} The new node.
 */
 function insertNode(editor, node) {
-	if (!editor.node || $.is(editor.node, ":disabled")) return null;
+	if (!editor.node || $.is(editor.node, ":disabled") || editor.node.readOnly) return null;
 	editor._focusEditor();
 	if (!editor.node) return null;
 	const range = getRange(editor._editor);
@@ -1027,11 +1271,19 @@ function resetDragCount() {
 * @param {Editor} editor The editor instance.
 */
 function events(editor) {
+	eventsForm(editor);
 	editor._eventsToolbar();
 	editor._eventsEditor();
 	editor._eventsPopover();
 	editor._eventsSource();
 	editor._eventsDrop();
+	editor.listen(editor._container, "keydown.ui.editor", (event) => {
+		if (event.code === "Escape" && editor._currentNode && !editor._modal) {
+			event.preventDefault();
+			editor._removePopover();
+			editor._focusEditor();
+		}
+	});
 	if (editor.options.resizable) editor._eventsResize();
 }
 /**
@@ -1070,6 +1322,14 @@ function eventsDrop(editor) {
 * @param {Editor} editor The editor instance.
 */
 function eventsEditor(editor) {
+	editor.listen(editor._editor, "paste.ui.editor", (event) => {
+		event.preventDefault();
+		if (event.clipboardData) {
+			const html = event.clipboardData.getData("text/html");
+			if (html) editor.insertHTML(html);
+			else editor.insertText(event.clipboardData.getData("text/plain"));
+		}
+	});
 	editor.listen(editor._editor, "focus.ui.editor", (_) => {
 		document.execCommand("defaultParagraphSeparator", false, "p");
 		$.triggerEvent(editor.node, "focus.ui.editor");
@@ -1105,7 +1365,7 @@ function eventsEditor(editor) {
 		if (e.defaultPrevented || !editor.node) return;
 		const selection = window.getSelection();
 		const isIndented = (node) => {
-			return $.is(node, "li") || $.getStyle(node, "marginLeft");
+			return $.is(node, "li") || $.getStyle(node, "marginInlineStart") || $.getStyle(node, "marginLeft");
 		};
 		switch (e.code) {
 			case "Backspace":
@@ -1141,6 +1401,8 @@ function eventsEditor(editor) {
 	editor.listen(editor._editor, "click.ui.editor", (e) => {
 		e.preventDefault();
 		e.stopPropagation();
+		if (editor.node.matches(":disabled") || editor.node.readOnly) return;
+		if (e.currentTarget.matches("img")) selectNode(e.currentTarget);
 		editor._refreshPopover(e.currentTarget, e);
 		editor._refreshToolbar();
 	}, {
@@ -1155,6 +1417,7 @@ function eventsEditor(editor) {
 */
 function eventsPopover(editor) {
 	editor.listen(editor._popover, "click.ui.editor", (e) => {
+		if (editor.node.matches(":disabled") || editor.node.readOnly) return;
 		const action = $.getDataset(e.currentTarget, "uiAction");
 		if (!(action in editor.constructor.popovers)) throw new Error(`Unknown action ${action}`);
 		e.preventDefault();
@@ -1182,6 +1445,14 @@ function eventsPopover(editor) {
 		editor._observe();
 	};
 	bindDrag(editor, editor._imgResize, downEvent, moveEvent, upEvent);
+	editor.listen(editor._imgResize, "keydown.ui.editor", (event) => {
+		if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !editor._currentNode || editor.node.matches(":disabled") || editor.node.readOnly) return;
+		event.preventDefault();
+		const width = Math.max(1, editor._currentNode.getBoundingClientRect().width + (event.code === "ArrowRight" ? 10 : -10));
+		editor._currentNode.style.width = `${width}px`;
+		editor._highlightImage(editor._currentNode);
+		editor._updateValue();
+	});
 	editor.listen(editor._editorBody, "scroll.ui.editor", (_) => {
 		editor._removePopover();
 	});
@@ -1201,31 +1472,47 @@ function eventsResize(editor) {
 		const editorPosition = $.position(editor._editorBody, { offset: true });
 		const height = Math.max(0, e.pageY - editorPosition.y - resizeOffset);
 		$.setStyle(editor._editorBody, { height: `${height}px` });
+		editor._resizeBar.setAttribute("aria-valuenow", String(Math.round(height)));
 	};
 	const upEvent = (_) => {
 		resizeOffset = 0;
 	};
 	bindDrag(editor, editor._resizeBar, downEvent, moveEvent, upEvent);
+	editor.listen(editor._resizeBar, "keydown.ui.editor", (event) => {
+		if (!["ArrowUp", "ArrowDown"].includes(event.code) || editor.node.matches(":disabled") || editor.node.readOnly) return;
+		event.preventDefault();
+		const height = Math.max(40, editor._editorBody.getBoundingClientRect().height + (event.code === "ArrowDown" ? 10 : -10));
+		editor._editorBody.style.height = `${height}px`;
+		editor._resizeBar.setAttribute("aria-valuenow", String(Math.round(height)));
+	});
 }
 /**
 * Attach source events.
 * @param {Editor} editor The editor instance.
 */
 function eventsSource(editor) {
+	editor.listen(editor._source, "focus.ui.editor", () => $.triggerEvent(editor.node, "focus.ui.editor"));
+	editor.listen(editor._source, "blur.ui.editor", () => $.triggerEvent(editor.node, "blur.ui.editor"));
 	const refreshLineNumbersDebounced = editor._debounce((_) => {
 		editor._refreshLineNumbers();
 	});
-	editor.listen(editor._source, "input.ui.editor", (_) => {
+	editor.listen(editor._source, "input.ui.editor change.ui.editor", (_) => {
+		if (editor.node.matches(":disabled") || editor.node.readOnly) return;
 		refreshLineNumbersDebounced();
-	});
-	editor.listen(editor._source, "change.ui.editor", (_) => {
-		const html = $.getValue(editor._source);
-		refreshLineNumbersDebounced();
-		$.setValue(editor.node, html);
-		$.triggerEvent(editor.node, "change.ui.editor");
+		const template = document.createElement("template");
+		template.innerHTML = editor.options.sanitize(editor._source.value);
+		const html = serialize(template.content, template.innerHTML);
+		if (editor.node.value !== html) {
+			editor.node.value = html;
+			if (editor.node.validity.valid && !editor.node.hasAttribute("aria-invalid")) {
+				editor._source.removeAttribute("aria-invalid");
+				editor._editor.removeAttribute("aria-invalid");
+			}
+			notifyChange(editor);
+		}
 	});
 	editor.listen(editor._source, "keydown.ui.editor", (e) => {
-		if (e.code !== "Tab") return;
+		if (e.code !== "Tab" || !e.ctrlKey || editor.node.readOnly || editor.node.matches(":disabled")) return;
 		e.preventDefault();
 		const start = $.getProperty(editor._source, "selectionStart");
 		const end = $.getProperty(editor._source, "selectionEnd");
@@ -1275,7 +1562,7 @@ function eventsToolbar(editor) {
 		if (!(action in editor.constructor.plugins)) throw new Error(`Unknown action ${action}`);
 		e.preventDefault();
 		e.stopPropagation();
-		if ($.is(editor.node, ":disabled") || $.is(e.currentTarget, "[aria-disabled=\"true\"]")) return;
+		if ($.is(editor.node, ":disabled") || editor.node.readOnly && !["source", "fullScreen"].includes(action) || $.is(e.currentTarget, "[aria-disabled=\"true\"]")) return;
 		if (editor._lastRange && editor._editor.contains(editor._lastRange.startContainer) && editor._editor.contains(editor._lastRange.endContainer)) {
 			const selection = window.getSelection();
 			selection.removeAllRanges();
@@ -1284,6 +1571,7 @@ function eventsToolbar(editor) {
 		editor.constructor.plugins[action].action.bind(editor)();
 	}, { delegate: "[data-ui-action]" });
 	editor.listen(editor._toolbar, "click.ui.editor", (e) => {
+		if (editor.node.matches(":disabled") || editor.node.readOnly || e.currentTarget.matches("[aria-disabled=\"true\"]")) return;
 		const command = $.getDataset(e.currentTarget, "uiCommand");
 		if (!(command in editor)) throw new Error(`Unknown command ${command}`);
 		e.preventDefault();
@@ -1311,7 +1599,7 @@ function bindDrag(editor, handle, down, move, up) {
 		pointer = null;
 	});
 	editor.listen(handle, "pointerdown.ui.editor", (event) => {
-		if (event.button !== 0 || pointer !== null || $.is(editor.node, ":disabled") || down(event) === false) return;
+		if (event.button !== 0 || pointer !== null || $.is(editor.node, ":disabled") || editor.node.readOnly || down(event) === false) return;
 		event.preventDefault();
 		pointer = event.pointerId;
 	});
@@ -1403,12 +1691,13 @@ function getSelectionData(editor) {
 */
 function restoreHistory(editor, { html, selectionData = null }) {
 	if (!editor.node) return;
-	const changed = $.getValue(editor.node) !== html;
+	const previous = $.getValue(editor.node);
 	editor._observe(false);
 	try {
 		$.setHtml(editor._editor, html);
-		$.setValue(editor.node, html);
-		$.setValue(editor._source, html);
+		const value = serialize(editor._editor);
+		$.setValue(editor.node, value);
+		$.setValue(editor._source, value);
 		editor._focusEditor();
 		if (!editor.node) return;
 		const selection = window.getSelection();
@@ -1421,11 +1710,12 @@ function restoreHistory(editor, { html, selectionData = null }) {
 			selection.collapseToEnd();
 		}
 		editor._checkEmpty();
+		editor._refreshDisabled();
 		editor._refreshToolbar();
 	} finally {
 		editor._observe();
 	}
-	if (changed) $.triggerEvent(editor.node, "change.ui.editor");
+	if (editor.node && previous !== editor.node.value) notifyChange(editor);
 }
 
 // src/js/icons.js
@@ -1490,6 +1780,7 @@ function removeModal(editor) {
 */
 function showImageModal(editor) {
 	editor._removeModal();
+	const returnFocus = document.activeElement;
 	const container = $.create("div");
 	const { group: fileGroup, input: fileInput } = editor.constructor._createFileInput({
 		id: generateId("editor-image-file"),
@@ -1499,7 +1790,7 @@ function showImageModal(editor) {
 			multiple: true
 		}
 	});
-	const { group: urlGroup, input: urlInput } = editor.constructor._createInput({
+	const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
 		id: generateId("editor-image-url"),
 		label: editor.constructor.lang.modals.imageUrl
 	});
@@ -1510,6 +1801,7 @@ function showImageModal(editor) {
 	const range = getRange();
 	range.collapse();
 	editor._modal = editor.constructor._createModal({
+		returnFocus,
 		title: editor.constructor.lang.modals.insertImage,
 		content: container,
 		cancelText: editor.constructor.lang.modals.cancel,
@@ -1519,14 +1811,25 @@ function showImageModal(editor) {
 			const files = $.getProperty(fileInput, "files");
 			const src = $.getValue(urlInput);
 			if (files.length) editor.options.imageUpload.bind(editor)(files);
-			else if (src) editor.insertImage(src);
+			else if (src) {
+				if (!isSafeURL(src, "image")) {
+					urlInput.setAttribute("aria-invalid", "true");
+					$.addClass(urlGroup, editor.constructor.classes.formError);
+					$.setText(urlInvalidFeedback, editor.constructor.lang.modals.urlInvalid);
+					return false;
+				}
+				editor.insertImage(src);
+			}
 		},
 		onShown: (_) => {
 			$.focus(fileInput);
 		},
 		onHidden: (_) => {
 			editor._removeModal();
-			if (editor.node) selectRange(originalRange);
+			if (editor.node) {
+				selectRange(originalRange);
+				if (!returnFocus?.isConnected) editor._focusEditor();
+			}
 		}
 	});
 	editor._ownComponent(Modal.init(editor._modal));
@@ -1538,12 +1841,13 @@ function showImageModal(editor) {
 */
 function showLinkModal(editor, link) {
 	editor._removeModal();
+	const returnFocus = document.activeElement;
 	const container = $.create("div");
 	const { group: textGroup, input: textInput } = editor.constructor._createInput({
 		id: generateId("editor-link-text"),
 		label: editor.constructor.lang.modals.linkText
 	});
-	const { group: urlGroup, input: urlInput } = editor.constructor._createInput({
+	const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
 		id: generateId("editor-link-url"),
 		label: editor.constructor.lang.modals.linkUrl
 	});
@@ -1571,6 +1875,7 @@ function showLinkModal(editor, link) {
 		range = getRange();
 	}
 	editor._modal = editor.constructor._createModal({
+		returnFocus,
 		title: editor.constructor.lang.modals.insertLink,
 		content: container,
 		cancelText: editor.constructor.lang.modals.cancel,
@@ -1580,6 +1885,12 @@ function showLinkModal(editor, link) {
 			const text = $.getValue(textInput);
 			const href = $.getValue(urlInput);
 			const newWindow = $.is(newWindowInput, ":checked");
+			if (!isSafeURL(href)) {
+				urlInput.setAttribute("aria-invalid", "true");
+				$.addClass(urlGroup, editor.constructor.classes.formError);
+				$.setText(urlInvalidFeedback, editor.constructor.lang.modals.urlInvalid);
+				return false;
+			}
 			editor.insertLink(href, text, newWindow);
 		},
 		onShown: (_) => {
@@ -1587,7 +1898,10 @@ function showLinkModal(editor, link) {
 		},
 		onHidden: (_) => {
 			editor._removeModal();
-			if (editor.node) selectRange(originalRange);
+			if (editor.node) {
+				selectRange(originalRange);
+				if (!returnFocus?.isConnected) editor._focusEditor();
+			}
 		}
 	});
 	const controller = editor._ownComponent(Modal.init(editor._modal));
@@ -1606,6 +1920,7 @@ function showLinkModal(editor, link) {
 */
 function showVideoModal(editor) {
 	editor._removeModal();
+	const returnFocus = document.activeElement;
 	const container = $.create("div");
 	const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
 		id: generateId("editor-video-url"),
@@ -1616,20 +1931,27 @@ function showVideoModal(editor) {
 	editor._focusEditor();
 	const range = getRange();
 	editor._modal = editor.constructor._createModal({
+		returnFocus,
 		title: editor.constructor.lang.modals.insertVideo,
 		content: container,
 		cancelText: editor.constructor.lang.modals.cancel,
 		submitText: editor.constructor.lang.modals.insertVideo,
 		onSubmit: (_) => {
 			selectRange(range);
-			const match = $.getValue(urlInput).match(/youtube\.com\/watch\?v=([\w]+)/i);
-			if (!match) {
+			const url = $.getValue(urlInput);
+			let id;
+			try {
+				const parsed = new URL(url);
+				if (parsed.protocol === "https:" && (parsed.hostname === "youtu.be" || ["youtube.com", "www.youtube.com"].includes(parsed.hostname) && parsed.pathname === "/watch")) id = parsed.hostname === "youtu.be" ? parsed.pathname.slice(1) : parsed.searchParams.get("v");
+			} catch {}
+			if (!id || !/^[\w-]+$/.test(id)) {
+				urlInput.setAttribute("aria-invalid", "true");
 				$.addClass(urlGroup, editor.constructor.classes.formError);
 				$.setText(urlInvalidFeedback, editor.constructor.lang.modals.videoUrlInvalid);
 				return false;
 			}
 			$.removeClass(urlGroup, editor.constructor.classes.formError);
-			const id = match[1];
+			urlInput.removeAttribute("aria-invalid");
 			const video = $.create("iframe", { attributes: {
 				width: 560,
 				height: 315,
@@ -1645,7 +1967,10 @@ function showVideoModal(editor) {
 		},
 		onHidden: (_) => {
 			editor._removeModal();
-			if (editor.node) selectRange(originalRange);
+			if (editor.node) {
+				selectRange(originalRange);
+				if (!returnFocus?.isConnected) editor._focusEditor();
+			}
 		}
 	});
 	editor._ownComponent(Modal.init(editor._modal));
@@ -1669,6 +1994,7 @@ function createCheckbox(Component, options) {
 	});
 	const label = $.create("label", {
 		text: options.label,
+		class: Component.classes.checkboxLabel,
 		attributes: { for: options.id }
 	});
 	$.append(inputContainer, input);
@@ -1692,11 +2018,14 @@ function createFileInput(Component, options) {
 		attributes: { for: options.id }
 	});
 	const inputContainer = $.create("div", { class: Component.classes.inputContainer });
-	const input = $.create("input", { attributes: {
-		id: options.id,
-		type: "file",
-		...options.attributes
-	} });
+	const input = $.create("input", {
+		class: Component.classes.input,
+		attributes: {
+			id: options.id,
+			type: "file",
+			...options.attributes
+		}
+	});
 	$.append(group, label);
 	$.append(inputContainer, input);
 	$.append(group, inputContainer);
@@ -1726,12 +2055,12 @@ function createInput(Component, options) {
 			...options.attributes
 		}
 	});
-	const ripple = $.create("div", { class: Component.classes.inputRipple });
 	const invalidFeedback = $.create("div", { class: Component.classes.invalidFeedback });
 	$.append(group, label);
 	$.append(inputContainer, input);
-	$.append(inputContainer, ripple);
 	$.append(group, inputContainer);
+	invalidFeedback.id = `${options.id}-error`;
+	input.setAttribute("aria-describedby", invalidFeedback.id);
 	$.append(group, invalidFeedback);
 	return {
 		group,
@@ -1746,6 +2075,7 @@ function createInput(Component, options) {
 * @returns {HTMLElement} The modal element.
 */
 function createModal(Component, options) {
+	const returnFocus = options.returnFocus || document.activeElement;
 	const modal = $.create("div", {
 		class: Component.classes.modal,
 		attributes: {
@@ -1824,9 +2154,10 @@ function createModal(Component, options) {
 		} finally {
 			controller.dispose();
 			$.remove(modal);
+			if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true });
 		}
 	});
-	controller.show();
+	controller.show(returnFocus);
 	return modal;
 }
 
@@ -1925,7 +2256,7 @@ var plugins_default = {
 		if ($.isVisible(this._sourceContainer)) {
 			this._observe(false);
 			try {
-				$.setHtml(this._editor, value);
+				$.setHtml(this._editor, this.options.sanitize(value));
 				this._normalize();
 				this._checkEmpty();
 				const html = $.getHtml(this._editor);
@@ -2015,7 +2346,8 @@ var popovers_default = {
 			class: this.constructor.classes.linkUrl,
 			attributes: {
 				href,
-				target: "_blank"
+				target: "_blank",
+				rel: "noopener noreferrer"
 			}
 		});
 	} },
@@ -2128,6 +2460,7 @@ function highlightImage(editor, image) {
 		width: `${imgWidth + 2}px`,
 		height: `${imgHeight + 2}px`
 	});
+	editor._imgResize.setAttribute("aria-valuenow", String(imgWidth));
 	$.setText(editor._imgSize, `${imgWidth}x${imgHeight}`);
 	if (imgWidth < 100 || imgHeight < 50) $.hide(editor._imgSize);
 	else $.show(editor._imgSize);
@@ -2203,7 +2536,7 @@ function removePopover(editor) {
 * @param {HTMLElement} dropdown The dropdown.
 */
 function colorDropdown(editor, dropdown) {
-	const container = $.create("li", { class: editor.constructor.classes.colorContainerRow });
+	const container = $.create("div", { class: editor.constructor.classes.colorContainerRow });
 	const col1 = $.create("div", { class: editor.constructor.classes.colorContainerColumn });
 	const col2 = $.create("div", { class: editor.constructor.classes.colorContainerColumn });
 	const foreLabel = $.create("small", {
@@ -2286,7 +2619,7 @@ function colorDropdown(editor, dropdown) {
 	}
 	$.append(container, col1);
 	$.append(container, col2);
-	$.setStyle(dropdown, { minWidth: "350px" });
+	$.setStyle(dropdown, { minInlineSize: "min(350px, calc(100vw - 2rem))" });
 	$.append(dropdown, container);
 }
 /**
@@ -2297,12 +2630,12 @@ function colorDropdown(editor, dropdown) {
 function fontDropdown(editor, dropdown) {
 	const fonts = editor._fonts.sort();
 	for (const font of fonts) {
-		const button = $.create("li", {
+		const button = $.create("button", {
 			text: font,
 			class: editor.constructor.classes.dropdownItem,
 			style: { fontFamily: font },
 			attributes: {
-				"role": "button",
+				"type": "button",
 				"aria-label": font
 			}
 		});
@@ -2326,11 +2659,11 @@ function fontDropdown(editor, dropdown) {
 function fontSizeDropdown(editor, dropdown) {
 	const sizes = Object.values(editor.constructor.fontSizes);
 	for (const size of sizes) {
-		const button = $.create("li", {
+		const button = $.create("button", {
 			text: size,
 			class: editor.constructor.classes.dropdownItem,
 			attributes: {
-				"role": "button",
+				"type": "button",
 				"aria-label": size
 			}
 		});
@@ -2353,10 +2686,10 @@ function fontSizeDropdown(editor, dropdown) {
 */
 function styleDropdown(editor, dropdown) {
 	for (const tag of editor.constructor.styles) {
-		const button = $.create("li", {
+		const button = $.create("button", {
 			class: editor.constructor.classes.dropdownItem,
 			attributes: {
-				"role": "button",
+				"type": "button",
 				"aria-label": editor.constructor.lang.styles[tag]
 			}
 		});
@@ -2383,7 +2716,7 @@ function styleDropdown(editor, dropdown) {
 * @param {HTMLElement} dropdown The dropdown.
 */
 function tableDropdown(editor, dropdown) {
-	const container = $.create("li");
+	const container = $.create("div");
 	for (let i = 0; i < 10; i++) {
 		const row = $.create("div", { class: editor.constructor.classes.tableRow });
 		$.append(container, row);
@@ -2391,9 +2724,12 @@ function tableDropdown(editor, dropdown) {
 			const cell = $.create("div", { class: editor.constructor.classes.tableCell });
 			$.append(row, cell);
 			if (i > 4 || j > 4) $.hide(cell);
-			const link = $.create("a", {
+			const link = $.create("button", {
 				class: editor.constructor.classes.tableLink,
-				attributes: { href: "#" },
+				attributes: {
+					"type": "button",
+					"aria-label": `${i + 1} × ${j + 1} table`
+				},
 				dataset: {
 					uiColumn: j,
 					uiRow: i
@@ -2426,13 +2762,13 @@ function tableDropdown(editor, dropdown) {
 		$.append(container, br);
 		const html = $.getHtml(container);
 		editor.insertHTML(html);
-	}, { delegate: "a" });
-	editor.listen(container, "mouseover.ui.editor", (e) => {
+	}, { delegate: "button" });
+	editor.listen(container, "mouseover.ui.editor focusin.ui.editor", (e) => {
 		const targetCol = $.getDataset(e.currentTarget, "uiColumn");
 		const targetRow = $.getDataset(e.currentTarget, "uiRow");
 		const colMin = Math.max(targetCol + 1, 4);
 		const rowMin = Math.max(targetRow + 1, 4);
-		const links = $.find("a", container);
+		const links = $.find("button", container);
 		for (const element of links) {
 			const col = $.getDataset(element, "uiColumn");
 			const row = $.getDataset(element, "uiRow");
@@ -2443,7 +2779,7 @@ function tableDropdown(editor, dropdown) {
 			else $.hide(parent);
 		}
 		$.setText(info, `${targetCol + 1} x ${targetRow + 1}`);
-	}, { delegate: "a" });
+	}, { delegate: "button" });
 }
 
 // src/js/render/editor.js
@@ -2466,8 +2802,9 @@ function render(editor) {
 	editor._renderDrop();
 	if (editor.options.resizable) editor._renderResize();
 	$.hide(editor.node);
-	$.setAttribute(editor.node, { tabindex: -1 });
+	$.setAttribute(editor.node, { "aria-hidden": true });
 	$.insertBefore(editor._container, editor.node);
+	if (editor._resizeBar) editor._resizeBar.setAttribute("aria-valuenow", String(Math.round(editor._editorBody.getBoundingClientRect().height)));
 }
 /**
 * Render a button
@@ -2534,7 +2871,16 @@ function renderEditor(editor) {
 	editor._imgHighlight = $.create("div", { class: editor.constructor.classes.imgHighlight });
 	editor._imgCursor = $.create("div", { class: editor.constructor.classes.imgCursor });
 	editor._imgSize = $.create("div", { class: editor.constructor.classes.imgSize });
-	editor._imgResize = $.create("div", { class: editor.constructor.classes.imgResize });
+	editor._imgResize = $.create("div", {
+		class: editor.constructor.classes.imgResize,
+		attributes: {
+			"role": "slider",
+			"tabindex": 0,
+			"aria-label": editor.constructor.lang.resizeImage,
+			"aria-valuemin": 1,
+			"aria-valuenow": 1
+		}
+	});
 	$.hide(editor._imgHighlight);
 	$.append(editor._imgHighlight, editor._imgSize);
 	$.append(editor._imgHighlight, editor._imgResize);
@@ -2549,9 +2895,18 @@ function renderEditor(editor) {
 * @param {Editor} editor The editor instance.
 */
 function renderResize(editor) {
-	editor._resizeBar = $.create("div", { class: editor.constructor.classes.resizeBar });
+	editor._resizeBar = $.create("div", {
+		class: editor.constructor.classes.resizeBar,
+		attributes: {
+			"role": "separator",
+			"tabindex": 0,
+			"aria-label": editor.constructor.lang.resizeEditor,
+			"aria-orientation": "horizontal",
+			"aria-valuenow": 0
+		}
+	});
 	for (let i = 0; i < 3; i++) {
-		const hr = $.create("hr");
+		const hr = $.create("hr", { attributes: { "aria-hidden": true } });
 		$.append(editor._resizeBar, hr);
 	}
 	$.append(editor._container, editor._resizeBar);
@@ -2563,7 +2918,10 @@ function renderResize(editor) {
 function renderSource(editor) {
 	editor._sourceOuter = $.create("div", { class: editor.constructor.classes.sourceOuter });
 	editor._sourceContainer = $.create("div", { class: editor.constructor.classes.sourceContainer });
-	editor._lineNumbers = $.create("div", { class: editor.constructor.classes.sourceLines });
+	editor._lineNumbers = $.create("div", {
+		class: editor.constructor.classes.sourceLines,
+		attributes: { "aria-hidden": true }
+	});
 	editor._sourceScroll = $.create("div", { class: editor.constructor.classes.sourceScroll });
 	editor._source = $.create("textarea", { class: editor.constructor.classes.source });
 	$.hide(editor._sourceOuter);
@@ -2583,7 +2941,10 @@ function renderSource(editor) {
 function renderPopover(editor) {
 	editor._popover = $.create("div", {
 		class: editor.constructor.classes.popover,
-		attributes: { role: "tooltip" }
+		attributes: {
+			"role": "group",
+			"aria-label": editor.constructor.lang.contextToolbar
+		}
 	});
 	editor._popoverArrow = $.create("div", { class: editor.constructor.classes.popoverArrow });
 	editor._popoverBody = $.create("div", { class: editor.constructor.classes.popoverBody });
@@ -2639,7 +3000,10 @@ function renderToolbar(editor) {
 	const header = $.create("div", { class: editor.constructor.classes.toolbar });
 	editor._toolbar = $.create("div", {
 		class: editor.constructor.classes.toolbarButtons,
-		attributes: { role: "toolbar" }
+		attributes: {
+			"role": "toolbar",
+			"aria-label": editor.constructor.lang.toolbar
+		}
 	});
 	for (const buttons of editor._toolbarButtons) {
 		const buttonGroup = $.create("div", { class: editor.constructor.classes.btnGroup });
@@ -2690,7 +3054,7 @@ function renderToolbarDropdown(editor, buttonGroup, button, dropdownContent) {
 		"aria-expanded": false
 	});
 	$.append(dropGroup, button);
-	const dropdown = $.create("ul", { class: editor.constructor.classes.dropdown });
+	const dropdown = $.create("div", { class: editor.constructor.classes.dropdown });
 	if ($._isArray(dropdownContent)) {
 		$.addClass(dropdown, editor.constructor.classes.dropdownButtons);
 		for (const dropdownItems of dropdownContent) {
@@ -2704,6 +3068,10 @@ function renderToolbarDropdown(editor, buttonGroup, button, dropdownContent) {
 	} else if ($._isFunction(dropdownContent)) dropdownContent.bind(editor)(dropdown);
 	$.append(dropGroup, dropdown);
 	$.append(buttonGroup, dropGroup);
+	editor._ownComponent(Dropdown.init(button));
+	editor.listen(document, "keydown.ui.editor", (event) => {
+		if (event.code === "Escape" && dropdown.contains(document.activeElement)) button.focus();
+	}, { capture: true });
 }
 /**
 * Set data for a toolbar action.
@@ -2964,7 +3332,7 @@ var Editor = class extends BaseComponent {
 			this._fonts = (this.options.fonts || this.constructor.fonts).filter((font) => document.fonts.check(`12px ${font}`));
 			this._defaultFont = this._fonts.includes(this.options.defaultFont) ? this.options.defaultFont : this._fonts[0] || "sans-serif";
 			this._render();
-			$.setHtml(this._editor, $.getValue(node));
+			$.setHtml(this._editor, this.options.sanitize($.getValue(node)));
 			this._refreshDisabled();
 			this._checkEmpty();
 			this._events();
@@ -3122,7 +3490,7 @@ var Editor = class extends BaseComponent {
 		if (!this.node || !this.#observer) return;
 		if (!observe) {
 			if (this.#observationDepth++ === 0) {
-				this.#pendingMutation ||= this.#observer.takeRecords().length > 0;
+				this.#pendingMutation ||= this.#observer.takeRecords().some((record) => record.type !== "attributes" || record.target !== this._editor);
 				this.#observer.disconnect();
 			}
 			return;
@@ -3138,6 +3506,7 @@ var Editor = class extends BaseComponent {
 			if (this.#pendingMutation) {
 				this.#pendingMutation = false;
 				this._debounce(() => {
+					if ($.isVisible(this._sourceContainer)) return;
 					this._normalize();
 					this._checkEmpty();
 					this._updateValue();
@@ -3426,11 +3795,14 @@ var Editor = class extends BaseComponent {
 	*/
 	_watchContent() {
 		const changed = this._debounce(() => {
+			if ($.isVisible(this._sourceContainer)) return;
 			this._normalize();
 			this._checkEmpty();
 			this._updateValue();
 		});
-		this.#observer = new MutationObserver(changed);
+		this.#observer = new MutationObserver((records) => {
+			if (records.some((record) => record.type !== "attributes" || record.target !== this._editor)) changed();
+		});
 		this._observe();
 	}
 	/**
@@ -3585,14 +3957,16 @@ var Editor = class extends BaseComponent {
 	* @param {string} value The HTML string.
 	*/
 	insertHTML(value) {
-		this._execCommand("insertHTML", value);
+		if (!this.node || this.node.matches(":disabled") || this.node.readOnly) return;
+		this._execCommand("insertHTML", this.options.sanitize(value));
 	}
 	/**
 	* Insert an image.
 	* @param {string} src The image src.
 	*/
 	insertImage(src) {
-		if (!this.node || $.is(this.node, ":disabled")) return;
+		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
+		if (!isSafeURL(src, "image")) return;
 		const img = $.create("img", { attributes: { src } });
 		const newImg = this._insertNode(img);
 		if (!newImg) return;
@@ -3620,11 +3994,15 @@ var Editor = class extends BaseComponent {
 	* @param {boolean} [newWindow] Whether to open the link in a new window.
 	*/
 	insertLink(href, text, newWindow) {
+		if (!isSafeURL(href)) return;
 		const link = $.create("a", {
 			text,
 			attributes: { href }
 		});
-		if (newWindow) $.setAttribute(link, { target: "_blank" });
+		if (newWindow) $.setAttribute(link, {
+			target: "_blank",
+			rel: "noopener noreferrer"
+		});
 		this._insertNode(link);
 	}
 	/**
@@ -3686,10 +4064,16 @@ var Editor = class extends BaseComponent {
 	* Perform a redo.
 	*/
 	redo() {
-		if (!this.node || $.is(this.node, ":disabled") || !this._redoHistory.length) return;
+		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly || !this._redoHistory.length) return;
 		const current = this._redoHistory.pop();
 		this._addHistory(current);
 		this._restoreHistory(current);
+	}
+	/**
+	* Reload a programmatically assigned textarea value and state.
+	*/
+	refresh() {
+		if (this.node) loadValue(this);
 	}
 	/**
 	* Remove all formatting from the selection.
@@ -3725,7 +4109,7 @@ var Editor = class extends BaseComponent {
 	* Perform an undo.
 	*/
 	undo() {
-		if (!this.node || $.is(this.node, ":disabled") || this._history.length <= 1) return;
+		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly || this._history.length <= 1) return;
 		const next = this._history.pop();
 		this._redoHistory.push(next);
 		const current = this._history.at(-1);

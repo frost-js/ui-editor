@@ -59,6 +59,7 @@ export default {
                 attributes: {
                     href,
                     target: '_blank',
+                    rel: 'noopener noreferrer',
                 },
             });
         },

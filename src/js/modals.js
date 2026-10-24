@@ -2,6 +2,7 @@
 /** @import { EditorInputOptions, EditorInputElements, EditorModalOptions } from './types.js'; */
 import $ from '@fr0st/query';
 import { generateId, Modal } from '@fr0st/ui';
+import { isSafeURL } from './sanitize.js';
 import { getRange, selectNode, selectRange } from './selection.js';
 
 /**
@@ -24,6 +25,7 @@ export function removeModal(editor) {
  */
 export function showImageModal(editor) {
     editor._removeModal();
+    const returnFocus = document.activeElement;
     const container = $.create('div');
 
     const { group: fileGroup, input: fileInput } = editor.constructor._createFileInput({
@@ -35,7 +37,7 @@ export function showImageModal(editor) {
         },
     });
 
-    const { group: urlGroup, input: urlInput } = editor.constructor._createInput({
+    const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
         id: generateId('editor-image-url'),
         label: editor.constructor.lang.modals.imageUrl,
     });
@@ -51,6 +53,7 @@ export function showImageModal(editor) {
     range.collapse();
 
     editor._modal = editor.constructor._createModal({
+        returnFocus,
         title: editor.constructor.lang.modals.insertImage,
         content: container,
         cancelText: editor.constructor.lang.modals.cancel,
@@ -64,6 +67,12 @@ export function showImageModal(editor) {
             if (files.length) {
                 editor.options.imageUpload.bind(editor)(files);
             } else if (src) {
+                if (!isSafeURL(src, 'image')) {
+                    urlInput.setAttribute('aria-invalid', 'true');
+                    $.addClass(urlGroup, editor.constructor.classes.formError);
+                    $.setText(urlInvalidFeedback, editor.constructor.lang.modals.urlInvalid);
+                    return false;
+                }
                 editor.insertImage(src);
             }
         },
@@ -74,6 +83,9 @@ export function showImageModal(editor) {
             editor._removeModal();
             if (editor.node) {
                 selectRange(originalRange);
+                if (!returnFocus?.isConnected) {
+                    editor._focusEditor();
+                }
             }
         },
     });
@@ -87,6 +99,7 @@ export function showImageModal(editor) {
  */
 export function showLinkModal(editor, link) {
     editor._removeModal();
+    const returnFocus = document.activeElement;
     const container = $.create('div');
 
     const { group: textGroup, input: textInput } = editor.constructor._createInput({
@@ -94,7 +107,7 @@ export function showLinkModal(editor, link) {
         label: editor.constructor.lang.modals.linkText,
     });
 
-    const { group: urlGroup, input: urlInput } = editor.constructor._createInput({
+    const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
         id: generateId('editor-link-url'),
         label: editor.constructor.lang.modals.linkUrl,
     });
@@ -134,6 +147,7 @@ export function showLinkModal(editor, link) {
     }
 
     editor._modal = editor.constructor._createModal({
+        returnFocus,
         title: editor.constructor.lang.modals.insertLink,
         content: container,
         cancelText: editor.constructor.lang.modals.cancel,
@@ -145,6 +159,12 @@ export function showLinkModal(editor, link) {
             const href = $.getValue(urlInput);
             const newWindow = $.is(newWindowInput, ':checked');
 
+            if (!isSafeURL(href)) {
+                urlInput.setAttribute('aria-invalid', 'true');
+                $.addClass(urlGroup, editor.constructor.classes.formError);
+                $.setText(urlInvalidFeedback, editor.constructor.lang.modals.urlInvalid);
+                return false;
+            }
             editor.insertLink(href, text, newWindow);
         },
         onShown: (_) => {
@@ -154,6 +174,9 @@ export function showLinkModal(editor, link) {
             editor._removeModal();
             if (editor.node) {
                 selectRange(originalRange);
+                if (!returnFocus?.isConnected) {
+                    editor._focusEditor();
+                }
             }
         },
     });
@@ -178,6 +201,7 @@ export function showLinkModal(editor, link) {
  */
 export function showVideoModal(editor) {
     editor._removeModal();
+    const returnFocus = document.activeElement;
     const container = $.create('div');
 
     const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
@@ -193,6 +217,7 @@ export function showVideoModal(editor) {
     const range = getRange();
 
     editor._modal = editor.constructor._createModal({
+        returnFocus,
         title: editor.constructor.lang.modals.insertVideo,
         content: container,
         cancelText: editor.constructor.lang.modals.cancel,
@@ -201,9 +226,18 @@ export function showVideoModal(editor) {
             selectRange(range);
 
             const url = $.getValue(urlInput);
-            const match = url.match(/youtube\.com\/watch\?v=([\w]+)/i);
+            let id;
+            try {
+                const parsed = new URL(url);
+                if (parsed.protocol === 'https:' && (parsed.hostname === 'youtu.be' || ['youtube.com', 'www.youtube.com'].includes(parsed.hostname) && parsed.pathname === '/watch')) {
+                    id = parsed.hostname === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
+                }
+            } catch {
+                // Invalid URLs use the same inline validation feedback.
+            }
 
-            if (!match) {
+            if (!id || !/^[\w-]+$/.test(id)) {
+                urlInput.setAttribute('aria-invalid', 'true');
                 $.addClass(urlGroup, editor.constructor.classes.formError);
                 $.setText(urlInvalidFeedback, editor.constructor.lang.modals.videoUrlInvalid);
                 return false;
@@ -211,7 +245,7 @@ export function showVideoModal(editor) {
 
             $.removeClass(urlGroup, editor.constructor.classes.formError);
 
-            const id = match[1];
+            urlInput.removeAttribute('aria-invalid');
             const video = $.create('iframe', {
                 attributes: {
                     width: 560,
@@ -233,6 +267,9 @@ export function showVideoModal(editor) {
             editor._removeModal();
             if (editor.node) {
                 selectRange(originalRange);
+                if (!returnFocus?.isConnected) {
+                    editor._focusEditor();
+                }
             }
         },
     });
@@ -266,6 +303,7 @@ export function createCheckbox(Component, options) {
 
     const label = $.create('label', {
         text: options.label,
+        class: Component.classes.checkboxLabel,
         attributes: {
             for: options.id,
         },
@@ -301,6 +339,7 @@ export function createFileInput(Component, options) {
     });
 
     const input = $.create('input', {
+        class: Component.classes.input,
         attributes: {
             id: options.id,
             type: 'file',
@@ -346,18 +385,15 @@ export function createInput(Component, options) {
         },
     });
 
-    const ripple = $.create('div', {
-        class: Component.classes.inputRipple,
-    });
-
     const invalidFeedback = $.create('div', {
         class: Component.classes.invalidFeedback,
     });
 
     $.append(group, label);
     $.append(inputContainer, input);
-    $.append(inputContainer, ripple);
     $.append(group, inputContainer);
+    invalidFeedback.id = `${options.id}-error`;
+    input.setAttribute('aria-describedby', invalidFeedback.id);
     $.append(group, invalidFeedback);
 
     return { group, input, invalidFeedback };
@@ -370,6 +406,7 @@ export function createInput(Component, options) {
  * @returns {HTMLElement} The modal element.
  */
 export function createModal(Component, options) {
+    const returnFocus = options.returnFocus || document.activeElement;
     const modal = $.create('div', {
         class: Component.classes.modal,
         attributes: {
@@ -504,10 +541,13 @@ export function createModal(Component, options) {
         } finally {
             controller.dispose();
             $.remove(modal);
+            if (returnFocus?.isConnected) {
+                returnFocus.focus({ preventScroll: true });
+            }
         }
     });
 
-    controller.show();
+    controller.show(returnFocus);
 
     return modal;
 }

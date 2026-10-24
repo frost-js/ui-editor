@@ -5,6 +5,7 @@ import { changeIndent } from './commands.js';
 import { classes, defaults, lang } from './config.js';
 import * as content from './content.js';
 import * as events from './events.js';
+import { loadValue } from './form.js';
 import { addEditor, removeEditor } from './helpers.js';
 import * as history from './history.js';
 import icons from './icons.js';
@@ -16,6 +17,7 @@ import * as dropdowns from './render/dropdowns.js';
 import * as render from './render/editor.js';
 import * as popover from './render/popover.js';
 import * as toolbar from './render/toolbar.js';
+import { isSafeURL } from './sanitize.js';
 import { getRange, selectRange } from './selection.js';
 import { buttons, colors, fonts, fontSizes, styles } from './values.js';
 
@@ -126,7 +128,7 @@ export default class Editor extends BaseComponent {
             this._defaultFont = this._fonts.includes(this.options.defaultFont) ?
                 this.options.defaultFont : this._fonts[0] || 'sans-serif';
             this._render();
-            $.setHtml(this._editor, $.getValue(node));
+            $.setHtml(this._editor, this.options.sanitize($.getValue(node)));
             this._refreshDisabled();
             this._checkEmpty();
             this._events();
@@ -318,7 +320,7 @@ export default class Editor extends BaseComponent {
         }
         if (!observe) {
             if (this.#observationDepth++ === 0) {
-                this.#pendingMutation ||= this.#observer.takeRecords().length > 0;
+                this.#pendingMutation ||= this.#observer.takeRecords().some((record) => record.type !== 'attributes' || record.target !== this._editor);
                 this.#observer.disconnect();
             }
             return;
@@ -329,6 +331,9 @@ export default class Editor extends BaseComponent {
             if (this.#pendingMutation) {
                 this.#pendingMutation = false;
                 this._debounce(() => {
+                    if ($.isVisible(this._sourceContainer)) {
+                        return;
+                    }
                     this._normalize();
                     this._checkEmpty();
                     this._updateValue();
@@ -660,11 +665,18 @@ export default class Editor extends BaseComponent {
      */
     _watchContent() {
         const changed = this._debounce(() => {
+            if ($.isVisible(this._sourceContainer)) {
+                return;
+            }
             this._normalize();
             this._checkEmpty();
             this._updateValue();
         });
-        this.#observer = new MutationObserver(changed);
+        this.#observer = new MutationObserver((records) => {
+            if (records.some((record) => record.type !== 'attributes' || record.target !== this._editor)) {
+                changed();
+            }
+        });
         this._observe();
     }
 
@@ -830,7 +842,10 @@ export default class Editor extends BaseComponent {
      * @param {string} value The HTML string.
      */
     insertHTML(value) {
-        this._execCommand('insertHTML', value);
+        if (!this.node || this.node.matches(':disabled') || this.node.readOnly) {
+            return;
+        }
+        this._execCommand('insertHTML', this.options.sanitize(value));
     }
 
     /**
@@ -838,7 +853,10 @@ export default class Editor extends BaseComponent {
      * @param {string} src The image src.
      */
     insertImage(src) {
-        if (!this.node || $.is(this.node, ':disabled')) {
+        if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly) {
+            return;
+        }
+        if (!isSafeURL(src, 'image')) {
             return;
         }
         const img = $.create('img', { attributes: { src } });
@@ -871,6 +889,9 @@ export default class Editor extends BaseComponent {
      * @param {boolean} [newWindow] Whether to open the link in a new window.
      */
     insertLink(href, text, newWindow) {
+        if (!isSafeURL(href)) {
+            return;
+        }
         const link = $.create('a', {
             text,
             attributes: {
@@ -879,7 +900,7 @@ export default class Editor extends BaseComponent {
         });
 
         if (newWindow) {
-            $.setAttribute(link, { target: '_blank' });
+            $.setAttribute(link, { target: '_blank', rel: 'noopener noreferrer' });
         }
 
         this._insertNode(link);
@@ -953,7 +974,7 @@ export default class Editor extends BaseComponent {
      * Perform a redo.
      */
     redo() {
-        if (!this.node || $.is(this.node, ':disabled') || !this._redoHistory.length) {
+        if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly || !this._redoHistory.length) {
             return;
         }
 
@@ -961,6 +982,15 @@ export default class Editor extends BaseComponent {
 
         this._addHistory(current);
         this._restoreHistory(current);
+    }
+
+    /**
+     * Reload a programmatically assigned textarea value and state.
+     */
+    refresh() {
+        if (this.node) {
+            loadValue(this);
+        }
     }
 
     /**
@@ -1002,7 +1032,7 @@ export default class Editor extends BaseComponent {
      * Perform an undo.
      */
     undo() {
-        if (!this.node || $.is(this.node, ':disabled') || this._history.length <= 1) {
+        if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly || this._history.length <= 1) {
             return;
         }
 

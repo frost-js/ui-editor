@@ -161,6 +161,7 @@ test('guards deferred callbacks and image completion after disposal', async ({ p
                 deferred = true;
             })();
             editor.dispose();
+            editor.insertHTML('<p>Late HTML callback</p>');
             loaded();
             await Promise.resolve();
             return { deferred, cleared: loader.onload === null && loader.src === '' };

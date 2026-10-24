@@ -9,7 +9,8 @@ export function renderPopover(editor) {
     editor._popover = $.create('div', {
         class: editor.constructor.classes.popover,
         attributes: {
-            role: 'tooltip',
+            'role': 'group',
+            'aria-label': editor.constructor.lang.contextToolbar,
         },
     });
 

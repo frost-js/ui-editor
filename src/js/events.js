@@ -1,5 +1,6 @@
 /** @import Editor from './editor.js'; */
 import $ from '@fr0st/query';
+import { eventsForm, notifyChange, serialize } from './form.js';
 import { resetDragCount } from './helpers.js';
 import { selectNode } from './selection.js';
 
@@ -8,11 +9,19 @@ import { selectNode } from './selection.js';
  * @param {Editor} editor The editor instance.
  */
 export function events(editor) {
+    eventsForm(editor);
     editor._eventsToolbar();
     editor._eventsEditor();
     editor._eventsPopover();
     editor._eventsSource();
     editor._eventsDrop();
+    editor.listen(editor._container, 'keydown.ui.editor', (event) => {
+        if (event.code === 'Escape' && editor._currentNode && !editor._modal) {
+            event.preventDefault();
+            editor._removePopover();
+            editor._focusEditor();
+        }
+    });
 
     if (editor.options.resizable) {
         editor._eventsResize();
@@ -64,6 +73,18 @@ export function eventsDrop(editor) {
  * @param {Editor} editor The editor instance.
  */
 export function eventsEditor(editor) {
+    editor.listen(editor._editor, 'paste.ui.editor', (event) => {
+        event.preventDefault();
+        if (event.clipboardData) {
+            const html = event.clipboardData.getData('text/html');
+            if (html) {
+                editor.insertHTML(html);
+            } else {
+                editor.insertText(event.clipboardData.getData('text/plain'));
+            }
+        }
+    });
+
     editor.listen(editor._editor, 'focus.ui.editor', (_) => {
         document.execCommand('defaultParagraphSeparator', false, 'p');
         $.triggerEvent(editor.node, 'focus.ui.editor');
@@ -121,7 +142,7 @@ export function eventsEditor(editor) {
         const selection = window.getSelection();
 
         const isIndented = (node) => {
-            return $.is(node, 'li') || $.getStyle(node, 'marginLeft');
+            return $.is(node, 'li') || ($.getStyle(node, 'marginInlineStart') || $.getStyle(node, 'marginLeft'));
         };
 
         switch (e.code) {
@@ -197,6 +218,12 @@ export function eventsEditor(editor) {
         e.preventDefault();
         e.stopPropagation();
 
+        if (editor.node.matches(':disabled') || editor.node.readOnly) {
+            return;
+        }
+        if (e.currentTarget.matches('img')) {
+            selectNode(e.currentTarget);
+        }
         editor._refreshPopover(e.currentTarget, e);
         editor._refreshToolbar();
     }, { delegate: 'a, td, img', capture: true });
@@ -210,6 +237,9 @@ export function eventsEditor(editor) {
  */
 export function eventsPopover(editor) {
     editor.listen(editor._popover, 'click.ui.editor', (e) => {
+        if (editor.node.matches(':disabled') || editor.node.readOnly) {
+            return;
+        }
         const action = $.getDataset(e.currentTarget, 'uiAction');
 
         if (!(action in editor.constructor.popovers)) {
@@ -259,6 +289,16 @@ export function eventsPopover(editor) {
     };
 
     bindDrag(editor, editor._imgResize, downEvent, moveEvent, upEvent);
+    editor.listen(editor._imgResize, 'keydown.ui.editor', (event) => {
+        if (!['ArrowLeft', 'ArrowRight'].includes(event.code) || !editor._currentNode || editor.node.matches(':disabled') || editor.node.readOnly) {
+            return;
+        }
+        event.preventDefault();
+        const width = Math.max(1, editor._currentNode.getBoundingClientRect().width + (event.code === 'ArrowRight' ? 10 : -10));
+        editor._currentNode.style.width = `${width}px`;
+        editor._highlightImage(editor._currentNode);
+        editor._updateValue();
+    });
 
     editor.listen(editor._editorBody, 'scroll.ui.editor', (_) => {
         editor._removePopover();
@@ -284,6 +324,7 @@ export function eventsResize(editor) {
 
         const height = Math.max(0, e.pageY - editorPosition.y - resizeOffset);
         $.setStyle(editor._editorBody, { height: `${height}px` });
+        editor._resizeBar.setAttribute('aria-valuenow', String(Math.round(height)));
     };
 
     const upEvent = (_) => {
@@ -291,6 +332,15 @@ export function eventsResize(editor) {
     };
 
     bindDrag(editor, editor._resizeBar, downEvent, moveEvent, upEvent);
+    editor.listen(editor._resizeBar, 'keydown.ui.editor', (event) => {
+        if (!['ArrowUp', 'ArrowDown'].includes(event.code) || editor.node.matches(':disabled') || editor.node.readOnly) {
+            return;
+        }
+        event.preventDefault();
+        const height = Math.max(40, editor._editorBody.getBoundingClientRect().height + (event.code === 'ArrowDown' ? 10 : -10));
+        editor._editorBody.style.height = `${height}px`;
+        editor._resizeBar.setAttribute('aria-valuenow', String(Math.round(height)));
+    });
 }
 
 /**
@@ -298,25 +348,32 @@ export function eventsResize(editor) {
  * @param {Editor} editor The editor instance.
  */
 export function eventsSource(editor) {
+    editor.listen(editor._source, 'focus.ui.editor', () => $.triggerEvent(editor.node, 'focus.ui.editor'));
+    editor.listen(editor._source, 'blur.ui.editor', () => $.triggerEvent(editor.node, 'blur.ui.editor'));
     const refreshLineNumbersDebounced = editor._debounce((_) => {
         editor._refreshLineNumbers();
     });
 
-    editor.listen(editor._source, 'input.ui.editor', (_) => {
+    editor.listen(editor._source, 'input.ui.editor change.ui.editor', (_) => {
+        if (editor.node.matches(':disabled') || editor.node.readOnly) {
+            return;
+        }
         refreshLineNumbersDebounced();
-    });
-
-    editor.listen(editor._source, 'change.ui.editor', (_) => {
-        const html = $.getValue(editor._source);
-
-        refreshLineNumbersDebounced();
-
-        $.setValue(editor.node, html);
-        $.triggerEvent(editor.node, 'change.ui.editor');
+        const template = document.createElement('template');
+        template.innerHTML = editor.options.sanitize(editor._source.value);
+        const html = serialize(template.content, template.innerHTML);
+        if (editor.node.value !== html) {
+            editor.node.value = html;
+            if (editor.node.validity.valid && !editor.node.hasAttribute('aria-invalid')) {
+                editor._source.removeAttribute('aria-invalid');
+                editor._editor.removeAttribute('aria-invalid');
+            }
+            notifyChange(editor);
+        }
     });
 
     editor.listen(editor._source, 'keydown.ui.editor', (e) => {
-        if (e.code !== 'Tab') {
+        if (e.code !== 'Tab' || !e.ctrlKey || editor.node.readOnly || editor.node.matches(':disabled')) {
             return;
         }
 
@@ -400,7 +457,7 @@ export function eventsToolbar(editor) {
 
         e.preventDefault();
         e.stopPropagation();
-        if ($.is(editor.node, ':disabled') || $.is(e.currentTarget, '[aria-disabled="true"]')) {
+        if ($.is(editor.node, ':disabled') || (editor.node.readOnly && !['source', 'fullScreen'].includes(action)) || $.is(e.currentTarget, '[aria-disabled="true"]')) {
             return;
         }
 
@@ -414,6 +471,9 @@ export function eventsToolbar(editor) {
     }, { delegate: '[data-ui-action]' });
 
     editor.listen(editor._toolbar, 'click.ui.editor', (e) => {
+        if (editor.node.matches(':disabled') || editor.node.readOnly || e.currentTarget.matches('[aria-disabled="true"]')) {
+            return;
+        }
         const command = $.getDataset(e.currentTarget, 'uiCommand');
 
         if (!(command in editor)) {
@@ -449,7 +509,7 @@ function bindDrag(editor, handle, down, move, up) {
         pointer = null;
     });
     editor.listen(handle, 'pointerdown.ui.editor', (event) => {
-        if (event.button !== 0 || pointer !== null || $.is(editor.node, ':disabled') || down(event) === false) {
+        if (event.button !== 0 || pointer !== null || ($.is(editor.node, ':disabled') || editor.node.readOnly) || down(event) === false) {
             return;
         }
         event.preventDefault();

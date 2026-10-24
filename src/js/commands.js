@@ -103,7 +103,7 @@ function indentBlocks(blocks) {
         return;
     }
     const wrapper = document.createElement('div');
-    wrapper.style.marginLeft = '2em';
+    wrapper.style.marginInlineStart = '2em';
     first.before(wrapper);
     wrapper.append(...blocks);
 }
@@ -159,7 +159,7 @@ function outdentBlocks(blocks, root) {
     const wrappers = new Set();
     for (const block of blocks) {
         let wrapper = block;
-        while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginLeft) > 0)) {
+        while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginInlineStart || wrapper.style.marginLeft) > 0)) {
             wrapper = wrapper.parentElement;
         }
         if (wrapper && wrapper !== root) {
@@ -190,7 +190,7 @@ function outdentBlocks(blocks, root) {
  * @param {boolean} outdent Whether to remove one indentation level.
  */
 export function changeIndent(editor, outdent) {
-    if (!editor.node || $.is(editor.node, ':disabled')) {
+    if (!editor.node || ($.is(editor.node, ':disabled') || editor.node.readOnly)) {
         return;
     }
     editor._focusEditor();
