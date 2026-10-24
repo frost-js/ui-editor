@@ -1,3 +1,5 @@
+/** @import { EditorSelectionMarkers } from './types.js'; */
+
 import $ from '@fr0st/query';
 
 const transparent = 'rgba(0, 0, 0, 0)';
@@ -14,37 +16,37 @@ const phrasingSelector = [
  * Determines whether a node is phrasing content.
  * https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
  * @param {Node} node The input node.
- * @returns {boolean} TRUE if the node is phrasing content, otherwise FALSE.
+ * @returns {boolean} Whether the node is phrasing content.
  */
 export const isPhrasingContent = (node) => $._isText(node) || $.is(node, phrasingSelector);
 
 /**
- * Determine if a node is a form element.
+ * Determines whether a node is a form element.
  * https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
  * @param {Node} node The input node.
- * @returns {boolean} TRUE if the node is a form element, otherwise FALSE.
+ * @returns {boolean} Whether the node is a form element.
  */
 const isFormElement = (node) => $.is(node, 'button, fieldset, input, object, output, select, textarea');
 
 /**
- * Determine if a node is a void element.
+ * Determines whether a node is a void element.
  * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
  * @param {Node} node The input node.
- * @returns {boolean} TRUE if the node is a void element, otherwise FALSE.
+ * @returns {boolean} Whether the node is a void element.
  */
 const isVoidElement = (node) => $.is(node, 'area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr');
 
 /**
- * Determine if a node is a phrasing container.
+ * Determines whether a node is a phrasing container.
  * @param {Node} node The input node.
- * @returns {boolean} TRUE if the node is a phrasing container, otherwise FALSE.
+ * @returns {boolean} Whether the node is a phrasing container.
  */
 const isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node) && !isVoidElement(node) && !isFormElement(node);
 
 /**
- * Join adjacent inline elements.
+ * Joins adjacent inline elements.
  * @param {HTMLElement} container The container.
- * @param {object} markers The selection markers.
+ * @param {EditorSelectionMarkers} markers The selection markers.
  */
 export function joinAdjacentNodes(container, markers) {
     const elements = $.find('*', container);
@@ -57,6 +59,7 @@ export function joinAdjacentNodes(container, markers) {
 
         const moveMarkers = [];
         let next = element.nextSibling;
+
         while (next && isMarker(next)) {
             moveMarkers.push(next);
             next = next.nextSibling;
@@ -82,6 +85,7 @@ export function normalizePhrasing(container) {
         if (!container.contains(element)) {
             continue;
         }
+
         const contents = $.contents(element);
 
         if (!contents.length) {
@@ -94,6 +98,7 @@ export function normalizePhrasing(container) {
             }
 
             const nextSiblings = contents.splice(i);
+
             $.after(element, nextSiblings);
 
             const tagName = $.tagName(element);
@@ -111,6 +116,7 @@ export function normalizePhrasing(container) {
                     if (stack.length) {
                         const clone = $.clone(element, { deep: false });
                         const tempNodes = stack.splice(0);
+
                         $.append(clone, tempNodes);
                         $.before(node, clone);
                     }
@@ -124,6 +130,7 @@ export function normalizePhrasing(container) {
                     if ($.is(node, 'h1, h2, h3, h4, h5, h6, p, pre')) {
                         const clone = $.clone(element, { deep: false });
                         const styles = { ...$.getStyle(node), ...$.getStyle(clone) };
+
                         $.before(node, clone);
                         $.setStyle(clone, styles);
                         $.append(clone, $.contents(node));
@@ -137,6 +144,7 @@ export function normalizePhrasing(container) {
 
                 if (stack.length) {
                     const clone = $.clone(element, { deep: false });
+
                     $.append(clone, stack);
 
                     if (lastNode) {
@@ -196,9 +204,12 @@ export function normalizeStyles(container) {
             }
 
             const clone = $.clone(element, { deep: false });
+
             $.after(element, clone);
             $.removeAttribute(clone, 'style');
+
             let testValue = $.css(clone, style);
+
             $.detach(clone);
 
             if (style === 'background-color' && testValue === transparent) {

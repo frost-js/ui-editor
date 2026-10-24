@@ -15,6 +15,7 @@ test.describe('Editor source', () => {
                 await page.locator('.editor-source').fill(value);
                 await page.evaluate(({ start, end }) => {
                     const source = document.querySelector('.editor-source');
+
                     source.setSelectionRange(start, end);
                 }, {
                     start,
@@ -34,7 +35,9 @@ test.describe('Editor source', () => {
         test('updates line numbers when source shrinks, wraps, and scrolls', async ({ page }) => {
             await createEditor(page, '<p>Initial</p>', { height: '80px' });
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
             const source = page.locator('.editor-source');
+
             await source.fill(Array.from({ length: 20 }, (_, index) => `<p>Line ${index}</p>`).join('\n'));
 
             await expect(page.locator('.editor-source').locator('..').locator('..').locator('> div:first-child > div')).toHaveCount(20);
@@ -56,7 +59,9 @@ test.describe('Editor source', () => {
         test('leaves browser tab shortcuts alone and permits Escape then Shift+Tab navigation', async ({ page }) => {
             await createEditor(page);
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
             const source = page.locator('.editor-source');
+
             await source.fill('\tone');
 
             expect(await source.evaluate((node) => ['ctrlKey', 'metaKey', 'altKey'].every((modifier) => {
@@ -67,6 +72,7 @@ test.describe('Editor source', () => {
                     bubbles: true,
                     cancelable: true,
                 });
+
                 return node.dispatchEvent(event);
             }))).toBe(true);
             await expect(source).toHaveValue('\tone');
@@ -82,6 +88,7 @@ test.describe('Editor source', () => {
         test('round trips source edits through the textarea and the editing surface', async ({ page }) => {
             await createEditor(page);
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
             const source = page.locator('.editor-source');
 
             await expect(source).toHaveValue('<p>Hello world</p>');

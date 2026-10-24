@@ -5,6 +5,7 @@ test.describe('Editor normalization', () => {
     test.describe('content structure', () => {
         test('preserves existing empty blocks', async ({ page }) => {
             const html = '<h2></h2><p></p><pre></pre>';
+
             await createEditor(page, html);
 
             await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
@@ -14,6 +15,7 @@ test.describe('Editor normalization', () => {
         test('removes unadorned spans and joins identical adjacent inline nodes', async ({ page }) => {
             await page.evaluate(() => {
                 const node = document.createElement('textarea');
+
                 node.value = '<p><span>Plain</span> <b>bold</b><b> text</b></p>';
                 document.body.append(node);
                 UI.Editor.init(node, { buttons: [] });
@@ -38,8 +40,10 @@ test.describe('Editor normalization', () => {
                 '<a href="https://example.com/">Link</a>' +
                 '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" alt="Example">' +
                 '</p>';
+
             await page.evaluate((html) => {
                 const node = document.createElement('textarea');
+
                 node.value = html;
                 document.body.append(node);
                 UI.Editor.init(node, { buttons: [] });
@@ -52,12 +56,16 @@ test.describe('Editor normalization', () => {
             await createEditor(page);
             await page.evaluate(() => {
                 const paragraph = document.createElement('p');
+
                 paragraph.className = 'lead';
+
                 const block = document.createElement('div');
+
                 block.textContent = 'Block';
                 paragraph.append('Before', block, 'After');
                 document.querySelector('.editor').replaceChildren(paragraph);
             });
+
             const html = '<p class="lead">Before</p><div>Block</div><p class="lead">After</p>';
 
             await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
@@ -69,8 +77,11 @@ test.describe('Editor normalization', () => {
                 await createEditor(page);
                 await page.evaluate((tagName) => {
                     const element = document.createElement(tagName);
+
                     element.className = 'lead';
+
                     const block = document.createElement('div');
+
                     block.textContent = 'Block';
                     element.append('Before', block, 'After');
                     document.querySelector('.editor').replaceChildren(element);
@@ -110,6 +121,7 @@ test.describe('Editor normalization', () => {
             await createEditor(page);
             await page.evaluate(() => {
                 const surface = document.querySelector('.editor');
+
                 surface.innerHTML = '<p><b>One</b><b>Two</b><b>Three</b></p>';
                 window.survivingInline = surface.querySelector('b:last-child');
             });
@@ -127,8 +139,11 @@ test.describe('Editor normalization', () => {
             await page.evaluate(() => {
                 const paragraph = document.createElement('p');
                 const block = document.createElement('div');
+
                 block.textContent = 'Block';
+
                 const after = document.createTextNode('After');
+
                 paragraph.append('Before', block, after);
                 document.querySelector('.editor').replaceChildren(paragraph);
                 getSelection().setBaseAndExtent(after, 4, after, 1);
@@ -144,6 +159,7 @@ test.describe('Editor normalization', () => {
             await page.locator('.editor').focus();
             await page.evaluate(() => {
                 const text = document.querySelector('.editor p').firstChild;
+
                 getSelection().setBaseAndExtent(text, 0, text, 8);
                 window.editor.indent();
                 window.editor.outdent();
@@ -151,6 +167,7 @@ test.describe('Editor normalization', () => {
 
             await expect(page.locator('#editor')).toHaveValue('<p>Selected text</p>');
             expect(await page.evaluate(() => getSelection().toString())).toBe('Selected');
+
             const emptyTextNodes = await page.locator('.editor p').evaluate((node) =>
                 [...node.childNodes].filter((child) => child.nodeType === Node.TEXT_NODE && !child.textContent).length,
             );
@@ -163,12 +180,17 @@ test.describe('Editor normalization', () => {
             await page.locator('.editor').focus();
             await page.evaluate(() => {
                 const surface = document.querySelector('.editor');
+
                 surface.innerHTML = '<p><b>One</b><b>Two</b></p>';
+
                 const paragraph = surface.firstChild;
                 const range = document.createRange();
+
                 range.setStart(paragraph, 1);
                 range.setEnd(paragraph, 2);
+
                 const selection = getSelection();
+
                 selection.removeAllRanges();
                 selection.addRange(range);
             });
@@ -181,6 +203,7 @@ test.describe('Editor normalization', () => {
             await createEditor(page);
             await page.evaluate(() => {
                 const other = document.createElement('div');
+
                 other.id = 'other';
                 other.contentEditable = 'true';
                 other.textContent = 'Outside';

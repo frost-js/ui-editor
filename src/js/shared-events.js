@@ -1,4 +1,5 @@
 /** @import Editor from './editor.js'; */
+
 import $ from '@fr0st/query';
 import { getRange } from './selection.js';
 
@@ -21,7 +22,7 @@ let session = 0;
  * Registers a shared listener with its exact removal callback.
  * @param {EventTarget} target The target.
  * @param {string} events The event names.
- * @param {Function} callback The event callback.
+ * @param {(event: Event) => void} callback The event callback.
  */
 function listenShared(target, events, callback) {
     $.addEvent(target, events, callback);
@@ -39,12 +40,15 @@ export function addEditor(editor, callbacks) {
     }
 
     editors.set(editor, callbacks);
+
     if (editors.size > 1) {
         return;
     }
 
     const generation = ++session;
+
     dragCount = 0;
+
     const deferred = (callback) => $.debounce(() => {
         if (generation === session) {
             callback();
@@ -60,6 +64,7 @@ export function addEditor(editor, callbacks) {
     });
     listenShared(document.body, 'dragleave.ui.editor', () => {
         dragCount = Math.max(0, dragCount - 1);
+
         if (dragCount === 0) {
             resetDragCount();
         }
@@ -67,6 +72,7 @@ export function addEditor(editor, callbacks) {
     listenShared(document.body, 'dragend.ui.editor drop.ui.editor', resetDragCount);
     listenShared(document, 'selectionchange.ui.editor', deferred(() => {
         const range = getRange();
+
         for (const current of editors.values()) {
             current.selectionChange(range);
         }
@@ -94,6 +100,7 @@ export function removeEditor(editor) {
 
     session++;
     dragCount = 0;
+
     for (const cleanup of cleanups.splice(0)) {
         cleanup();
     }
@@ -104,6 +111,7 @@ export function removeEditor(editor) {
  */
 export function resetDragCount() {
     dragCount = 0;
+
     for (const current of editors.values()) {
         current.resetDropTarget();
     }

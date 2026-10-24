@@ -12,7 +12,9 @@ async function createForm(page, value = '<p>Default</p>') {
             '</fieldset>' +
             '<button type="submit">Save</button>' +
             '</form>';
+
         const node = document.querySelector('#editor');
+
         node.defaultValue = value;
         window.editor = UI.Editor.init(node, { buttons: [['bold', 'source', 'undo', 'redo']] });
         window.changes = 0;
@@ -24,6 +26,7 @@ test.describe('Editor forms', () => {
     test.describe('accessible state', () => {
         test('forwards labels, descriptions, errors, and required state to both views', async ({ page }) => {
             await createForm(page);
+
             const surface = page.getByRole('textbox', { name: 'Article', exact: true });
 
             await expect(surface).toHaveAttribute('aria-describedby', 'help');
@@ -52,6 +55,7 @@ test.describe('Editor forms', () => {
             await createForm(page);
             await page.evaluate(() => {
                 const node = document.querySelector('#editor');
+
                 node.setAttribute('aria-labelledby', 'help');
                 node.setCustomValidity('Application error');
             });
@@ -61,6 +65,7 @@ test.describe('Editor forms', () => {
             await expect(page.locator('.editor')).toBeFocused();
             await page.evaluate(() => {
                 const node = document.querySelector('#editor');
+
                 node.setCustomValidity('');
                 node.removeAttribute('required');
             });
@@ -92,6 +97,7 @@ test.describe('Editor forms', () => {
             await createForm(page);
             await page.evaluate(() => {
                 const node = document.querySelector('#editor');
+
                 node.addEventListener('change', () => {
                     node.value = '<p>Application replacement</p>';
                     node.dispatchEvent(new Event('input', { bubbles: true }));
@@ -108,7 +114,9 @@ test.describe('Editor forms', () => {
         test('submits source edits exactly as entered and emits one change per changed value', async ({ page }) => {
             await createForm(page);
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
             const html = '<h2 data-template="heading">Submitted source';
+
             await page.locator('.editor-source').fill(html);
 
             expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe(html);
@@ -132,6 +140,7 @@ test.describe('Editor forms', () => {
 
                 await page.evaluate(() => {
                     const paragraph = document.createElement('p');
+
                     paragraph.textContent = 'Changed';
                     window.editor.insertNode(paragraph);
                 });
@@ -155,18 +164,22 @@ test.describe('Editor forms', () => {
         for (const source of [false, true]) {
             test(`resets native content and history in ${source ? 'source' : 'rich'} mode`, async ({ page }) => {
                 await createForm(page);
+
                 if (source) {
                     await page.getByRole('button', { name: 'View Source', exact: true }).click();
                     await page.locator('.editor-source').fill('<p>Edited</p>');
                 } else {
                     await page.locator('.editor').fill('Edited');
                 }
+
                 const changes = await page.evaluate(() => window.changes);
+
                 await page.evaluate(() => document.querySelector('form').reset());
 
                 await expect(page.locator('#editor')).toHaveValue('<p>Default</p>');
                 await expect(page.locator('.editor')).toHaveText('Default');
                 await expect(page.locator('.editor-source')).toHaveValue('<p>Default</p>');
+
                 if (source) {
                     await page.getByRole('button', { name: 'View Source', exact: true }).click();
                 }
@@ -188,7 +201,9 @@ test.describe('Editor forms', () => {
             test('honors canceled reset and cancels pending work on disposal', async ({ page }) => {
                 await createForm(page);
                 await page.locator('.editor').fill('Edited');
+
                 const value = await page.locator('#editor').inputValue();
+
                 await page.evaluate(() => {
                     document.querySelector('form').addEventListener('reset', (event) => event.preventDefault(), { once: true });
                     document.querySelector('form').reset();
@@ -218,6 +233,7 @@ test.describe('Editor forms', () => {
 
             await expect(page.locator('.editor')).toHaveText('Valid');
             await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+
             const value = await page.locator('#editor').inputValue();
 
             await page.locator('.editor').fill('');
@@ -225,6 +241,7 @@ test.describe('Editor forms', () => {
             await expect(page.locator('.editor')).toHaveText('');
             await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
             await expect(page.locator('#editor')).not.toHaveValue('');
+
             const empty = await page.locator('#editor').inputValue();
 
             await page.evaluate(() => window.editor.undo());

@@ -1,4 +1,5 @@
 /** @import { Page } from '@playwright/test'; */
+
 /** @import { EditorOptions } from '../../src/js/types.js'; */
 
 /**
@@ -10,6 +11,7 @@
 export async function createEditor(page, html = '<p>Hello world</p>', options = {}) {
     await page.evaluate(({ html, options }) => {
         const node = document.createElement('textarea');
+
         node.id = 'editor';
         node.value = html;
         document.body.append(node);
@@ -31,4 +33,14 @@ export async function createEditor(page, html = '<p>Hello world</p>', options = 
 export async function selectContents(page, selector) {
     await page.locator('.editor').focus();
     await page.evaluate((selector) => getSelection().selectAllChildren(document.querySelector(selector)), selector);
+}
+
+/**
+ * Creates a native textarea for component registration and fQuery API cases.
+ * @param {{page: Page}} fixtures The Playwright fixtures.
+ */
+export async function setupEditor({ page }) {
+    await page.evaluate(() => {
+        $.setHtml(document.body, '<textarea id="editor" name="content"><p>Hello world</p></textarea>');
+    });
 }

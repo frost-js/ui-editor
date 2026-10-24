@@ -8,9 +8,11 @@
  */
 function getNodeFromPath(path, container) {
     let node = container;
+
     for (const index of path) {
         node = node?.childNodes[index];
     }
+
     return node || null;
 }
 
@@ -22,10 +24,12 @@ function getNodeFromPath(path, container) {
  */
 function getPathToNode(node, container) {
     const path = [];
+
     while (node !== container) {
         path.unshift([...node.parentNode.childNodes].indexOf(node));
         node = node.parentNode;
     }
+
     return path;
 }
 
@@ -36,9 +40,11 @@ function getPathToNode(node, container) {
  */
 export function getSelectionData(container) {
     const { anchorNode, anchorOffset, focusNode, focusOffset } = window.getSelection();
+
     if (!anchorNode || !focusNode || !container.contains(anchorNode) || !container.contains(focusNode)) {
         return null;
     }
+
     return {
         anchorPath: getPathToNode(anchorNode, container),
         anchorOffset,
@@ -57,6 +63,7 @@ export function restoreSelectionData(container, selectionData) {
     const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
     const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
     const length = (node) => node.nodeType === Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+
     if (anchor && focus) {
         selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)),
             focus, Math.min(selectionData.focusOffset, length(focus)));

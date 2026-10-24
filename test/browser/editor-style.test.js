@@ -13,6 +13,7 @@ test.describe('Editor styles', () => {
                 await createEditor(page, '<p>مرحبا</p>', { buttons: [['style', 'source', 'fullScreen']] });
                 await selectContents(page, '.editor p');
                 await page.evaluate(() => window.editor.indent());
+
                 const indentation = await page.locator('.editor > div').evaluate((node) => ({
                     margin: parseFloat(getComputedStyle(node).marginRight),
                     font: parseFloat(getComputedStyle(node).fontSize),
@@ -21,8 +22,10 @@ test.describe('Editor styles', () => {
 
                 expect(indentation.style).toBe('2em');
                 expect(indentation.margin).toBeCloseTo(indentation.font * 2, 1);
+
                 const resize = page.getByRole('separator', { name: 'Resize editor' });
                 const height = await page.locator('.card-body').evaluate((node) => node.getBoundingClientRect().height);
+
                 await resize.focus();
                 await page.keyboard.press('ArrowDown');
 
@@ -42,28 +45,36 @@ test.describe('Editor styles', () => {
     test.describe('focus styling', () => {
         test('matches form-control focus styling across the panel and honors forced colors', async ({ page }) => {
             await createEditor(page);
+
             const panel = page.locator('.editor-panel');
             const expected = await page.evaluate(() => {
                 const input = document.createElement('input');
+
                 input.className = 'input-outline';
                 input.style.transition = 'none';
                 document.body.append(input);
                 input.focus();
+
                 const style = getComputedStyle(input);
                 const result = {
                     shadow: style.boxShadow,
                     border: style.borderColor,
                 };
+
                 input.remove();
+
                 return result;
             });
+
             await page.locator('.editor').focus();
 
             await expect(panel).toHaveCSS('box-shadow', expected.shadow);
             await expect(panel).toHaveCSS('border-color', expected.border);
             await expect(panel).toHaveCSS('outline-style', 'none');
             await expect(page.locator('.editor')).toHaveCSS('outline-style', 'none');
+
             const bold = page.getByRole('button', { name: 'Bold', exact: true });
+
             await bold.focus();
 
             await expect(panel).toHaveCSS('box-shadow', expected.shadow);
@@ -88,6 +99,7 @@ test.describe('Editor styles', () => {
             });
             await createEditor(page, '<p>Mobile</p>', { buttons: [['style', 'color']] });
             await page.getByRole('button', { name: 'Style', exact: true }).click();
+
             const menu = page.locator('.editor-dropdown.show');
             const rect = await menu.boundingBox();
 
@@ -99,6 +111,7 @@ test.describe('Editor styles', () => {
             expect(await menu.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
             await page.keyboard.press('Escape');
             await page.getByRole('button', { name: 'Font Color', exact: true }).click();
+
             const colorRect = await menu.boundingBox();
 
             expect(colorRect.x).toBeGreaterThanOrEqual(-1);
@@ -108,6 +121,7 @@ test.describe('Editor styles', () => {
         for (const height of ['auto', '260px']) {
             test(`fills the ${height} editing body with a clickable focus surface before and after resizing`, async ({ page }) => {
                 await createEditor(page, '<p>Short content</p>', { height });
+
                 const surface = page.locator('.editor');
                 const body = page.locator('.card-body');
                 const checkFill = async () => {
@@ -119,8 +133,11 @@ test.describe('Editor styles', () => {
 
                     await expect(surface).toBeFocused();
                 };
+
                 await checkFill();
+
                 const resize = page.getByRole('separator', { name: 'Resize editor' });
+
                 await resize.focus();
                 await page.keyboard.press('ArrowDown');
                 await checkFill();

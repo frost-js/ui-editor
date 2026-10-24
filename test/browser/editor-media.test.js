@@ -19,7 +19,9 @@ test.describe('Editor media', () => {
         ]) {
             test(`applies image action ${name} and synchronizes HTML`, async ({ page }) => {
                 await createEditor(page, imageHtml);
+
                 const image = page.locator('.editor img');
+
                 await image.click();
                 await page.getByRole('button', { name, exact: true }).click();
 
@@ -30,6 +32,7 @@ test.describe('Editor media', () => {
                 } else {
                     await expect(image).not.toHaveAttribute('style', /width:/);
                 }
+
                 await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
                 await page.evaluate(() => window.editor.undo());
 
@@ -51,8 +54,11 @@ test.describe('Editor media', () => {
 
         test('inserts an image by URL and restores dialog focus', async ({ page }) => {
             await createEditor(page, '<p>Image</p>', { buttons: [['image']] });
+
             const button = page.getByRole('button', { name: 'Image', exact: true });
+
             await button.click();
+
             const dialog = page.getByRole('dialog', { name: 'Insert Image' });
 
             await expect(dialog.getByLabel('Select Files')).toBeFocused();
@@ -77,6 +83,7 @@ test.describe('Editor media', () => {
         ]) {
             test(`runs table action ${name} and restores the original on undo`, async ({ page }) => {
                 const html = '<table class="table table-bordered"><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>';
+
                 await createEditor(page, html);
                 await page.locator('.editor td').first().click();
 
@@ -157,6 +164,7 @@ test.describe('Editor media', () => {
             await createEditor(page, '<p><a href="https://example.com/" target="_blank">Old</a></p>');
             await page.locator('.editor a').click();
             await page.getByRole('button', { name: 'Edit Link', exact: true }).click();
+
             const dialog = page.getByRole('dialog', { name: 'Insert Link' });
 
             await expect(dialog.getByLabel('Open in new window')).toBeChecked();
@@ -172,8 +180,10 @@ test.describe('Editor media', () => {
 
         test('does not serialize popover positioning or add undo entries when viewing a link', async ({ page }) => {
             const html = '<p><a href="/example">Example</a></p>';
+
             await createEditor(page, html);
             await page.evaluate(() => window.editor.insertText('!'));
+
             const value = await page.locator('#editor').inputValue();
 
             await page.locator('.editor a').click();
@@ -198,6 +208,7 @@ test.describe('Editor media', () => {
             await expect(page.locator('.editor-popover')).toBeVisible();
             await expect(page.locator('.editor-popover')).toHaveCSS('opacity', '1');
             await page.getByRole('button', { name: 'Edit Link', exact: true }).click();
+
             const modal = page.getByRole('dialog', { name: 'Insert Link' });
 
             await expect(modal).toBeVisible();
@@ -214,7 +225,9 @@ test.describe('Editor media', () => {
         test('shows invalid video feedback and inserts a YouTube embed', async ({ page }) => {
             await createEditor(page, '<p>Media</p>', { buttons: [['video']] });
             await page.getByRole('button', { name: 'Video', exact: true }).click();
+
             const dialog = page.getByRole('dialog', { name: 'Insert Video' });
+
             await dialog.getByLabel('Video URL').fill('https://example.com/watch?v=abc');
             await dialog.getByRole('button', { name: 'Insert Video', exact: true }).click();
 
@@ -234,7 +247,9 @@ test.describe('Editor media', () => {
         test('uploads files from the image dialog and sizes a successful image', async ({ page }) => {
             await createEditor(page, '<p>Upload</p>', { buttons: [['image']] });
             await page.getByRole('button', { name: 'Image', exact: true }).click();
+
             const dialog = page.getByRole('dialog', { name: 'Insert Image' });
+
             await dialog.getByLabel('Select Files').setInputFiles({
                 name: 'upload.gif',
                 mimeType: 'image/gif',
@@ -251,15 +266,19 @@ test.describe('Editor media', () => {
             await page.evaluate(async (gif) => {
                 const editor = window.editor;
                 const NativeReader = window.FileReader;
+
                 window.FileReader = class extends NativeReader {
                     readAsDataURL(file) {
                         if (file.name === 'failed.gif') {
                             throw new Error('Read failed');
                         }
+
                         super.readAsDataURL(file);
                     }
                 };
+
                 const bytes = Uint8Array.from(atob(gif), (char) => char.charCodeAt(0));
+
                 try {
                     await editor.options.imageUpload.call(editor, [new File([bytes], 'failed.gif'), new File([bytes], 'valid.gif', { type: 'image/gif' })]);
                 } finally {
@@ -273,9 +292,11 @@ test.describe('Editor media', () => {
 
         test('settles FileReader failures, releases handlers, and ignores uploads after disposal', async ({ page }) => {
             await createEditor(page);
+
             const result = await page.evaluate(async () => {
                 const NativeReader = window.FileReader;
                 const readers = [];
+
                 window.FileReader = class {
                     constructor() {
                         readers.push(this);
@@ -285,15 +306,21 @@ test.describe('Editor media', () => {
                         if (file.name === 'throw') {
                             throw new Error('Synchronous failure');
                         }
+
                         queueMicrotask(() => this.onerror());
                     }
                 };
+
                 try {
                     const editor = window.editor;
+
                     await editor.options.imageUpload.call(editor, [new File([], 'error'), new File([], 'throw')]);
+
                     const released = readers.every((reader) => reader.onload === null && reader.onerror === null && reader.onabort === null);
+
                     editor.dispose();
                     await UI.Editor.defaults.imageUpload.call(editor, [new File([], 'disposed')]);
+
                     return {
                         readers: readers.length,
                         released,
@@ -315,6 +342,7 @@ test.describe('Editor media', () => {
             await createEditor(page);
             await page.evaluate(() => {
                 const node = window.editor.node;
+
                 window.editor.dispose();
                 window.editor = UI.Editor.init(node, {
                     buttons: [['image']],
@@ -333,6 +361,7 @@ test.describe('Editor media', () => {
                 buffer: Buffer.from(gif, 'base64'),
             });
             await page.getByRole('dialog').getByRole('button', { name: 'Insert Image', exact: true }).click();
+
             const result = await page.evaluate(() => window.upload);
 
             expect(result.owned).toBe(true);

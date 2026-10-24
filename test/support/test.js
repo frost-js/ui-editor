@@ -10,6 +10,7 @@ const test = base.extend({
     uiPage: [
         async ({ page, mockClock, expectedBrowserErrors }, use, testInfo) => {
             const errors = [];
+
             page.on('pageerror', (error) => errors.push(error.message));
 
             if (collectCoverage) {
@@ -41,6 +42,7 @@ const test = base.extend({
 
             await page.waitForFunction(() => {
                 const node = document.createElement('div');
+
                 node.className = 'editor-container text-center';
                 document.body.append(node);
 
@@ -49,6 +51,7 @@ const test = base.extend({
                     style.textAlign === 'center';
 
                 node.remove();
+
                 return ready;
             });
 
@@ -58,6 +61,7 @@ const test = base.extend({
                 // Coverage runs on Node 24; regular tests also support Node 20.
                 const { addCoverageReport } = await import('monocart-reporter');
                 const coverage = await page.coverage.stopJSCoverage();
+
                 await addCoverageReport(coverage, testInfo);
             }
 

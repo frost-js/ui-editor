@@ -2,6 +2,7 @@ import { BaseComponent, Dropdown, Modal, Popper, Tooltip, generateId, initCompon
 import $ from "@fr0st/query";
 
 // src/js/normalize.js
+/** @import { EditorSelectionMarkers } from './types.js'; */
 var transparent = "rgba(0, 0, 0, 0)";
 var phrasingSelector = [
 	"a",
@@ -62,33 +63,33 @@ var phrasingSelector = [
 * Determines whether a node is phrasing content.
 * https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
 * @param {Node} node The input node.
-* @returns {boolean} TRUE if the node is phrasing content, otherwise FALSE.
+* @returns {boolean} Whether the node is phrasing content.
 */
 var isPhrasingContent = (node) => $._isText(node) || $.is(node, phrasingSelector);
 /**
-* Determine if a node is a form element.
+* Determines whether a node is a form element.
 * https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
 * @param {Node} node The input node.
-* @returns {boolean} TRUE if the node is a form element, otherwise FALSE.
+* @returns {boolean} Whether the node is a form element.
 */
 var isFormElement = (node) => $.is(node, "button, fieldset, input, object, output, select, textarea");
 /**
-* Determine if a node is a void element.
+* Determines whether a node is a void element.
 * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
 * @param {Node} node The input node.
-* @returns {boolean} TRUE if the node is a void element, otherwise FALSE.
+* @returns {boolean} Whether the node is a void element.
 */
 var isVoidElement = (node) => $.is(node, "area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr");
 /**
-* Determine if a node is a phrasing container.
+* Determines whether a node is a phrasing container.
 * @param {Node} node The input node.
-* @returns {boolean} TRUE if the node is a phrasing container, otherwise FALSE.
+* @returns {boolean} Whether the node is a phrasing container.
 */
 var isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node) && !isVoidElement(node) && !isFormElement(node);
 /**
-* Join adjacent inline elements.
+* Joins adjacent inline elements.
 * @param {HTMLElement} container The container.
-* @param {object} markers The selection markers.
+* @param {EditorSelectionMarkers} markers The selection markers.
 */
 function joinAdjacentNodes(container, markers) {
 	const elements = $.find("*", container);
@@ -809,7 +810,7 @@ function getRange(container = null) {
 }
 /**
 * Restores a range from markers and removes the markers without losing direction.
-* @param {EditorSelectionMarkers} [markers] The selection markers.
+* @param {EditorSelectionMarkers} [markers={}] The selection markers.
 */
 function restoreSelection({ start, end, backward = false } = {}) {
 	if (!start?.isConnected || !end?.isConnected) {
@@ -852,7 +853,7 @@ function saveSelection(container = null) {
 }
 /**
 * Selects a node.
-* @param {HTMLElement} node The element to select.
+* @param {Node} node The node to select.
 * @returns {Range} The selected range.
 */
 function selectNode(node) {
@@ -906,7 +907,7 @@ var session = 0;
 * Registers a shared listener with its exact removal callback.
 * @param {EventTarget} target The target.
 * @param {string} events The event names.
-* @param {Function} callback The event callback.
+* @param {(event: Event) => void} callback The event callback.
 */
 function listenShared(target, events, callback) {
 	$.addEvent(target, events, callback);
@@ -1105,7 +1106,7 @@ var styles = [
 ];
 
 // src/js/editor.js
-/** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover } from './types.js'; */
+/** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover, EditorDropdownCallback } from './types.js'; */
 /**
 * A customizable WYSIWYG editor backed by a native textarea.
 * @augments {BaseComponent<EditorOptions>}
@@ -1525,6 +1526,7 @@ var Editor = class extends BaseComponent {
 	#originalAttributes = /* @__PURE__ */ new Map();
 	/** @type {[number, number, 'forward'|'backward'|'none']|null} */
 	#originalSelection = null;
+	#originalStyle = false;
 	#pendingMutation = false;
 	/** @type {HTMLElement|null} */
 	#popover = null;
@@ -1538,6 +1540,7 @@ var Editor = class extends BaseComponent {
 	#readers = /* @__PURE__ */ new Set();
 	/** @type {EditorHistoryEntry[]} */
 	#redoHistory = [];
+	#releaseDisplay = null;
 	/** @type {HTMLElement|null} */
 	#resizeBar = null;
 	/** @type {HTMLTextAreaElement|null} */
@@ -1561,8 +1564,8 @@ var Editor = class extends BaseComponent {
 	constructor(node, options) {
 		if (!$._isElement(node) || !$.is(node, "textarea")) throw new TypeError("Editor must be created on a textarea element.");
 		super(node, options);
+		this.#originalStyle = node.hasAttribute("style");
 		this.#originalAttributes = new Map([
-			"style",
 			"tabindex",
 			"hidden",
 			"aria-hidden"
@@ -1623,7 +1626,7 @@ var Editor = class extends BaseComponent {
 		this.#refreshToolbar();
 	}
 	/**
-	* Dispose the Editor.
+	* Disposes the Editor.
 	*/
 	dispose() {
 		if (!this.node || this.#disposing) return;
@@ -1660,6 +1663,9 @@ var Editor = class extends BaseComponent {
 			$.remove(modal);
 		}
 		if (this.#container) $.remove(this.#container);
+		this.#releaseDisplay?.();
+		this.#releaseDisplay = null;
+		if (!this.#originalStyle && !node.getAttribute("style")) node.removeAttribute("style");
 		for (const [name, value] of this.#originalAttributes) if (value === null) node.removeAttribute(name);
 		else node.setAttribute(name, value);
 		if (restoreFocus && node.isConnected && !node.hidden) {
@@ -1874,7 +1880,7 @@ var Editor = class extends BaseComponent {
 	}
 	/**
 	* Registers cleanup for resources created by an extension or rendering helper.
-	* @param {Function} callback The cleanup callback.
+	* @param {() => void} callback The cleanup callback.
 	*/
 	onDispose(callback) {
 		if (this.node) this.#cleanups.push(callback);
@@ -1887,7 +1893,7 @@ var Editor = class extends BaseComponent {
 		this.#changeIndent(true);
 	}
 	/**
-	* Perform a redo.
+	* Restores the next history snapshot.
 	*/
 	redo() {
 		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly || !this.#redoHistory.length) return;
@@ -1932,7 +1938,7 @@ var Editor = class extends BaseComponent {
 		this.#execCommand("underline");
 	}
 	/**
-	* Perform an undo.
+	* Restores the previous history snapshot.
 	*/
 	undo() {
 		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly || this.#history.length <= 1) return;
@@ -1967,9 +1973,9 @@ var Editor = class extends BaseComponent {
 	/**
 	* Binds a drag whose global listeners and active state are owned by the editor.
 	* @param {HTMLElement} handle The drag handle.
-	* @param {Function} down The start callback.
-	* @param {Function} move The move callback.
-	* @param {Function} up The finish callback.
+	* @param {(event: PointerEvent) => boolean|void} down The start callback; false cancels the drag.
+	* @param {(event: PointerEvent) => void} move The move callback.
+	* @param {(event?: PointerEvent) => void} up The finish callback; window blur supplies no event.
 	*/
 	#bindDrag(handle, down, move, up) {
 		let pointer = null;
@@ -2144,7 +2150,7 @@ var Editor = class extends BaseComponent {
 	}
 	/**
 	* Creates a deferred callback that cannot run after disposal.
-	* @param {Function} callback The callback to defer.
+	* @param {() => void} callback The callback to defer.
 	* @returns {Function} The guarded callback.
 	*/
 	#debounce(callback) {
@@ -3071,15 +3077,15 @@ var Editor = class extends BaseComponent {
 		this.#renderPopover();
 		this.#renderDrop();
 		if (this.options.resizable) this.#renderResize();
-		$.hide(this.node);
+		this.#releaseDisplay = $.setStyleLock(this.node, "display", "none", { important: true });
 		$.setAttribute(this.node, { "aria-hidden": true });
 		$.insertBefore(this.#container, this.node);
 		if (this.#resizeBar) this.#resizeBar.setAttribute("aria-valuenow", String(Math.round(this.#editorBody.getBoundingClientRect().height)));
 	}
 	/**
-	* Renders a button
-	* @param {object} data The button data.
-	* @returns {HTMLElement} The button.
+	* Renders a button.
+	* @param {EditorPlugin|EditorPopover} data The button configuration.
+	* @returns {HTMLButtonElement} The button.
 	*/
 	#renderButton(data) {
 		const button = $.create("button", {
@@ -3196,7 +3202,7 @@ var Editor = class extends BaseComponent {
 	}
 	/**
 	* Renders popover items.
-	* @param {Array} items The items to render.
+	* @param {Array<string|string[]>} items The popover actions and groups to render.
 	*/
 	#renderPopoverItems(items) {
 		for (const item of items) if ($._isString(item)) this.#renderPopoverItem(item, this.#popoverBody);
@@ -3293,7 +3299,7 @@ var Editor = class extends BaseComponent {
 	* Renders a toolbar dropdown.
 	* @param {HTMLElement} buttonGroup The button group element.
 	* @param {HTMLElement} button The button element.
-	* @param {Array|Function} dropdownContent The dropdown content.
+	* @param {string[][]|EditorDropdownCallback} dropdownContent The toolbar groups or dropdown renderer.
 	*/
 	#renderToolbarDropdown(buttonGroup, button, dropdownContent) {
 		const dropGroup = $.create("div", {
@@ -3359,7 +3365,7 @@ var Editor = class extends BaseComponent {
 	/**
 	* Sets data for a toolbar action.
 	* @param {HTMLElement} node The action node.
-	* @param {object} data The data to set.
+	* @param {EditorPlugin|EditorPopover} data The action configuration.
 	* @param {string} [type] The action type.
 	*/
 	#setToolbarData(node, data, type) {
@@ -3678,8 +3684,8 @@ var Editor = class extends BaseComponent {
 	}
 	/**
 	* Updates a table element.
-	* @param {HTMLElement} td The td element.
-	* @param {Function} callback The callback.
+	* @param {HTMLTableCellElement} td The table cell.
+	* @param {(cell: HTMLTableCellElement, row: HTMLTableRowElement, table: HTMLTableElement) => void} callback The callback.
 	*/
 	#updateTable(td, callback) {
 		const table = td.closest("table");

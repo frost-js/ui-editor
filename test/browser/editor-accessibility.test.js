@@ -6,7 +6,9 @@ test.describe('Editor accessibility', () => {
         test('formats from keyboard dropdown controls and restores focus with Escape', async ({ page }) => {
             await createEditor(page, '<p>Heading</p>', { buttons: [['style', 'source']] });
             await selectContents(page, '.editor p');
+
             const toggle = page.getByRole('button', { name: 'Style', exact: true });
+
             await toggle.focus();
             await page.keyboard.press('ArrowDown');
 
@@ -27,9 +29,12 @@ test.describe('Editor accessibility', () => {
 
         test('opens a dialog by keyboard and restores focus after Escape', async ({ page }) => {
             await createEditor(page, '<p>Link</p>', { buttons: [['link']] });
+
             const button = page.getByRole('button', { name: 'Link', exact: true });
+
             await button.focus();
             await page.keyboard.press('Enter');
+
             const dialog = page.getByRole('dialog', { name: 'Insert Link' });
 
             await expect(dialog).toBeVisible();
@@ -57,7 +62,9 @@ test.describe('Editor accessibility', () => {
 
             await expect(page.locator('.editor')).toHaveText('Changed');
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
             const value = await page.locator('.editor-source').inputValue();
+
             await page.keyboard.press('Escape');
             await page.keyboard.press('Tab');
 
@@ -105,7 +112,9 @@ test.describe('Editor accessibility', () => {
         test('inserts tables using named native grid buttons', async ({ page }) => {
             await createEditor(page, '<p>Table</p>', { buttons: [['table']] });
             await page.getByRole('button', { name: 'Table', exact: true }).click();
+
             const cell = page.getByRole('button', { name: '2 × 3 table', exact: true });
+
             await cell.focus();
             await page.keyboard.press('Enter');
 
@@ -120,17 +129,22 @@ test.describe('Editor accessibility', () => {
             await createEditor(page, '<p>' +
                 '<img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" style="width: 100px; height: 50px;" alt="Example">' +
                 '</p>');
+
             const image = page.locator('.editor img');
+
             await image.click();
 
             await expect(page.getByRole('group', { name: 'Context formatting', exact: true })).toBeVisible();
             await expect(page.locator('.editor-popover')).toHaveCSS('opacity', '1');
+
             const rect = await image.boundingBox();
             const overlay = await page.locator('.editor-img-highlight').boundingBox();
 
             expect(Math.abs(rect.x - overlay.x)).toBeLessThanOrEqual(3);
             expect(Math.abs(rect.y - overlay.y)).toBeLessThanOrEqual(3);
+
             const slider = page.getByRole('slider', { name: 'Image width' });
+
             await slider.focus();
             await page.keyboard.press('ArrowRight');
 

@@ -6,12 +6,16 @@ const gif = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 async function dragEvent(page, target, type, text = '') {
     return page.evaluate(({ target, type, text }) => {
         const dataTransfer = new DataTransfer();
+
         dataTransfer.setData('text/plain', text);
+
         const event = new Event(type, {
             bubbles: true,
             cancelable: true,
         });
+
         Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
+
         return document.querySelector(target).dispatchEvent(event);
     }, {
         target,
@@ -50,11 +54,14 @@ test.describe('Editor interactions', () => {
             await page.evaluate((gif) => {
                 const dataTransfer = new DataTransfer();
                 const bytes = Uint8Array.from(atob(gif), (char) => char.charCodeAt(0));
+
                 dataTransfer.items.add(new File([bytes], 'drop.gif', { type: 'image/gif' }));
+
                 const event = new Event('drop', {
                     bubbles: true,
                     cancelable: true,
                 });
+
                 Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
                 document.querySelector('.editor-drop-target').dispatchEvent(event);
             }, gif);
@@ -85,8 +92,10 @@ test.describe('Editor interactions', () => {
     test.describe('resizing', () => {
         test('resizes the editor with pointer movement and finishes on pointer cancel or window blur', async ({ page }) => {
             await createEditor(page, '<p>Resize</p>', { height: '150px' });
+
             const handle = page.locator('.editor-resize');
             const rect = await handle.boundingBox();
+
             await page.mouse.move(rect.x + 10, rect.y + 2);
             await page.mouse.down();
             await page.mouse.move(rect.x + 10, rect.y + 42);
@@ -120,8 +129,10 @@ test.describe('Editor interactions', () => {
         test('resizes an image by pointer, preserves its selection, and dismisses on scrolling', async ({ page }) => {
             await createEditor(page, `<p><img src="data:image/gif;base64,${gif}" style="width: 100px; height: 50px;"></p>`);
             await page.locator('.editor img').click();
+
             const handle = page.locator('.editor-img-resize');
             const rect = await handle.boundingBox();
+
             await page.mouse.move(rect.x + rect.width / 2, rect.y + rect.height / 2);
             await page.mouse.down();
             await page.mouse.move(rect.x + 25, rect.y + 10);

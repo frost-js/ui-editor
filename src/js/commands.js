@@ -10,26 +10,37 @@ function intersects(range, block) {
     if (range.collapsed) {
         return block === range.startContainer || block.contains(range.startContainer);
     }
+
     const start = range.cloneRange();
     const end = range.cloneRange();
+
     start.collapse(true);
     end.collapse(false);
+
     const blockStart = document.createRange();
+
     blockStart.selectNodeContents(block);
+
     const blockEnd = blockStart.cloneRange();
+
     blockStart.collapse(true);
     blockEnd.collapse(false);
+
     if (start.compareBoundaryPoints(Range.START_TO_START, blockEnd) >= 0 ||
         end.compareBoundaryPoints(Range.START_TO_START, blockStart) <= 0) {
         return false;
     }
+
     const overlap = range.cloneRange();
+
     if (start.compareBoundaryPoints(Range.START_TO_START, blockStart) < 0) {
         overlap.setStart(block, 0);
     }
+
     if (end.compareBoundaryPoints(Range.START_TO_START, blockEnd) > 0) {
         overlap.setEnd(block, block.childNodes.length);
     }
+
     return Boolean(overlap.toString() ||
         [...block.querySelectorAll('br, img, hr, iframe, video, audio, svg, input')].some((node) => overlap.intersectsNode(node)) ||
         !block.childNodes.length);
@@ -45,15 +56,18 @@ export function getSelectedBlocks(root, range) {
     const anchor = range.startContainer.nodeType === Node.ELEMENT_NODE ?
         range.startContainer : range.startContainer.parentElement;
     const item = anchor.closest('li');
+
     if (item && root.contains(item)) {
         return [...item.parentElement.children].filter((node) => node.matches('li') && intersects(range, node));
     }
+
     const blocks = [];
     const visit = (parent) => {
         for (const child of [...parent.children]) {
             if (!range.intersectsNode(child)) {
                 continue;
             }
+
             if (child.matches('p, h1, h2, h3, h4, h5, h6, pre, li') ||
                 (child.matches('div, blockquote, td, th') && [...child.childNodes].every(isPhrasingContent))) {
                 if (intersects(range, child)) {
@@ -64,7 +78,9 @@ export function getSelectedBlocks(root, range) {
             }
         }
     };
+
     visit(root);
+
     return blocks;
 }
 
@@ -85,20 +101,28 @@ function removeEmpty(node) {
 export function indentBlocks(blocks) {
     const first = blocks[0];
     const parent = first.parentElement;
+
     if (first.matches('li')) {
         const previous = first.previousElementSibling;
+
         if (!previous?.matches('li')) {
             return;
         }
+
         let list = previous.lastElementChild;
+
         if (!list || list.tagName !== parent.tagName) {
             list = document.createElement(parent.localName);
             previous.append(list);
         }
+
         list.append(...blocks);
+
         return;
     }
+
     const wrapper = document.createElement('div');
+
     wrapper.style.marginInlineStart = '2em';
     first.before(wrapper);
     wrapper.append(...blocks);
@@ -112,33 +136,44 @@ function outdentItems(blocks) {
     const list = blocks[0].parentElement;
     const parentItem = list.parentElement;
     const following = list.cloneNode(false);
+
     following.removeAttribute('id');
+
     while (blocks.at(-1).nextSibling) {
         following.append(blocks.at(-1).nextSibling);
     }
+
     if (parentItem.matches('li')) {
         if (following.children.length) {
             blocks.at(-1).append(following);
         }
+
         parentItem.after(...blocks);
     } else {
         const content = document.createDocumentFragment();
+
         for (const item of blocks) {
             const paragraph = document.createElement('p');
+
             while (item.firstChild && isPhrasingContent(item.firstChild)) {
                 paragraph.append(item.firstChild);
             }
+
             if (paragraph.childNodes.length) {
                 content.append(paragraph);
             }
+
             content.append(...item.childNodes);
             item.remove();
         }
+
         if (following.children.length) {
             content.append(following);
         }
+
         list.after(content);
     }
+
     removeEmpty(list);
 }
 
@@ -150,29 +185,39 @@ function outdentItems(blocks) {
 export function outdentBlocks(blocks, root) {
     if (blocks[0].matches('li')) {
         outdentItems(blocks);
+
         return;
     }
+
     const wrappers = new Set();
+
     for (const block of blocks) {
         let wrapper = block;
+
         while (wrapper && wrapper !== root && !(parseFloat(wrapper.style.marginInlineStart || wrapper.style.marginLeft) > 0)) {
             wrapper = wrapper.parentElement;
         }
+
         if (wrapper && wrapper !== root) {
             wrappers.add(wrapper);
         }
     }
+
     for (const wrapper of wrappers) {
         const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) =>
             block === node || node.contains(block)));
+
         if (blocks.includes(wrapper)) {
             wrapper.replaceWith(...wrapper.childNodes);
         } else if (selected.length) {
             const following = wrapper.cloneNode(false);
+
             following.removeAttribute('id');
+
             while (selected.at(-1).nextSibling) {
                 following.append(selected.at(-1).nextSibling);
             }
+
             wrapper.after(...selected, following);
             removeEmpty(wrapper);
             removeEmpty(following);

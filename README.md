@@ -1,12 +1,12 @@
 # Frost UI Editor
 
-[![CI](https://github.com/elusivecodes/FrostUI-Editor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/elusivecodes/FrostUI-Editor/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/elusivecodes/FrostUI-Editor/branch/main/graph/badge.svg)](https://codecov.io/gh/elusivecodes/FrostUI-Editor)
+[![CI](https://github.com/frost-js/ui-editor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/frost-js/ui-editor/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/frost-js/ui-editor/branch/main/graph/badge.svg)](https://codecov.io/gh/frost-js/ui-editor)
 [![npm version](https://img.shields.io/npm/v/%40fr0st%2Fui-editor?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-editor)
 [![npm downloads](https://img.shields.io/npm/dm/%40fr0st%2Fui-editor?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-editor)
-[![JS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-Editor/main/dist/frost-ui-editor.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-Editor/blob/main/dist/frost-ui-editor.min.js)
-[![CSS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-Editor/main/dist/frost-ui-editor.min.css?compression=gzip&label=CSS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-Editor/blob/main/dist/frost-ui-editor.min.css)
-[![license](https://img.shields.io/github/license/elusivecodes/FrostUI-Editor?style=flat-square)](./LICENSE)
+[![JS gzip size](https://img.badgesize.io/frost-js/ui-editor/main/dist/frost-ui-editor.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/frost-js/ui-editor/blob/main/dist/frost-ui-editor.min.js)
+[![CSS gzip size](https://img.badgesize.io/frost-js/ui-editor/main/dist/frost-ui-editor.min.css?compression=gzip&label=CSS%20gzip%20size&style=flat-square)](https://github.com/frost-js/ui-editor/blob/main/dist/frost-ui-editor.min.css)
+[![license](https://img.shields.io/github/license/frost-js/ui-editor?style=flat-square)](./LICENSE)
 
 A WYSIWYG editor for Frost UI, with customizable toolbars, HTML source editing, media, tables, and native textarea integration.
 
@@ -312,7 +312,7 @@ Calling `Editor.init()` again for the same element returns its existing instance
 
 An instance exposes its original textarea as `instance.node` and its shallow-frozen resolved configuration as `instance.options`. Both become `null` after disposal.
 
-`dispose()` releases owned listeners, observers, dialogs, popovers, file reads, and deferred work. It restores original textarea visibility and managed attributes while retaining its current value. Repeated disposal is safe. Use a new instance before calling other methods after disposal.
+`dispose()` releases owned listeners, observers, dialogs, popovers, file reads, and deferred work. It restores original textarea visibility and managed attributes while retaining its current value and unrelated application styles. Repeated disposal is safe. Use a new instance before calling other methods after disposal.
 
 Use inherited `listen(...)` for extension listeners and `onDispose(callback)` for resources such as child components and pending requests. Cleanup callbacks run once, in reverse registration order; registering after disposal runs the callback immediately.
 
@@ -587,7 +587,7 @@ After building, `npm run test:coverage` runs Chromium tests on Node 24 and write
 
 To view the demo, open `demo/index.html` in your browser after building.
 
-Run `npm run lint:sass:unused` to check Sass defaults. Commit generated `dist/` artifacts with source changes; CI rejects stale or untracked bundles.
+Run `npm run lint:sass:unused` to check Sass defaults. Commit generated `dist/` artifacts with source changes; CI checks that the tracked bundles are current.
 
 ## License
 

@@ -9,29 +9,37 @@ import $ from '@fr0st/query';
  */
 export function getRange(container = null) {
     const selection = window.getSelection();
+
     if (!selection.rangeCount) {
         return null;
     }
+
     const range = selection.getRangeAt(0);
+
     return !container || (container.contains(range.startContainer) && container.contains(range.endContainer)) ? range : null;
 }
 
 /**
  * Restores a range from markers and removes the markers without losing direction.
- * @param {EditorSelectionMarkers} [markers] The selection markers.
+ * @param {EditorSelectionMarkers} [markers={}] The selection markers.
  */
 export function restoreSelection({ start, end, backward = false } = {}) {
     if (!start?.isConnected || !end?.isConnected) {
         start?.remove();
         end?.remove();
+
         return;
     }
+
     const range = $.createRange();
+
     range.setStartAfter(start);
     range.setEndBefore(end);
     start.remove();
     end.remove();
+
     const selection = window.getSelection();
+
     if (backward) {
         selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
     } else {
@@ -46,31 +54,37 @@ export function restoreSelection({ start, end, backward = false } = {}) {
  */
 export function saveSelection(container = null) {
     const range = getRange(container);
+
     if (!range) {
         return {};
     }
+
     const selection = window.getSelection();
     const backward = !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
     const start = $.createText('');
     const end = $.createText('');
     const startRange = range.cloneRange();
     const endRange = range.cloneRange();
+
     startRange.collapse(true);
     endRange.collapse(false);
     endRange.insertNode(end);
     startRange.insertNode(start);
+
     return { start, end, backward };
 }
 
 /**
  * Selects a node.
- * @param {HTMLElement} node The element to select.
+ * @param {Node} node The node to select.
  * @returns {Range} The selected range.
  */
 export function selectNode(node) {
     const range = $.createRange();
+
     range.selectNode(node);
     selectRange(range);
+
     return range;
 }
 
@@ -83,7 +97,9 @@ export function selectRange(range, backward = false) {
     if (!range || !range.startContainer.isConnected || !range.endContainer.isConnected) {
         return;
     }
+
     const selection = window.getSelection();
+
     if (backward) {
         selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
     } else {
@@ -100,7 +116,9 @@ export function normalizeText(container) {
     const range = getRange(container)?.cloneRange();
     const selection = window.getSelection();
     const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+
     $.normalize(container);
+
     if (range) {
         selectRange(range, backward);
     }

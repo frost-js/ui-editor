@@ -5,9 +5,12 @@ test.describe('Editor editing', () => {
     test.describe('#insertNode', () => {
         test('inserts a trusted element with history and honors disabled state', async ({ page }) => {
             await createEditor(page);
+
             const inserted = await page.evaluate(() => {
                 const node = document.createElement('mark');
+
                 node.textContent = 'Custom content';
+
                 return window.editor.insertNode(node) === node;
             });
 
@@ -23,6 +26,7 @@ test.describe('Editor editing', () => {
 
             const ignored = await page.evaluate(() => {
                 window.editor.disable();
+
                 return window.editor.insertNode(document.createElement('hr'));
             });
 
@@ -45,6 +49,7 @@ test.describe('Editor editing', () => {
                     method,
                     value,
                 });
+
                 const formatted = page.locator('.editor').getByText('Formatted text', { exact: true });
 
                 await expect(formatted).toHaveCSS(property, expected);
@@ -138,6 +143,7 @@ test.describe('Editor editing', () => {
                 await page.locator('.editor').focus();
                 await page.evaluate(() => {
                     const item = document.querySelector('.editor li:last-child');
+
                     getSelection().setBaseAndExtent(item.firstChild, 0, item.firstChild, 0);
                 });
                 await page.keyboard.press('Tab');
@@ -181,6 +187,7 @@ test.describe('Editor editing', () => {
             await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', '<p><br></p>');
             await page.evaluate(() => {
                 const surface = document.querySelector('.editor');
+
                 surface.dispatchEvent(new CompositionEvent('compositionstart', { bubbles: true }));
                 surface.dispatchEvent(new InputEvent('beforeinput', {
                     inputType: 'insertCompositionText',
@@ -242,6 +249,7 @@ test.describe('Editor editing', () => {
             await selectContents(page, '.editor p');
             await page.getByRole('button', { name: 'Font Size', exact: true }).click();
             await page.getByRole('button', { name: '24', exact: true }).click();
+
             const formatted = page.locator('.editor').getByText('Typography', { exact: true });
 
             await expect(formatted).toHaveCSS('font-family', 'serif');

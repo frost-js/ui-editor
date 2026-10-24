@@ -8,6 +8,7 @@ test.describe('Editor indentation', () => {
             await page.locator('.editor').focus();
             await page.evaluate(() => {
                 const text = document.querySelector('.editor p').firstChild;
+
                 getSelection().setBaseAndExtent(text, 5, text, 2);
                 window.editor.indent();
             });
@@ -17,8 +18,10 @@ test.describe('Editor indentation', () => {
             expect(await page.evaluate(() => {
                 const selection = getSelection();
                 const range = document.createRange();
+
                 range.setStart(selection.anchorNode, selection.anchorOffset);
                 range.setEnd(selection.focusNode, selection.focusOffset);
+
                 return range.collapsed;
             })).toBe(true);
             await page.evaluate(() => window.editor.outdent());
@@ -47,6 +50,7 @@ test.describe('Editor indentation', () => {
 
         test('indents multiple paragraphs together and can undo the entire operation', async ({ page }) => {
             const html = '<p>One</p><p>Two</p>';
+
             await createEditor(page, html);
             await selectContents(page, '.editor');
             await page.evaluate(() => window.editor.indent());
@@ -62,6 +66,7 @@ test.describe('Editor indentation', () => {
             await page.locator('.editor').focus();
             await page.evaluate(() => {
                 const paragraphs = document.querySelectorAll('.editor p');
+
                 getSelection().setBaseAndExtent(paragraphs[0].firstChild, 0, paragraphs[1].firstChild, 0);
                 window.editor.indent();
             });
@@ -75,6 +80,7 @@ test.describe('Editor indentation', () => {
             await page.locator('.editor').focus();
             await page.evaluate(() => {
                 const text = document.querySelector('.editor').lastChild;
+
                 getSelection().setBaseAndExtent(text, 0, text, text.textContent.length);
                 window.editor.indent();
             });
@@ -88,6 +94,7 @@ test.describe('Editor indentation', () => {
             await page.evaluate(() => {
                 const paragraph = document.querySelector('.editor p');
                 const selection = getSelection();
+
                 selection.selectAllChildren(paragraph);
                 window.editor.indent();
             });
@@ -106,6 +113,7 @@ test.describe('Editor indentation', () => {
         for (const tag of ['ul', 'ol']) {
             test(`nests and outdents a list item inside its previous sibling (${tag})`, async ({ page }) => {
                 const html = `<${tag}><li class="a">One</li><li class="b">Two</li><li class="c">Three</li></${tag}>`;
+
                 await createEditor(page, html);
                 await selectContents(page, '.editor .b');
                 await page.evaluate(() => window.editor.indent());
@@ -120,6 +128,7 @@ test.describe('Editor indentation', () => {
 
         test('does not indent a first list item without a preceding sibling', async ({ page }) => {
             const html = '<ul><li>One</li><li>Two</li></ul>';
+
             await createEditor(page, html);
             await selectContents(page, '.editor li:first-child');
             await page.evaluate(() => window.editor.indent());

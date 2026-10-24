@@ -22,6 +22,7 @@ test.describe('Editor history', () => {
             await expect(page.locator('#editor')).toHaveValue('<p>Hello world!?</p>');
             expect(await page.evaluate(() => {
                 const selection = getSelection();
+
                 return document.querySelector('.editor').contains(selection.anchorNode);
             })).toBe(true);
         });

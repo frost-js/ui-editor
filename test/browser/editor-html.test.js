@@ -30,17 +30,22 @@ test.describe('Editor HTML', () => {
 
                 await page.evaluate((method) => {
                     const html = '<p id="inserted" data-template="notice" style="padding: 12px;">Added content</p>';
+
                     if (method === 'insertHtml') {
                         window.editor.insertHtml(html);
+
                         return;
                     }
 
                     const clipboardData = new DataTransfer();
+
                     clipboardData.setData('text/html', html);
+
                     const event = new Event('paste', {
                         bubbles: true,
                         cancelable: true,
                     });
+
                     Object.defineProperty(event, 'clipboardData', { value: clipboardData });
                     document.querySelector('.editor').dispatchEvent(event);
                 }, method);
@@ -58,11 +63,14 @@ test.describe('Editor HTML', () => {
 
             await page.evaluate(() => {
                 const clipboardData = new DataTransfer();
+
                 clipboardData.setData('text/plain', '<b>Plain text</b>');
+
                 const event = new Event('paste', {
                     bubbles: true,
                     cancelable: true,
                 });
+
                 Object.defineProperty(event, 'clipboardData', { value: clipboardData });
                 document.querySelector('.editor').dispatchEvent(event);
             });
@@ -76,7 +84,9 @@ test.describe('Editor HTML', () => {
         test('submits and renders custom markup without filtering', async ({ page }) => {
             await createEditor(page);
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
             const html = '<section data-template="source"><p id="message" style="padding: 12px;">Source content</p></section>';
+
             await page.locator('.editor-source').fill(html);
 
             await expect(page.locator('#editor')).toHaveValue(html);

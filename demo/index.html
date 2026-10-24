@@ -1,75 +1,79 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Frost UI Editor Demo</title>
-        <link rel="icon" href="data:,">
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
-        <link rel="stylesheet" href="../dist/frost-ui-editor.css">
-        <link rel="stylesheet" href="assets/demo.css">
-        <script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js" defer></script>
-        <script src="../dist/frost-ui-editor.js" defer></script>
-        <script src="assets/demo.js" defer></script>
-    </head>
-    <body>
-        <header class="navbar bg-glass sticky-top border-bottom">
-            <div class="container d-flex align-items-center justify-content-between gap-3">
-                <a class="navbar-brand fw-bold" href="#top">Frost UI Editor</a>
-                <div class="d-flex align-items-center gap-2">
-                    <label class="small fw-bold mb-0" for="demo-theme">Theme</label>
-                    <select class="input-outline input-sm w-auto" id="demo-theme">
-                        <option value="system">System</option>
-                        <option value="light">Light</option>
-                        <option value="dark">Dark</option>
-                    </select>
-                </div>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frost UI Editor Demo</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
+    <link rel="stylesheet" href="../dist/frost-ui-editor.css">
+    <link rel="stylesheet" href="assets/demo.css">
+    <script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js" defer></script>
+    <script src="../dist/frost-ui-editor.js" defer></script>
+    <script src="assets/demo.js" defer></script>
+</head>
+
+<body>
+    <header class="navbar bg-glass sticky-top border-bottom">
+        <div class="container d-flex align-items-center justify-content-between gap-3">
+            <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="#top">
+                <span class="badge bg-primary bg-gradient shadow-glow fs-5" aria-hidden="true">F</span>
+                <span>Editor</span>
+            </a>
+            <div class="d-flex align-items-center gap-2">
+                <label class="small fw-bold mb-0" for="demo-theme">Theme</label>
+                <select class="input-outline input-sm w-auto rounded-pill" id="demo-theme" data-demo-theme>
+                    <option value="system">System</option>
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
             </div>
+        </div>
+    </header>
+    <main class="container py-4 py-lg-5" id="top">
+        <header class="card card-body bg-ambient p-4 p-md-5 mb-5">
+            <span class="badge bg-primary-subtle text-primary-subtle mb-3">Frost UI component</span>
+            <h1 class="display-3">Write, format, and refine.</h1>
+            <p class="lead text-body-secondary">Rich text and HTML source, with customizable tools and native textarea integration.</p>
+            <nav class="d-flex flex-wrap gap-2" aria-label="Demo sections">
+                <a class="btn btn-outline-primary ripple" href="#editing">Editing</a>
+                <a class="btn btn-outline-primary ripple" href="#toolbars">Toolbars</a>
+                <a class="btn btn-outline-primary ripple" href="#layout">Layout</a>
+                <a class="btn btn-outline-primary ripple" href="#media">Media &amp; tables</a>
+                <a class="btn btn-outline-primary ripple" href="#uploads">Uploads</a>
+                <a class="btn btn-outline-primary ripple" href="#forms">Forms</a>
+                <a class="btn btn-outline-primary ripple" href="#rtl">RTL</a>
+                <a class="btn btn-outline-primary ripple" href="#methods-events">API &amp; events</a>
+            </nav>
         </header>
-        <main class="container py-4 py-lg-5" id="top">
-            <header class="card card-body bg-ambient p-4 p-md-5 mb-5">
-                <span class="text-primary fw-bold mb-2">Frost UI component</span>
-                <h1 class="display-3">Write, format, and refine.</h1>
-                <p class="lead text-body-secondary">Rich text and HTML source, with customizable tools and native textarea integration.</p>
-                <nav class="d-flex flex-wrap gap-2" aria-label="Demo sections">
-                    <a class="btn btn-outline-primary" href="#editing">Editing</a>
-                    <a class="btn btn-outline-primary" href="#toolbars">Toolbars</a>
-                    <a class="btn btn-outline-primary" href="#layout">Layout</a>
-                    <a class="btn btn-outline-primary" href="#media">Media & tables</a>
-                    <a class="btn btn-outline-primary" href="#uploads">Uploads</a>
-                    <a class="btn btn-outline-primary" href="#forms">Forms</a>
-                    <a class="btn btn-outline-primary" href="#rtl">RTL</a>
-                    <a class="btn btn-outline-primary" href="#methods-events">API & events</a>
-                </nav>
+        <section id="editing" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Editing and source</h2>
+                <p class="text-body-secondary mb-0">Format text, switch to HTML, and undo your changes. The default toolbar also provides links, images, YouTube video, tables, and fullscreen.</p>
             </header>
-            <section id="editing" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Editing and source</h2>
-                    <p class="text-body-secondary mb-0">Format text, switch to HTML, and undo your changes. The default toolbar also provides links, images, YouTube video, tables, and fullscreen.</p>
-                </header>
-                <label class="fw-bold mb-2" for="default-editor">Your document</label>
-                <textarea id="default-editor" class="input-filled" data-demo-editor data-ui-height="260px" aria-describedby="editing-help">&lt;h2&gt;A place for your ideas&lt;/h2&gt;&lt;p&gt;Select this text and try &lt;b&gt;bold&lt;/b&gt;, a heading, or a different color.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Write a draft&lt;/li&gt;&lt;li&gt;Review and publish&lt;/li&gt;&lt;/ul&gt;</textarea>
-                <p id="editing-help" class="form-text">Use Ctrl/Meta+B, I, or U for formatting. Tab / Shift+Tab indent and outdent in rich and source modes. Escape, then Tab moves focus out. Use the handle below to resize.</p>
-            </section>
-            <section id="toolbars" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Toolbars and custom buttons</h2>
-                    <p class="text-body-secondary mb-0">Toolbar groups can be replaced per instance. Plugins run with the editor as their this value.</p>
-                </header>
-                <article class="card card-body p-4 mb-4">
-                    <h3 class="h5">Compact toolbar</h3>
-                    <label class="fw-bold mb-2" for="compact-editor">Short note</label>
-                    <textarea id="compact-editor" class="input-filled" data-demo-editor data-ui-height="150px">&lt;p&gt;A small toolbar for a short note.&lt;/p&gt;</textarea>
-                </article>
-                <article class="card card-body p-4 mb-4">
-                    <h3 class="h5">Custom action and editing tools</h3>
-                    <p>The “Insert greeting” button calls <code>this.insertText()</code>. This toolbar also exposes font size, lists, indentation, alignment, and history.</p>
-                    <label class="fw-bold mb-2" for="custom-editor">Custom toolbar</label>
-                    <textarea id="custom-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Place the caret here, then insert a greeting.&lt;/p&gt;</textarea>
-                </article>
-                <details>
-                    <summary>Custom plugin example</summary>
-                    <pre class="demo-code"><code>UI.Editor.plugins.greeting = {
+            <label class="fw-bold mb-2" for="default-editor">Your document</label>
+            <textarea id="default-editor" class="input-filled" data-demo-editor data-ui-height="260px" aria-describedby="editing-help">&lt;h2&gt;A place for your ideas&lt;/h2&gt;&lt;p&gt;Select this text and try &lt;b&gt;bold&lt;/b&gt;, a heading, or a different color.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Write a draft&lt;/li&gt;&lt;li&gt;Review and publish&lt;/li&gt;&lt;/ul&gt;</textarea>
+            <p id="editing-help" class="form-text">Use Ctrl/Meta+B, I, or U for formatting. Tab / Shift+Tab indent and outdent in rich and source modes. Escape, then Tab moves focus out. Use the handle below to resize.</p>
+        </section>
+        <section id="toolbars" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Toolbars and custom buttons</h2>
+                <p class="text-body-secondary mb-0">Toolbar groups can be replaced per instance. Plugins run with the editor as their this value.</p>
+            </header>
+            <article class="card card-body p-4 mb-4">
+                <h3 class="h5">Compact toolbar</h3>
+                <label class="fw-bold mb-2" for="compact-editor">Short note</label>
+                <textarea id="compact-editor" class="input-filled" data-demo-editor data-ui-height="150px">&lt;p&gt;A small toolbar for a short note.&lt;/p&gt;</textarea>
+            </article>
+            <article class="card card-body p-4 mb-4">
+                <h3 class="h5">Custom action and editing tools</h3>
+                <p>The “Insert greeting” button calls <code>this.insertText()</code>. This toolbar also exposes font size, lists, indentation, alignment, and history.</p>
+                <label class="fw-bold mb-2" for="custom-editor">Custom toolbar</label>
+                <textarea id="custom-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Place the caret here, then insert a greeting.&lt;/p&gt;</textarea>
+            </article>
+            <details>
+                <summary>Custom plugin example</summary>
+                <pre class="demo-code"><code>UI.Editor.plugins.greeting = {
     content: "Hello",
     title: "Insert greeting",
     action() { this.insertText("Hello from a custom plugin! "); }
@@ -77,112 +81,113 @@
 UI.Editor.init(textarea, {
     buttons: [["bold", "italic", "greeting"], ["source"]]
 });</code></pre>
-                </details>
-            </section>
-            <section id="layout" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Height, resizing, and multiple editors</h2>
-                    <p class="text-body-secondary mb-0">Each editor has its own selection and undo history. The second example has a fixed height and no resize handle.</p>
-                </header>
-                <div class="row g-4">
-                    <div class="col-lg-6">
-                        <article class="card card-body p-4 mb-4">
-                            <h3 class="h5">Resizable</h3>
-                            <label class="fw-bold mb-2" for="resizable-editor">First document</label>
-                            <textarea id="resizable-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Resize this editor with its bottom handle or use Up/Down when the handle has focus.&lt;/p&gt;</textarea>
-                        </article>
-                    </div>
-                    <div class="col-lg-6">
-                        <article class="card card-body p-4 mb-4">
-                            <h3 class="h5">Fixed height</h3>
-                            <label class="fw-bold mb-2" for="fixed-editor">Second document</label>
-                            <textarea id="fixed-editor" class="input-filled" data-demo-editor data-ui-height="240px" data-ui-resizable="false">&lt;p&gt;This editor stays 240px high.&lt;/p&gt;</textarea>
-                        </article>
-                    </div>
+            </details>
+        </section>
+        <section id="layout" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Height, resizing, and multiple editors</h2>
+                <p class="text-body-secondary mb-0">Each editor has its own selection and undo history. The second example has a fixed height and no resize handle.</p>
+            </header>
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <article class="card card-body p-4 mb-4">
+                        <h3 class="h5">Resizable</h3>
+                        <label class="fw-bold mb-2" for="resizable-editor">First document</label>
+                        <textarea id="resizable-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Resize this editor with its bottom handle or use Up/Down when the handle has focus.&lt;/p&gt;</textarea>
+                    </article>
                 </div>
-            </section>
-            <section id="media" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Media and tables</h2>
-                    <p class="text-body-secondary mb-0">Click the link, image, or table cell for context actions. Toolbar dialogs insert links, images, and HTTPS YouTube URLs; the table picker inserts a new table.</p>
-                </header>
-                <label class="fw-bold mb-2" for="media-editor">Media document</label>
-                <textarea id="media-editor" class="input-filled" data-demo-editor data-ui-height="300px">&lt;p&gt;&lt;a href=&quot;https://example.com&quot; target=&quot;_blank&quot;&gt;Example link&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=&quot; width=&quot;80&quot; height=&quot;60&quot; alt=&quot;Resize example&quot;&gt;&lt;/p&gt;&lt;table class=&quot;table table-bordered&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;Task&lt;/td&gt;&lt;td&gt;Status&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Draft&lt;/td&gt;&lt;td&gt;Ready&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;</textarea>
-                <p class="form-text">The tiny embedded PNG needs no external image request. Select it to resize its width or change its float. Video content loads only when you insert a video.</p>
-            </section>
-            <section id="uploads" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Custom image upload callback</h2>
-                    <p class="text-body-secondary mb-0">Choose an image in the Image dialog or drop one into the editor. This local simulation waits briefly, reads a raster image, and inserts its data URL; it sends no files to a server.</p>
-                </header>
-                <label class="fw-bold mb-2" for="upload-editor">Upload example</label>
-                <textarea id="upload-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Insert or drop an image here.&lt;/p&gt;</textarea>
-                <p id="upload-status" class="form-text" role="status">Waiting for an image.</p>
-                <details>
-                    <summary>Callback contract</summary>
-                    <p><code>imageUpload(files)</code> receives a FileList or File array with the editor as <code>this</code>. Your callback handles failures and calls <code>this.insertImage(url)</code> for successful uploads. The editor does not consume a returned URL or catch custom callback rejections. Check <code>this.node</code> after awaiting work; register cancellation with <code>this.onDispose()</code> when needed. The working example is in <a href="assets/demo.js">demo.js</a>.</p>
-                </details>
-            </section>
-            <section id="forms" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Native forms and state</h2>
-                    <p class="text-body-secondary mb-0">The original textarea submits the current HTML. Reset restores its initial value and clears undo history. Disabled fields follow native form rules; readonly content remains selectable and submitted.</p>
-                </header>
-                <form id="document-form">
-                    <fieldset id="document-fieldset">
-                        <legend class="h5">A submitted document</legend>
-                        <label class="fw-bold mb-2" for="form-editor">Document HTML</label>
-                        <textarea id="form-editor" class="input-filled" data-demo-editor name="document" required data-ui-height="160px">&lt;p&gt;Original form content&lt;/p&gt;</textarea>
-                    </fieldset>
-                    <div class="d-flex flex-wrap gap-2 mt-3">
-                        <button class="btn btn-primary" type="submit">Show submitted HTML</button>
-                        <button class="btn btn-secondary" type="reset">Reset form</button>
-                        <button id="toggle-disabled" class="btn btn-outline-primary" type="button">Disable fieldset</button>
-                    </div>
-                </form>
-                <pre id="form-output" class="demo-code mt-3" role="status">Submit to inspect FormData.</pre>
-                <article class="card card-body p-4 mb-4">
-                    <h3 class="h5">Readonly</h3>
-                    <label class="fw-bold mb-2" for="readonly-editor">Readonly document</label>
-                    <textarea id="readonly-editor" class="input-filled" data-demo-editor readonly data-ui-height="120px">&lt;p&gt;You can select this content and view its source.&lt;/p&gt;</textarea>
-                </article>
-            </section>
-            <section id="rtl" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Right-to-left writing</h2>
-                    <p class="text-body-secondary mb-0">Logical spacing and indentation follow the textarea’s direction. Left/right alignment commands retain their physical meaning.</p>
-                </header>
-                <div dir="rtl">
-                    <label class="fw-bold mb-2" for="rtl-editor">مستند عربي</label>
-                    <textarea id="rtl-editor" class="input-filled" data-demo-editor dir="rtl" lang="ar" data-ui-height="180px">&lt;p&gt;مرحباً! يمكنك تحرير هذا النص وإضافة قائمة.&lt;/p&gt;</textarea>
+                <div class="col-lg-6">
+                    <article class="card card-body p-4 mb-4">
+                        <h3 class="h5">Fixed height</h3>
+                        <label class="fw-bold mb-2" for="fixed-editor">Second document</label>
+                        <textarea id="fixed-editor" class="input-filled" data-demo-editor data-ui-height="240px" data-ui-resizable="false">&lt;p&gt;This editor stays 240px high.&lt;/p&gt;</textarea>
+                    </article>
                 </div>
-            </section>
-            <section id="methods-events" class="mb-5">
-                <header class="border-bottom pb-3 mb-4">
-                    <h2 class="h3">Methods and events</h2>
-                    <p class="text-body-secondary mb-0">Try lifecycle methods, reload a programmatic value, or insert text. Events below are observed on the original textarea after its HTML is synchronized.</p>
-                </header>
-                <label class="fw-bold mb-2" for="methods-editor">API playground</label>
-                <textarea id="methods-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Try the API controls below.&lt;/p&gt;</textarea>
+            </div>
+        </section>
+        <section id="media" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Media and tables</h2>
+                <p class="text-body-secondary mb-0">Click the link, image, or table cell for context actions. Toolbar dialogs insert links, images, and HTTPS YouTube URLs; the table picker inserts a new table.</p>
+            </header>
+            <label class="fw-bold mb-2" for="media-editor">Media document</label>
+            <textarea id="media-editor" class="input-filled" data-demo-editor data-ui-height="300px">&lt;p&gt;&lt;a href=&quot;https://example.com&quot; target=&quot;_blank&quot;&gt;Example link&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=&quot; width=&quot;80&quot; height=&quot;60&quot; alt=&quot;Resize example&quot;&gt;&lt;/p&gt;&lt;table class=&quot;table table-bordered&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;Task&lt;/td&gt;&lt;td&gt;Status&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Draft&lt;/td&gt;&lt;td&gt;Ready&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;</textarea>
+            <p class="form-text">The tiny embedded PNG needs no external image request. Select it to resize its width or change its float. Video content loads only when you insert a video.</p>
+        </section>
+        <section id="uploads" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Custom image upload callback</h2>
+                <p class="text-body-secondary mb-0">Choose an image in the Image dialog or drop one into the editor. This local simulation waits briefly, reads a raster image, and inserts its data URL; it sends no files to a server.</p>
+            </header>
+            <label class="fw-bold mb-2" for="upload-editor">Upload example</label>
+            <textarea id="upload-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Insert or drop an image here.&lt;/p&gt;</textarea>
+            <p id="upload-status" class="form-text" role="status">Waiting for an image.</p>
+            <details>
+                <summary>Callback contract</summary>
+                <p><code>imageUpload(files)</code> receives a FileList or File array with the editor as <code>this</code>. Your callback handles failures and calls <code>this.insertImage(url)</code> for successful uploads. The editor does not consume a returned URL or catch custom callback rejections. Check <code>this.node</code> after awaiting work; register cancellation with <code>this.onDispose()</code> when needed. The working example is in <a href="assets/demo.js">demo.js</a>.</p>
+            </details>
+        </section>
+        <section id="forms" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Native forms and state</h2>
+                <p class="text-body-secondary mb-0">The original textarea submits the current HTML. Reset restores its initial value and clears undo history. Disabled fields follow native form rules; readonly content remains selectable and submitted.</p>
+            </header>
+            <form id="document-form">
+                <fieldset id="document-fieldset">
+                    <legend class="h5">A submitted document</legend>
+                    <label class="fw-bold mb-2" for="form-editor">Document HTML</label>
+                    <textarea id="form-editor" class="input-filled" data-demo-editor name="document" required data-ui-height="160px">&lt;p&gt;Original form content&lt;/p&gt;</textarea>
+                </fieldset>
                 <div class="d-flex flex-wrap gap-2 mt-3">
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="init">Init</button>
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="dispose">Dispose</button>
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="enable">Enable</button>
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="disable">Disable</button>
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="refresh">Load HTML + refresh</button>
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="insertText">Insert text</button>
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="undo">Undo</button>
-                    <button class="btn btn-outline-primary" type="button" data-demo-method="redo">Redo</button>
+                    <button class="btn btn-primary" type="submit">Show submitted HTML</button>
+                    <button class="btn btn-secondary" type="reset">Reset form</button>
+                    <button id="toggle-disabled" class="btn btn-outline-primary" type="button">Disable fieldset</button>
                 </div>
-                <p id="method-output" class="form-text" role="status">Initialized.</p>
-                <div class="d-flex align-items-center justify-content-between mt-4">
-                    <h3 class="h5">Event log</h3>
-                    <button id="clear-log" class="btn btn-secondary" type="button">Clear log</button>
-                </div>
-                <div id="event-log" class="demo-event-log border rounded p-2" role="log" aria-label="Editor events" aria-live="polite">
-                </div>
-            </section>
-            <footer class="border-top py-4 text-body-secondary">Source and API: <a href="../README.md">README</a> · <a href="https://github.com/elusivecodes/FrostUI-Editor">GitHub</a></footer>
-        </main>
-    </body>
+            </form>
+            <pre id="form-output" class="demo-code mt-3" role="status">Submit to inspect FormData.</pre>
+            <article class="card card-body p-4 mb-4">
+                <h3 class="h5">Readonly</h3>
+                <label class="fw-bold mb-2" for="readonly-editor">Readonly document</label>
+                <textarea id="readonly-editor" class="input-filled" data-demo-editor readonly data-ui-height="120px">&lt;p&gt;You can select this content and view its source.&lt;/p&gt;</textarea>
+            </article>
+        </section>
+        <section id="rtl" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Right-to-left writing</h2>
+                <p class="text-body-secondary mb-0">Logical spacing and indentation follow the textarea’s direction. Left/right alignment commands retain their physical meaning.</p>
+            </header>
+            <div dir="rtl">
+                <label class="fw-bold mb-2" for="rtl-editor">مستند عربي</label>
+                <textarea id="rtl-editor" class="input-filled" data-demo-editor dir="rtl" lang="ar" data-ui-height="180px">&lt;p&gt;مرحباً! يمكنك تحرير هذا النص وإضافة قائمة.&lt;/p&gt;</textarea>
+            </div>
+        </section>
+        <section id="methods-events" class="mb-5">
+            <header class="border-bottom pb-3 mb-4">
+                <h2 class="h3">Methods and events</h2>
+                <p class="text-body-secondary mb-0">Try lifecycle methods, reload a programmatic value, or insert text. Events below are observed on the original textarea after its HTML is synchronized.</p>
+            </header>
+            <label class="fw-bold mb-2" for="methods-editor">API playground</label>
+            <textarea id="methods-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Try the API controls below.&lt;/p&gt;</textarea>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button class="btn btn-outline-primary" type="button" data-demo-method="init">Init</button>
+                <button class="btn btn-outline-primary" type="button" data-demo-method="dispose">Dispose</button>
+                <button class="btn btn-outline-primary" type="button" data-demo-method="enable">Enable</button>
+                <button class="btn btn-outline-primary" type="button" data-demo-method="disable">Disable</button>
+                <button class="btn btn-outline-primary" type="button" data-demo-method="refresh">Load HTML + refresh</button>
+                <button class="btn btn-outline-primary" type="button" data-demo-method="insertText">Insert text</button>
+                <button class="btn btn-outline-primary" type="button" data-demo-method="undo">Undo</button>
+                <button class="btn btn-outline-primary" type="button" data-demo-method="redo">Redo</button>
+            </div>
+            <p id="method-output" class="form-text" role="status">Initialized.</p>
+            <div class="d-flex align-items-center justify-content-between mt-4">
+                <h3 class="h5">Event log</h3>
+                <button id="clear-log" class="btn btn-secondary" type="button">Clear log</button>
+            </div>
+            <div id="event-log" class="demo-event-log border rounded p-2" role="log" aria-label="Editor events" aria-live="polite">
+            </div>
+        </section>
+        <footer class="border-top py-4 text-body-secondary">Source and API: <a href="../README.md">README</a> · <a href="https://github.com/frost-js/ui-editor">GitHub</a></footer>
+    </main>
+</body>
+
 </html>

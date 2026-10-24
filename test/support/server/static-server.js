@@ -8,11 +8,6 @@ const resolveModule = (specifier) => new URL(import.meta.resolve(specifier));
 
 const routes = new Map([
     ['/', { contentType: html, file: new URL('../app/index.html', import.meta.url) }],
-    ['/demo/index.html', { contentType: html, file: new URL('../../../demo/index.html', import.meta.url) }],
-    ['/demo/assets/demo.css', { contentType: css, file: new URL('../../../demo/assets/demo.css', import.meta.url) }],
-    ['/demo/assets/demo.js', { contentType: javaScript, file: new URL('../../../demo/assets/demo.js', import.meta.url) }],
-    ['/dist/frost-ui-editor.css', { contentType: css, file: new URL('../../../dist/frost-ui-editor.css', import.meta.url) }],
-    ['/dist/frost-ui-editor.js', { contentType: javaScript, file: new URL('../../../dist/frost-ui-editor.js', import.meta.url) }],
     ['/assets/frost-ui-editor.js', { contentType: javaScript, file: new URL('../../../dist/frost-ui-editor.js', import.meta.url) }],
     ['/assets/frost-ui-editor.css', { contentType: css, file: new URL('../../../dist/frost-ui-editor.css', import.meta.url) }],
     ['/assets/frost-ui-bundle.js', { contentType: javaScript, file: resolveModule('@fr0st/ui/dist/frost-ui-bundle.js') }],
@@ -28,6 +23,7 @@ const server = createServer(async (request, response) => {
             'Content-Type': 'text/plain; charset=utf-8',
         });
         response.end('Not found');
+
         return;
     }
 

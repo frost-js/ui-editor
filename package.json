@@ -13,14 +13,14 @@
         "ui",
         "wysiwyg"
     ],
-    "homepage": "https://github.com/elusivecodes/FrostUI-Editor",
+    "homepage": "https://github.com/frost-js/ui-editor",
     "bugs": {
-        "url": "https://github.com/elusivecodes/FrostUI-Editor/issues",
+        "url": "https://github.com/frost-js/ui-editor/issues",
         "email": "elusivecodes@gmail.com"
     },
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/elusivecodes/FrostUI-Editor.git"
+        "url": "git+https://github.com/frost-js/ui-editor.git"
     },
     "license": "MIT",
     "author": "Elusive <elusivecodes@gmail.com>",

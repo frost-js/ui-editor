@@ -1,5 +1,7 @@
 /** @import Editor from './editor.js'; */
+
 /** @import { EditorInputOptions, EditorInputElements, EditorModalOptions } from './types.js'; */
+
 import $ from '@fr0st/query';
 import { generateId, Modal } from '@fr0st/ui';
 
@@ -230,7 +232,9 @@ export function createModal(Component, options) {
     }
 
     $.append(document.body, modal);
+
     const controller = Modal.init(modal);
+
     if (options.onSubmit) {
         controller.listen(modalContent, 'submit', (e) => {
             e.preventDefault();
@@ -267,6 +271,7 @@ export function createModal(Component, options) {
         } finally {
             controller.dispose();
             $.remove(modal);
+
             if (returnFocus?.isConnected) {
                 returnFocus.focus({ preventScroll: true });
             }

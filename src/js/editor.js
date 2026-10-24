@@ -1,4 +1,5 @@
-/** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover } from './types.js'; */
+/** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover, EditorDropdownCallback } from './types.js'; */
+
 import $ from '@fr0st/query';
 import { BaseComponent, Dropdown, generateId, Modal, Popper, Tooltip } from '@fr0st/ui';
 import { getSelectedBlocks, indentBlocks, outdentBlocks } from './commands.js';
@@ -48,9 +49,11 @@ export default class Editor extends BaseComponent {
          */
         async imageUpload(files) {
             const results = await Promise.allSettled([...files].map((file) => this.#readImage(file)));
+
             if (!this.node) {
                 return;
             }
+
             for (const result of results) {
                 if (result.status === 'fulfilled') {
                     this.insertImage(result.value);
@@ -68,6 +71,7 @@ export default class Editor extends BaseComponent {
             }
 
             let action;
+
             switch (e.key.toLowerCase()) {
                 case 'b':
                     action = 'bold';
@@ -161,6 +165,7 @@ export default class Editor extends BaseComponent {
 
                 const fontSizePx = $.css(this.#editor, 'fontSize');
                 const fontSize = parseFloat(fontSizePx);
+
                 return Math.round(fontSize);
             },
             dropdown(dropdown) {
@@ -171,6 +176,7 @@ export default class Editor extends BaseComponent {
             action() {
                 if (this.#fullScreen) {
                     Modal.init(this.#fullScreen).hide();
+
                     return;
                 }
 
@@ -235,24 +241,31 @@ export default class Editor extends BaseComponent {
         source: {
             action() {
                 const value = $.getValue(this.node);
+
                 if ($.isVisible(this.#sourceContainer)) {
                     this.#observe(false);
+
                     try {
                         $.setHtml(this.#editor, value);
                         this.#normalize();
                         this.#checkEmpty();
+
                         const html = $.getHtml(this.#editor);
+
                         if (this.#history.at(-1)?.html !== html) {
                             this.#redoHistory = [];
                             this.#addHistory({ html });
                         }
+
                         this.#updateValue();
                     } finally {
                         this.#observe();
                     }
+
                     if (!this.node) {
                         return;
                     }
+
                     this.#showEditor();
                     this.#focusEditor();
                 } else {
@@ -260,6 +273,7 @@ export default class Editor extends BaseComponent {
                     this.#showSource();
                     $.focus(this.#source);
                 }
+
                 this.#refreshToolbar();
             },
         },
@@ -353,6 +367,7 @@ export default class Editor extends BaseComponent {
         link: {
             render(node) {
                 const href = $.getAttribute(node, 'href');
+
                 return $.create('a', {
                     text: href,
                     class: this.constructor.classes.linkUrl,
@@ -381,6 +396,7 @@ export default class Editor extends BaseComponent {
                             html: '<br>',
                         });
                         const cells = $.children(row, 'th, td');
+
                         $.after(cells[index], newTd);
                     }
 
@@ -402,6 +418,7 @@ export default class Editor extends BaseComponent {
                             html: '<br>',
                         });
                         const cells = $.children(row, 'th, td');
+
                         $.before(cells[index], newTd);
                     }
 
@@ -420,6 +437,7 @@ export default class Editor extends BaseComponent {
 
                     for (const row of rows) {
                         const cells = $.children(row, 'th, td');
+
                         $.remove(cells[index]);
                     }
 
@@ -432,6 +450,7 @@ export default class Editor extends BaseComponent {
         tableRemove: {
             action(node) {
                 const table = $.closest(node, 'table', this.#editor).shift();
+
                 $.detach(table);
 
                 this.#removePopover();
@@ -447,6 +466,7 @@ export default class Editor extends BaseComponent {
                         const newTd = $.create('td', {
                             html: '<br>',
                         });
+
                         $.append(newTr, newTd);
                     }
 
@@ -464,6 +484,7 @@ export default class Editor extends BaseComponent {
                         const newTd = $.create('td', {
                             html: '<br>',
                         });
+
                         $.append(newTr, newTd);
                     }
 
@@ -486,6 +507,7 @@ export default class Editor extends BaseComponent {
                 this.unlink();
 
                 const range = getRange();
+
                 range.collapse();
             },
         },
@@ -548,6 +570,7 @@ export default class Editor extends BaseComponent {
     #originalAttributes = new Map();
     /** @type {[number, number, 'forward'|'backward'|'none']|null} */
     #originalSelection = null;
+    #originalStyle = false;
     #pendingMutation = false;
     /** @type {HTMLElement|null} */
     #popover = null;
@@ -561,6 +584,7 @@ export default class Editor extends BaseComponent {
     #readers = new Set();
     /** @type {EditorHistoryEntry[]} */
     #redoHistory = [];
+    #releaseDisplay = null;
     /** @type {HTMLElement|null} */
     #resizeBar = null;
     /** @type {HTMLTextAreaElement|null} */
@@ -586,11 +610,14 @@ export default class Editor extends BaseComponent {
         if (!$._isElement(node) || !$.is(node, 'textarea')) {
             throw new TypeError('Editor must be created on a textarea element.');
         }
+
         super(node, options);
 
-        this.#originalAttributes = new Map(['style', 'tabindex', 'hidden', 'aria-hidden']
+        this.#originalStyle = node.hasAttribute('style');
+        this.#originalAttributes = new Map(['tabindex', 'hidden', 'aria-hidden']
             .map((name) => [name, node.getAttribute(name)]));
         this.#originalSelection = [node.selectionStart, node.selectionEnd, node.selectionDirection];
+
         const active = document.activeElement;
         const originalRange = getRange()?.cloneRange();
 
@@ -607,9 +634,11 @@ export default class Editor extends BaseComponent {
             this.#events();
             this.#normalize();
             this.#updateValue();
+
             if (!this.node) {
                 return;
             }
+
             this.#refreshToolbar();
             this.#eventsShared();
 
@@ -619,8 +648,10 @@ export default class Editor extends BaseComponent {
                 if (active instanceof HTMLElement && active.isConnected && document.activeElement !== active) {
                     active.focus({ preventScroll: true });
                 }
+
                 selectRange(originalRange);
             }
+
             if (this.node) {
                 $.triggerEvent(node, 'init.ui.editor');
             }
@@ -630,6 +661,7 @@ export default class Editor extends BaseComponent {
             } catch {
                 // Preserve the initialization error after completing cleanup.
             }
+
             throw error;
         }
     }
@@ -659,17 +691,20 @@ export default class Editor extends BaseComponent {
     }
 
     /**
-     * Dispose the Editor.
+     * Disposes the Editor.
      */
     dispose() {
         if (!this.node || this.#disposing) {
             return;
         }
+
         this.#disposing = true;
+
         const node = this.node;
         const active = document.activeElement;
         const restoreFocus = this.#container?.contains(active) ||
                 this.#modal?.contains(active) || this.#fullScreen?.contains(active);
+
         removeEditor(this);
         this.#observer?.disconnect();
         this.#observer = null;
@@ -683,33 +718,50 @@ export default class Editor extends BaseComponent {
                 failure ||= error;
             }
         };
+
         for (const reader of this.#readers) {
             release(() => reader.abort());
         }
+
         this.#readers.clear();
+
         for (const image of this.#images) {
             image.onload = null;
             image.onerror = null;
             image.src = '';
         }
+
         this.#images.clear();
+
         for (const cleanup of this.#cleanups.splice(0).reverse()) {
             release(cleanup);
         }
+
         for (const component of this.#components) {
             release(() => component.dispose());
         }
+
         this.#components.clear();
         release(() => this.#popper?.dispose());
+
         for (const modal of [this.#modal, this.#fullScreen]) {
             if (modal) {
                 release(() => Modal.init(modal).dispose());
                 $.remove(modal);
             }
         }
+
         if (this.#container) {
             $.remove(this.#container);
         }
+
+        this.#releaseDisplay?.();
+        this.#releaseDisplay = null;
+
+        if (!this.#originalStyle && !node.getAttribute('style')) {
+            node.removeAttribute('style');
+        }
+
         for (const [name, value] of this.#originalAttributes) {
             if (value === null) {
                 node.removeAttribute(name);
@@ -717,10 +769,12 @@ export default class Editor extends BaseComponent {
                 node.setAttribute(name, value);
             }
         }
+
         if (restoreFocus && node.isConnected && !node.hidden) {
             node.focus({ preventScroll: true });
             node.setSelectionRange(...this.#originalSelection);
         }
+
         this.#container = null;
         this.#toolbar = null;
         this.#editorBody = null;
@@ -750,6 +804,7 @@ export default class Editor extends BaseComponent {
         this.#modal = null;
         this.#fullScreen = null;
         this.#popper = null;
+
         if (failure) {
             throw failure;
         }
@@ -821,6 +876,7 @@ export default class Editor extends BaseComponent {
         if (!this.node || this.node.matches(':disabled') || this.node.readOnly) {
             return;
         }
+
         this.#execCommand('insertHTML', value);
     }
 
@@ -832,25 +888,34 @@ export default class Editor extends BaseComponent {
         if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly) {
             return;
         }
+
         const img = $.create('img', { attributes: { src } });
         const newImg = this.insertNode(img);
+
         if (!newImg) {
             return;
         }
+
         const image = new Image();
+
         this.#images.add(image);
+
         const finish = () => {
             this.#images.delete(image);
             image.onload = null;
             image.onerror = null;
         };
+
         image.onload = () => {
             if (this.node && this.#editor.contains(newImg)) {
                 const maxWidth = $.width(this.#editor, { boxSize: $.CONTENT_BOX });
+
                 $.setStyle(newImg, { width: `${Math.min(image.width, maxWidth)}px` });
             }
+
             finish();
         };
+
         image.onerror = finish;
         image.src = src;
     }
@@ -885,16 +950,22 @@ export default class Editor extends BaseComponent {
         if (!this.node || ($.is(this.node, ':disabled') || this.node.readOnly)) {
             return null;
         }
+
         this.#focusEditor();
+
         if (!this.node) {
             return null;
         }
+
         const range = getRange(this.#editor);
+
         if (!range) {
             return null;
         }
+
         this.#addHistory({ html: this.#editor.innerHTML, selectionData: getSelectionData(this.#editor) });
         this.#observe(false);
+
         try {
             range.deleteContents();
             range.insertNode(node);
@@ -906,6 +977,7 @@ export default class Editor extends BaseComponent {
         } finally {
             this.#observe();
         }
+
         return node;
     }
 
@@ -968,7 +1040,7 @@ export default class Editor extends BaseComponent {
 
     /**
      * Registers cleanup for resources created by an extension or rendering helper.
-     * @param {Function} callback The cleanup callback.
+     * @param {() => void} callback The cleanup callback.
      */
     onDispose(callback) {
         if (this.node) {
@@ -986,7 +1058,7 @@ export default class Editor extends BaseComponent {
     }
 
     /**
-     * Perform a redo.
+     * Restores the next history snapshot.
      */
     redo() {
         if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly || !this.#redoHistory.length) {
@@ -1044,7 +1116,7 @@ export default class Editor extends BaseComponent {
     }
 
     /**
-     * Perform an undo.
+     * Restores the previous history snapshot.
      */
     undo() {
         if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly || this.#history.length <= 1) {
@@ -1052,6 +1124,7 @@ export default class Editor extends BaseComponent {
         }
 
         const next = this.#history.pop();
+
         this.#redoHistory.push(next);
 
         const current = this.#history.at(-1);
@@ -1073,11 +1146,15 @@ export default class Editor extends BaseComponent {
     #addHistory({ html, selectionData = null }) {
         if (this.#history.at(-1)?.html === html) {
             this.#history.at(-1).selectionData = selectionData;
+
             return;
         }
+
         this.#history.push({ html, selectionData });
+
         const requested = Number(this.options.historyLimit);
         const limit = Number.isFinite(requested) ? Math.max(1, Math.trunc(requested)) : 1000;
+
         if (this.#history.length > limit) {
             this.#history.splice(0, this.#history.length - limit);
         }
@@ -1086,12 +1163,13 @@ export default class Editor extends BaseComponent {
     /**
      * Binds a drag whose global listeners and active state are owned by the editor.
      * @param {HTMLElement} handle The drag handle.
-     * @param {Function} down The start callback.
-     * @param {Function} move The move callback.
-     * @param {Function} up The finish callback.
+     * @param {(event: PointerEvent) => boolean|void} down The start callback; false cancels the drag.
+     * @param {(event: PointerEvent) => void} move The move callback.
+     * @param {(event?: PointerEvent) => void} up The finish callback; window blur supplies no event.
      */
     #bindDrag(handle, down, move, up) {
         let pointer = null;
+
         this.onDispose(() => {
             pointer = null;
         });
@@ -1099,6 +1177,7 @@ export default class Editor extends BaseComponent {
             if (event.button !== 0 || pointer !== null || ($.is(this.node, ':disabled') || this.node.readOnly) || down(event) === false) {
                 return;
             }
+
             event.preventDefault();
             pointer = event.pointerId;
         });
@@ -1130,46 +1209,63 @@ export default class Editor extends BaseComponent {
         if (!this.node || ($.is(this.node, ':disabled') || this.node.readOnly)) {
             return;
         }
+
         this.#focusEditor();
+
         if (!this.node) {
             return;
         }
+
         const range = getRange(this.#editor);
+
         if (!range) {
             return;
         }
+
         let blocks = getSelectedBlocks(this.#editor, range);
+
         if (outdent && !blocks.length) {
             return;
         }
+
         this.#addHistory({ html: this.#editor.innerHTML, selectionData: getSelectionData(this.#editor) });
         this.#observe(false);
+
         const markers = saveSelection(this.#editor);
+
         try {
             if (!blocks.length) {
                 const paragraph = document.createElement('p');
                 let first = markers.start;
+
                 while (first.parentNode !== this.#editor) {
                     first = first.parentNode;
                 }
+
                 while (first.previousSibling && isPhrasingContent(first.previousSibling)) {
                     first = first.previousSibling;
                 }
+
                 const inline = [];
+
                 for (let node = first; node && isPhrasingContent(node); node = node.nextSibling) {
                     inline.push(node);
                 }
+
                 if (inline.length) {
                     inline[0].before(paragraph);
                     paragraph.append(...inline);
                     blocks = [paragraph];
                 }
             }
+
             while (blocks.length) {
                 const group = [blocks.shift()];
+
                 while (blocks.length && group.at(-1).nextElementSibling === blocks[0]) {
                     group.push(blocks.shift());
                 }
+
                 if (outdent) {
                     outdentBlocks(group, this.#editor);
                 } else {
@@ -1226,11 +1322,13 @@ export default class Editor extends BaseComponent {
         const foreDefaultContainer = $.create('div', {
             class: this.constructor.classes.colorLabelContainer,
         });
+
         $.append(col1, foreDefaultContainer);
 
         const backDefaultContainer = $.create('div', {
             class: this.constructor.classes.colorLabelContainer,
         });
+
         $.append(col2, backDefaultContainer);
 
         const foreDefault = $.create('button', {
@@ -1240,6 +1338,7 @@ export default class Editor extends BaseComponent {
                 type: 'button',
             },
         });
+
         $.append(foreDefaultContainer, foreDefault);
 
         this.#setToolbarData(foreDefault, {
@@ -1254,6 +1353,7 @@ export default class Editor extends BaseComponent {
                 type: 'button',
             },
         });
+
         $.append(backDefaultContainer, backDefault);
 
         this.#setToolbarData(backDefault, {
@@ -1265,11 +1365,13 @@ export default class Editor extends BaseComponent {
             const foreRow = $.create('div', {
                 class: this.constructor.classes.colorRow,
             });
+
             $.append(col1, foreRow);
 
             const backRow = $.create('div', {
                 class: this.constructor.classes.colorRow,
             });
+
             $.append(col2, backRow);
 
             for (const [colorName, color] of Object.entries(colorRow)) {
@@ -1284,6 +1386,7 @@ export default class Editor extends BaseComponent {
                         'aria-label': colorName,
                     },
                 });
+
                 $.append(foreRow, foreLink);
 
                 this.#ownComponent(Tooltip.init(foreLink, {
@@ -1307,6 +1410,7 @@ export default class Editor extends BaseComponent {
                         'aria-label': colorName,
                     },
                 });
+
                 $.append(backRow, backLink);
 
                 this.#ownComponent(Tooltip.init(backLink, {
@@ -1330,7 +1434,7 @@ export default class Editor extends BaseComponent {
 
     /**
      * Creates a deferred callback that cannot run after disposal.
-     * @param {Function} callback The callback to defer.
+     * @param {() => void} callback The callback to defer.
      * @returns {Function} The guarded callback.
      */
     #debounce(callback) {
@@ -1351,13 +1455,17 @@ export default class Editor extends BaseComponent {
         this.#eventsPopover();
         this.#eventsSource();
         this.#eventsDrop();
+
         // Escape followed by Tab leaves either editing surface without indenting.
         let tabNavigation = false;
+
         this.listen(this.#container, 'keydown.ui.editor', (event) => {
             if (![this.#editor, this.#source].includes(event.target)) {
                 tabNavigation = false;
+
                 return;
             }
+
             if (event.code === 'Escape' && !this.#currentNode && !this.#fullScreen) {
                 tabNavigation = true;
             } else if (event.code === 'Tab' && tabNavigation) {
@@ -1417,6 +1525,7 @@ export default class Editor extends BaseComponent {
                 this.options.imageUpload.call(this, e.dataTransfer.files);
             } else {
                 const text = e.dataTransfer.getData('text');
+
                 this.insertText(text);
             }
         });
@@ -1428,8 +1537,10 @@ export default class Editor extends BaseComponent {
     #eventsEditor() {
         this.listen(this.#editor, 'paste.ui.editor', (event) => {
             event.preventDefault();
+
             if (event.clipboardData) {
                 const html = event.clipboardData.getData('text/html');
+
                 if (html) {
                     this.insertHtml(html);
                 } else {
@@ -1466,6 +1577,7 @@ export default class Editor extends BaseComponent {
                     }
 
                     this.undo();
+
                     return;
                 case 'historyRedo':
                     if (!$.isSame(document.activeElement, this.#editor)) {
@@ -1473,6 +1585,7 @@ export default class Editor extends BaseComponent {
                     }
 
                     this.redo();
+
                     return;
             }
 
@@ -1492,6 +1605,7 @@ export default class Editor extends BaseComponent {
             if (e.defaultPrevented || !this.node) {
                 return;
             }
+
             const selection = window.getSelection();
 
             const isIndented = (node) => {
@@ -1560,6 +1674,7 @@ export default class Editor extends BaseComponent {
                             this.indent();
                         }
                     }
+
                     break;
             }
         });
@@ -1575,9 +1690,11 @@ export default class Editor extends BaseComponent {
             if (this.node.matches(':disabled') || this.node.readOnly) {
                 return;
             }
+
             if (e.currentTarget.matches('img')) {
                 selectNode(e.currentTarget);
             }
+
             this.#refreshPopover(e.currentTarget, e);
             this.#refreshToolbar();
         }, { delegate: 'a, td, th, img', capture: true });
@@ -1594,13 +1711,16 @@ export default class Editor extends BaseComponent {
                 ($.isVisible(this.#sourceContainer) ? this.#source : this.#editor).focus();
             }
         };
+
         const labels = [...this.node.labels];
         const generated = [];
+
         for (const label of labels) {
             if (!label.id) {
                 label.id = generateId('editor-label');
                 generated.push([label, label.id]);
             }
+
             this.listen(label, 'click.ui.editor', (event) => {
                 if (event.target === label || !event.target.closest('a, button, input, select, textarea')) {
                     event.preventDefault();
@@ -1608,6 +1728,7 @@ export default class Editor extends BaseComponent {
                 }
             });
         }
+
         this.#labelledBy = labels.map((label) => label.id).join(' ');
         this.#refreshDisabled();
         this.listen(this.node, 'focus.ui.editor', (event) => {
@@ -1626,35 +1747,46 @@ export default class Editor extends BaseComponent {
                 this.#loadValue();
             }
         });
+
         const timers = new Set();
+
         this.listen(this.node.ownerDocument, 'reset.ui.editor', (event) => {
             if (event.target !== this.node.form) {
                 return;
             }
+
             const timer = setTimeout(() => {
                 timers.delete(timer);
+
                 if (this.node && !event.defaultPrevented) {
                     this.#removePopover();
                     this.#loadValue(true);
                 }
             }, 0);
+
             timers.add(timer);
         });
+
         const observer = new MutationObserver(() => {
             if (this.node) {
                 this.#refreshDisabled();
                 this.#refreshToolbar();
             }
         });
+
         observer.observe(this.node, { attributes: true });
+
         for (const fieldset of $.parents(this.node, 'fieldset')) {
             observer.observe(fieldset, { attributes: true, attributeFilter: ['disabled'] });
         }
+
         this.onDispose(() => {
             observer.disconnect();
+
             for (const timer of timers) {
                 clearTimeout(timer);
             }
+
             for (const [label, id] of generated) {
                 if (label.id === id) {
                     label.removeAttribute('id');
@@ -1671,6 +1803,7 @@ export default class Editor extends BaseComponent {
             if (this.node.matches(':disabled') || this.node.readOnly) {
                 return;
             }
+
             const action = $.getDataset(e.currentTarget, 'uiAction');
 
             if (!(action in this.constructor.popovers)) {
@@ -1705,6 +1838,7 @@ export default class Editor extends BaseComponent {
                 (e.pageY - imgRect.y) * ratio,
                 1,
             );
+
             $.setStyle(this.#currentNode, { width: `${Math.round(width)}px` });
             this.#highlightImage(this.#currentNode);
         };
@@ -1712,6 +1846,7 @@ export default class Editor extends BaseComponent {
         const upEvent = (_) => {
             if (this.#currentNode?.isConnected && this.#editor.contains(this.#currentNode)) {
                 const range = selectNode(this.#currentNode);
+
                 range.collapse(false);
             }
 
@@ -1724,8 +1859,11 @@ export default class Editor extends BaseComponent {
             if (!['ArrowLeft', 'ArrowRight'].includes(event.code) || !this.#currentNode || this.node.matches(':disabled') || this.node.readOnly) {
                 return;
             }
+
             event.preventDefault();
+
             const width = Math.max(1, this.#currentNode.getBoundingClientRect().width + (event.code === 'ArrowRight' ? 10 : -10));
+
             this.#currentNode.style.width = `${width}px`;
             this.#highlightImage(this.#currentNode);
             this.#updateValue();
@@ -1744,6 +1882,7 @@ export default class Editor extends BaseComponent {
 
         const downEvent = (e) => {
             const barPosition = $.position(this.#resizeBar, { offset: true });
+
             resizeOffset = e.pageY - barPosition.y;
 
             this.#removePopover();
@@ -1753,6 +1892,7 @@ export default class Editor extends BaseComponent {
             const editorPosition = $.position(this.#editorBody, { offset: true });
 
             const height = Math.max(0, e.pageY - editorPosition.y - resizeOffset);
+
             $.setStyle(this.#editorBody, { height: `${height}px` });
             this.#resizeBar.setAttribute('aria-valuenow', String(Math.round(height)));
         };
@@ -1766,8 +1906,11 @@ export default class Editor extends BaseComponent {
             if (!['ArrowUp', 'ArrowDown'].includes(event.code) || this.node.matches(':disabled') || this.node.readOnly) {
                 return;
             }
+
             event.preventDefault();
+
             const height = Math.max(40, this.#editorBody.getBoundingClientRect().height + (event.code === 'ArrowDown' ? 10 : -10));
+
             this.#editorBody.style.height = `${height}px`;
             this.#resizeBar.setAttribute('aria-valuenow', String(Math.round(height)));
         });
@@ -1787,8 +1930,10 @@ export default class Editor extends BaseComponent {
             selectionChange: (range) => {
                 if (!range || !this.#editor.contains(range.startContainer) || !this.#editor.contains(range.endContainer)) {
                     this.#removePopover();
+
                     return;
                 }
+
                 this.#lastRange = range.cloneRange();
                 this.#refreshCursor();
                 this.#refreshToolbar();
@@ -1797,6 +1942,7 @@ export default class Editor extends BaseComponent {
                 if (this.#currentNode?.matches('img')) {
                     this.#highlightImage(this.#currentNode);
                 }
+
                 this.#refreshLineNumbers();
             },
         });
@@ -1808,6 +1954,7 @@ export default class Editor extends BaseComponent {
     #eventsSource() {
         this.listen(this.#source, 'focus.ui.editor', () => $.triggerEvent(this.node, 'focus.ui.editor'));
         this.listen(this.#source, 'blur.ui.editor', () => $.triggerEvent(this.node, 'blur.ui.editor'));
+
         const refreshLineNumbersDebounced = this.#debounce((_) => {
             this.#refreshLineNumbers();
         });
@@ -1816,14 +1963,19 @@ export default class Editor extends BaseComponent {
             if (this.node.matches(':disabled') || this.node.readOnly) {
                 return;
             }
+
             refreshLineNumbersDebounced();
+
             const html = this.#source.value;
+
             if (this.node.value !== html) {
                 this.node.value = html;
+
                 if (this.node.validity.valid && !this.node.hasAttribute('aria-invalid')) {
                     this.#source.removeAttribute('aria-invalid');
                     this.#editor.removeAttribute('aria-invalid');
                 }
+
                 $.triggerEvent(this.node, 'change.ui.editor', { data: { skipUpdate: true } });
             }
         });
@@ -1845,16 +1997,19 @@ export default class Editor extends BaseComponent {
 
             const lineStarts = [];
             let offset = 0;
+
             for (const line of lines) {
                 lineStarts.push(offset);
                 offset += line.length + 1;
             }
+
             const lastLine = end > start && end === lineStarts[endLine] ? endLine - 1 : endLine;
             const tab = '\t';
 
             let newStart = start;
             let newEnd = end;
             let newValue;
+
             if (e.shiftKey) {
                 for (const [i, line] of lines.entries()) {
                     if (i >= startLine && i <= lastLine && line.startsWith(tab)) {
@@ -1879,6 +2034,7 @@ export default class Editor extends BaseComponent {
                         if (lineStarts[i] < start) {
                             newStart++;
                         }
+
                         newEnd++;
                     }
                 }
@@ -1903,6 +2059,7 @@ export default class Editor extends BaseComponent {
 
         this.listen(this.#source, 'scroll.ui.editor', this.#debounce((_) => {
             const scrollY = $.getScrollY(this.#source);
+
             $.setStyle(this.#lineNumbers, { marginTop: `${-scrollY}px` });
         }));
     }
@@ -1920,12 +2077,14 @@ export default class Editor extends BaseComponent {
 
             e.preventDefault();
             e.stopPropagation();
+
             if ($.is(this.node, ':disabled') || (this.node.readOnly && !['source', 'fullScreen'].includes(action)) || $.is(e.currentTarget, '[aria-disabled="true"]')) {
                 return;
             }
 
             if (this.#lastRange && this.#editor.contains(this.#lastRange.startContainer) && this.#editor.contains(this.#lastRange.endContainer)) {
                 const selection = window.getSelection();
+
                 selection.removeAllRanges();
                 selection.addRange(this.#lastRange);
             }
@@ -1937,6 +2096,7 @@ export default class Editor extends BaseComponent {
             if (this.node.matches(':disabled') || this.node.readOnly || e.currentTarget.matches('[aria-disabled="true"]')) {
                 return;
             }
+
             const command = $.getDataset(e.currentTarget, 'uiCommand');
 
             if (!(command in this)) {
@@ -1947,11 +2107,13 @@ export default class Editor extends BaseComponent {
 
             if (this.#lastRange) {
                 const selection = window.getSelection();
+
                 selection.removeAllRanges();
                 selection.addRange(this.#lastRange);
             }
 
             const value = $.getDataset(e.currentTarget, 'uiValue');
+
             this[command](value);
 
             this.#refreshToolbar();
@@ -1967,12 +2129,16 @@ export default class Editor extends BaseComponent {
         if (!this.node || ($.is(this.node, ':disabled') || this.node.readOnly)) {
             return;
         }
+
         this.#focusEditor();
+
         if (!this.node) {
             return;
         }
+
         this.#addHistory({ html: this.#editor.innerHTML, selectionData: getSelectionData(this.#editor) });
         this.#observe(false);
+
         try {
             document.execCommand('styleWithCSS', false, !['bold', 'indent', 'italic', 'outdent', 'strikethrough', 'subscript', 'superscript', 'underline'].includes(command));
             document.execCommand(command, false, value);
@@ -1991,17 +2157,22 @@ export default class Editor extends BaseComponent {
         if (!this.node || $.is(this.node, ':disabled')) {
             return;
         }
+
         if (document.activeElement === this.#editor && getRange(this.#editor)) {
             return;
         }
+
         const current = getRange(this.#editor)?.cloneRange();
         const selection = window.getSelection();
         const backward = current && !current.collapsed && selection.anchorNode === current.endContainer && selection.anchorOffset === current.endOffset;
         const saved = this.#lastRange;
+
         $.focus(this.#editor);
+
         if (!this.node) {
             return;
         }
+
         if (current) {
             selectRange(current, backward);
         } else if (saved && this.#editor.contains(saved.startContainer) && this.#editor.contains(saved.endContainer)) {
@@ -2010,9 +2181,11 @@ export default class Editor extends BaseComponent {
             const range = document.createRange();
             let target = this.#editor;
             const opaque = (node) => node instanceof Element && node.matches('br, img, hr, iframe, input, video, audio, svg');
+
             while (target.lastChild && !opaque(target)) {
                 target = target.lastChild;
             }
+
             if (opaque(target)) {
                 if (target.matches('br')) {
                     range.setStartBefore(target);
@@ -2022,6 +2195,7 @@ export default class Editor extends BaseComponent {
             } else {
                 range.selectNodeContents(target);
             }
+
             range.collapse(false);
             selectRange(range);
         }
@@ -2133,6 +2307,7 @@ export default class Editor extends BaseComponent {
      */
     #loadValue(reset = false) {
         this.#observe(false);
+
         try {
             this.#editor.innerHTML = this.node.value;
             this.#normalize();
@@ -2140,13 +2315,16 @@ export default class Editor extends BaseComponent {
             this.node.value = this.#editor.innerHTML;
             this.#source.value = this.node.value;
             this.#lastRange = null;
+
             if (reset) {
                 this.#history = [];
                 this.#redoHistory = [];
             }
+
             if (this.#history.at(-1)?.html !== this.#editor.innerHTML) {
                 this.#redoHistory = [];
             }
+
             this.#addHistory({ html: this.#editor.innerHTML });
             this.#refreshDisabled();
             this.#refreshToolbar();
@@ -2163,10 +2341,14 @@ export default class Editor extends BaseComponent {
         if (!this.node) {
             return;
         }
+
         const active = document.activeElement;
+
         this.#observe(false);
         normalizeText(this.#editor);
+
         const markers = saveSelection(this.#editor);
+
         try {
             normalizeStyles(this.#editor);
             normalizeSpans(this.#editor);
@@ -2176,6 +2358,7 @@ export default class Editor extends BaseComponent {
             restoreSelection(markers);
             normalizeText(this.#editor);
             this.#observe();
+
             if (active instanceof HTMLElement && active !== document.body && active.isConnected && !this.#editor?.contains(active) && document.activeElement !== active) {
                 active.focus({ preventScroll: true });
             }
@@ -2190,22 +2373,28 @@ export default class Editor extends BaseComponent {
         if (!this.node || !this.#observer) {
             return;
         }
+
         if (!observe) {
             if (this.#observationDepth++ === 0) {
                 this.#pendingMutation ||= this.#observer.takeRecords().some((record) => record.type !== 'attributes' || record.target !== this.#editor);
                 this.#observer.disconnect();
             }
+
             return;
         }
+
         this.#observationDepth = Math.max(0, this.#observationDepth - 1);
+
         if (this.#observationDepth === 0) {
             this.#observer.observe(this.#editor, { attributes: true, childList: true, characterData: true, subtree: true });
+
             if (this.#pendingMutation) {
                 this.#pendingMutation = false;
                 this.#debounce(() => {
                     if ($.isVisible(this.#sourceContainer)) {
                         return;
                     }
+
                     this.#normalize();
                     this.#checkEmpty();
                     this.#updateValue();
@@ -2223,14 +2412,18 @@ export default class Editor extends BaseComponent {
     #ownComponent(component) {
         if (!this.node) {
             component.dispose();
+
             return component;
         }
+
         for (const owned of this.#components) {
             if (!owned.node) {
                 this.#components.delete(owned);
             }
         }
+
         this.#components.add(component);
+
         return component;
     }
 
@@ -2243,29 +2436,38 @@ export default class Editor extends BaseComponent {
         return new Promise((resolve, reject) => {
             if (!this.node) {
                 reject(new Error('Editor is disposed.'));
+
                 return;
             }
+
             const reader = new FileReader();
+
             this.#readers.add(reader);
+
             const finish = () => {
                 this.#readers.delete(reader);
                 reader.onload = null;
                 reader.onerror = null;
                 reader.onabort = null;
             };
+
             reader.onload = () => {
                 const value = reader.result;
+
                 finish();
                 resolve(value);
             };
+
             reader.onerror = () => {
                 finish();
                 reject(new Error('Unable to read file.'));
             };
+
             reader.onabort = () => {
                 finish();
                 reject(new Error('File read was canceled.'));
             };
+
             try {
                 reader.readAsDataURL(file);
             } catch (error) {
@@ -2284,10 +2486,12 @@ export default class Editor extends BaseComponent {
 
         if (!$.hasDescendent(this.#editor, baseNode)) {
             this.#removePopover();
+
             return;
         }
 
         const range = getRange(this.#editor);
+
         if (this.#currentNode && range && (!range.collapsed && range.intersectsNode(this.#currentNode) || this.#currentNode.contains(baseNode))) {
             return;
         }
@@ -2298,6 +2502,7 @@ export default class Editor extends BaseComponent {
 
         if (!currentNode) {
             this.#removePopover();
+
             return;
         }
 
@@ -2310,25 +2515,31 @@ export default class Editor extends BaseComponent {
     #refreshDisabled() {
         const disabled = this.node.matches(':disabled');
         const readOnly = this.node.readOnly;
+
         if (disabled) {
             $.addClass(this.#editor, this.constructor.classes.editorDisabled);
         } else {
             $.removeClass(this.#editor, this.constructor.classes.editorDisabled);
         }
+
         this.#editor.setAttribute('contenteditable', String(!disabled && !readOnly));
         this.#editor.setAttribute('tabindex', disabled ? '-1' : (this.node.getAttribute('tabindex') || '0'));
         this.#source.disabled = disabled;
         this.#source.readOnly = readOnly;
+
         for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
             handle.setAttribute('tabindex', disabled || readOnly ? '-1' : '0');
             handle.setAttribute('aria-disabled', String(disabled || readOnly));
         }
+
         for (const surface of [this.#editor, this.#source]) {
             surface.setAttribute('aria-disabled', String(disabled));
             surface.setAttribute('aria-readonly', String(readOnly));
             surface.setAttribute('aria-required', String(this.node.required));
+
             for (const name of ['aria-label', 'aria-labelledby', 'aria-describedby', 'aria-errormessage', 'aria-invalid', 'dir', 'lang']) {
                 const value = this.node.getAttribute(name) || (name === 'aria-labelledby' && !this.node.hasAttribute('aria-label') ? this.#labelledBy : null);
+
                 if (value) {
                     surface.setAttribute(name, value);
                 } else {
@@ -2336,9 +2547,12 @@ export default class Editor extends BaseComponent {
                 }
             }
         }
+
         this.#container.classList.toggle('form-error', this.node.classList.contains('form-error'));
+
         if (disabled || readOnly) {
             this.#removePopover();
+
             for (const toggle of this.#toolbar.querySelectorAll('[data-ui-toggle="dropdown"]')) {
                 Dropdown.init(toggle).hide();
             }
@@ -2352,6 +2566,7 @@ export default class Editor extends BaseComponent {
         if (!this.node) {
             return;
         }
+
         if (!$.isVisible(this.#sourceContainer)) {
             return;
         }
@@ -2379,6 +2594,7 @@ export default class Editor extends BaseComponent {
 
         for (const [i, line] of lines.entries()) {
             let lineNumber;
+
             if (i < lineNumbers.length) {
                 lineNumber = lineNumbers[i];
             } else {
@@ -2413,6 +2629,7 @@ export default class Editor extends BaseComponent {
         if (!this.node) {
             return;
         }
+
         if ($.isSame(currentNode, this.#currentNode)) {
             return;
         }
@@ -2428,10 +2645,12 @@ export default class Editor extends BaseComponent {
         const tagName = $.tagName(this.#currentNode);
 
         let reference = this.#currentNode;
+
         if (event && tagName === 'img') {
             const editorPos = $.position(this.#editor, { offset: true });
             const scrollX = $.getScrollX(this.#editorScroll);
             const scrollY = $.getScrollY(this.#editorScroll);
+
             $.setStyle(this.#imgCursor, {
                 top: `${event.pageY - editorPos.y + scrollY}px`,
                 left: `${event.pageX - editorPos.x + scrollX}px`,
@@ -2440,6 +2659,7 @@ export default class Editor extends BaseComponent {
         }
 
         const originalPlacement = reference.getAttribute('data-ui-placement');
+
         this.#popper = new Popper(
             this.#popover,
             {
@@ -2497,10 +2717,12 @@ export default class Editor extends BaseComponent {
         for (const { button, data, type } of this.#buttons) {
             if ('setContent' in data) {
                 const content = data.setContent.call(this);
+
                 $.setHtml(button, content);
             }
 
             let enabled = false;
+
             if ('command' in data) {
                 enabled = 'value' in data ?
                     document.queryCommandValue(data.command) === data.value :
@@ -2592,19 +2814,20 @@ export default class Editor extends BaseComponent {
         }
 
         // hide the input node
-        $.hide(this.node);
+        this.#releaseDisplay = $.setStyleLock(this.node, 'display', 'none', { important: true });
         $.setAttribute(this.node, { 'aria-hidden': true });
 
         $.insertBefore(this.#container, this.node);
+
         if (this.#resizeBar) {
             this.#resizeBar.setAttribute('aria-valuenow', String(Math.round(this.#editorBody.getBoundingClientRect().height)));
         }
     }
 
     /**
-     * Renders a button
-     * @param {object} data The button data.
-     * @returns {HTMLElement} The button.
+     * Renders a button.
+     * @param {EditorPlugin|EditorPopover} data The button configuration.
+     * @returns {HTMLButtonElement} The button.
      */
     #renderButton(data) {
         const button = $.create('button', {
@@ -2626,6 +2849,7 @@ export default class Editor extends BaseComponent {
                 appendTo: document.body,
                 placement: 'bottom',
             }));
+
             this.listen(button, 'click.ui.editor', () => tooltip.hide());
         }
 
@@ -2633,6 +2857,7 @@ export default class Editor extends BaseComponent {
             $.setHtml(button, data.content);
         } else {
             const content = $.parseHtml(this.constructor.icons[data.icon]);
+
             $.addClass(content, this.constructor.classes.btnIcon);
             $.append(button, content);
         }
@@ -2752,6 +2977,7 @@ export default class Editor extends BaseComponent {
         const data = this.constructor.popovers[type];
 
         let node;
+
         if (data.render) {
             node = data.render.call(this, this.#currentNode);
         } else {
@@ -2769,7 +2995,7 @@ export default class Editor extends BaseComponent {
 
     /**
      * Renders popover items.
-     * @param {Array} items The items to render.
+     * @param {Array<string|string[]>} items The popover actions and groups to render.
      */
     #renderPopoverItems(items) {
         for (const item of items) {
@@ -2809,6 +3035,7 @@ export default class Editor extends BaseComponent {
 
         for (let i = 0; i < 3; i++) {
             const hr = $.create('hr', { attributes: { 'aria-hidden': true } });
+
             $.append(this.#resizeBar, hr);
         }
 
@@ -2910,7 +3137,7 @@ export default class Editor extends BaseComponent {
      * Renders a toolbar dropdown.
      * @param {HTMLElement} buttonGroup The button group element.
      * @param {HTMLElement} button The button element.
-     * @param {Array|Function} dropdownContent The dropdown content.
+     * @param {string[][]|EditorDropdownCallback} dropdownContent The toolbar groups or dropdown renderer.
      */
     #renderToolbarDropdown(buttonGroup, button, dropdownContent) {
         const dropGroup = $.create('div', {
@@ -2979,16 +3206,21 @@ export default class Editor extends BaseComponent {
         if (!this.node) {
             return;
         }
+
         const previous = $.getValue(this.node);
+
         this.#observe(false);
+
         try {
             $.setHtml(this.#editor, html);
             $.setValue(this.node, html);
             $.setValue(this.#source, html);
             this.#focusEditor();
+
             if (!this.node) {
                 return;
             }
+
             restoreSelectionData(this.#editor, selectionData);
             this.#checkEmpty();
             this.#refreshDisabled();
@@ -2996,6 +3228,7 @@ export default class Editor extends BaseComponent {
         } finally {
             this.#observe();
         }
+
         if (this.node && previous !== this.node.value) {
             $.triggerEvent(this.node, 'change.ui.editor', { data: { skipUpdate: true } });
         }
@@ -3004,7 +3237,7 @@ export default class Editor extends BaseComponent {
     /**
      * Sets data for a toolbar action.
      * @param {HTMLElement} node The action node.
-     * @param {object} data The data to set.
+     * @param {EditorPlugin|EditorPopover} data The action configuration.
      * @param {string} [type] The action type.
      */
     #setToolbarData(node, data, type) {
@@ -3043,6 +3276,7 @@ export default class Editor extends BaseComponent {
      */
     #showImageModal() {
         this.#removeModal();
+
         const returnFocus = document.activeElement;
         const container = $.create('div');
 
@@ -3068,6 +3302,7 @@ export default class Editor extends BaseComponent {
         this.#focusEditor();
 
         const range = getRange();
+
         range.collapse();
 
         this.#modal = createModal(this.constructor, {
@@ -3093,8 +3328,10 @@ export default class Editor extends BaseComponent {
             },
             onHidden: (_) => {
                 this.#removeModal();
+
                 if (this.node) {
                     selectRange(originalRange);
+
                     if (!returnFocus?.isConnected) {
                         this.#focusEditor();
                     }
@@ -3110,6 +3347,7 @@ export default class Editor extends BaseComponent {
      */
     #showLinkModal(link) {
         this.#removeModal();
+
         const returnFocus = document.activeElement;
         const container = $.create('div');
 
@@ -3150,6 +3388,7 @@ export default class Editor extends BaseComponent {
         const originalRange = getRange()?.cloneRange();
 
         let range;
+
         if (link) {
             range = selectNode(link);
         } else {
@@ -3177,15 +3416,19 @@ export default class Editor extends BaseComponent {
             },
             onHidden: (_) => {
                 this.#removeModal();
+
                 if (this.node) {
                     selectRange(originalRange);
+
                     if (!returnFocus?.isConnected) {
                         this.#focusEditor();
                     }
                 }
             },
         });
+
         const controller = this.#ownComponent(Modal.init(this.#modal));
+
         controller.listen(textInput, 'input.ui.editor', (_) => {
             hasText = !!$.getValue(textInput);
         });
@@ -3196,6 +3439,7 @@ export default class Editor extends BaseComponent {
             }
 
             const url = $.getValue(urlInput);
+
             $.setValue(textInput, url);
         });
     }
@@ -3216,6 +3460,7 @@ export default class Editor extends BaseComponent {
      */
     #showVideoModal() {
         this.#removeModal();
+
         const returnFocus = document.activeElement;
         const container = $.create('div');
 
@@ -3229,6 +3474,7 @@ export default class Editor extends BaseComponent {
         const originalRange = getRange()?.cloneRange();
 
         this.#focusEditor();
+
         const range = getRange();
 
         this.#modal = createModal(this.constructor, {
@@ -3242,8 +3488,10 @@ export default class Editor extends BaseComponent {
 
                 const url = $.getValue(urlInput);
                 let id;
+
                 try {
                     const parsed = new URL(url);
+
                     if (parsed.protocol === 'https:' && (parsed.hostname === 'youtu.be' || ['youtube.com', 'www.youtube.com'].includes(parsed.hostname) && parsed.pathname === '/watch')) {
                         id = parsed.hostname === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
                     }
@@ -3255,12 +3503,14 @@ export default class Editor extends BaseComponent {
                     urlInput.setAttribute('aria-invalid', 'true');
                     $.addClass(urlGroup, this.constructor.classes.formError);
                     $.setText(urlInvalidFeedback, this.constructor.lang.modals.videoUrlInvalid);
+
                     return false;
                 }
 
                 $.removeClass(urlGroup, this.constructor.classes.formError);
 
                 urlInput.removeAttribute('aria-invalid');
+
                 const video = $.create('iframe', {
                     attributes: {
                         width: 560,
@@ -3281,8 +3531,10 @@ export default class Editor extends BaseComponent {
             },
             onHidden: (_) => {
                 this.#removeModal();
+
                 if (this.node) {
                     selectRange(originalRange);
+
                     if (!returnFocus?.isConnected) {
                         this.#focusEditor();
                     }
@@ -3337,12 +3589,14 @@ export default class Editor extends BaseComponent {
             const row = $.create('div', {
                 class: this.constructor.classes.tableRow,
             });
+
             $.append(container, row);
 
             for (let j = 0; j < 10; j++) {
                 const cell = $.create('div', {
                     class: this.constructor.classes.tableCell,
                 });
+
                 $.append(row, cell);
 
                 if (i > 4 || j > 4) {
@@ -3360,6 +3614,7 @@ export default class Editor extends BaseComponent {
                         uiRow: i,
                     },
                 });
+
                 $.append(cell, link);
             }
         }
@@ -3391,6 +3646,7 @@ export default class Editor extends BaseComponent {
                     const td = $.create('td', {
                         html: '<br>',
                     });
+
                     $.append(tr, td);
                 }
 
@@ -3430,6 +3686,7 @@ export default class Editor extends BaseComponent {
                 }
 
                 const parent = $.parent(element);
+
                 if (col <= colMin && row <= rowMin) {
                     $.show(parent);
                 } else {
@@ -3443,21 +3700,27 @@ export default class Editor extends BaseComponent {
 
     /**
      * Updates a table element.
-     * @param {HTMLElement} td The td element.
-     * @param {Function} callback The callback.
+     * @param {HTMLTableCellElement} td The table cell.
+     * @param {(cell: HTMLTableCellElement, row: HTMLTableRowElement, table: HTMLTableElement) => void} callback The callback.
      */
     #updateTable(td, callback) {
         const table = td.closest('table');
+
         if (!table || !this.#editor.contains(table)) {
             return;
         }
+
         this.#observe(false);
+
         try {
             callback(td, td.closest('tr'), table);
+
             if (this.#editor.contains(td)) {
                 const range = selectNode(td);
+
                 range.collapse(true);
             }
+
             this.#normalize();
             this.#updateValue();
         } finally {
@@ -3472,21 +3735,27 @@ export default class Editor extends BaseComponent {
         if (!this.node) {
             return;
         }
+
         const html = $.getHtml(this.#editor);
+
         if (html === $.getValue(this.node)) {
             if (!this.#history.length) {
                 this.#addHistory({ html, selectionData: getSelectionData(this.#editor) });
             }
+
             return;
         }
+
         this.#redoHistory = [];
         this.#addHistory({ html, selectionData: getSelectionData(this.#editor) });
         $.setValue(this.node, html);
         $.setValue(this.#source, html);
+
         if (this.node.validity.valid && !this.node.hasAttribute('aria-invalid')) {
             this.#editor.removeAttribute('aria-invalid');
             this.#source.removeAttribute('aria-invalid');
         }
+
         $.triggerEvent(this.node, 'change.ui.editor', { data: { skipUpdate: true } });
     }
 
@@ -3498,10 +3767,12 @@ export default class Editor extends BaseComponent {
             if ($.isVisible(this.#sourceContainer)) {
                 return;
             }
+
             this.#normalize();
             this.#checkEmpty();
             this.#updateValue();
         });
+
         this.#observer = new MutationObserver((records) => {
             if (records.some((record) => record.type !== 'attributes' || record.target !== this.#editor)) {
                 changed();
