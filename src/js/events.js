@@ -15,6 +15,25 @@ export function events(editor) {
     editor._eventsPopover();
     editor._eventsSource();
     editor._eventsDrop();
+    // Escape followed by Tab leaves either editing surface without indenting.
+    let tabNavigation = false;
+    editor.listen(editor._container, 'keydown.ui.editor', (event) => {
+        if (![editor._editor, editor._source].includes(event.target)) {
+            tabNavigation = false;
+            return;
+        }
+        if (event.code === 'Escape' && !editor._currentNode && !editor._fullScreen) {
+            tabNavigation = true;
+        } else if (event.code === 'Tab' && tabNavigation) {
+            tabNavigation = false;
+            event.stopPropagation();
+        } else if (!['ShiftLeft', 'ShiftRight'].includes(event.code)) {
+            tabNavigation = false;
+        }
+    }, { capture: true });
+    editor.listen(editor._container, 'focusout.ui.editor', () => {
+        tabNavigation = false;
+    });
     editor.listen(editor._container, 'keydown.ui.editor', (event) => {
         if (event.code === 'Escape' && editor._currentNode && !editor._modal) {
             event.preventDefault();
@@ -198,7 +217,7 @@ export function eventsEditor(editor) {
 
                 break;
             case 'Tab':
-                if (document.queryCommandState('insertOrderedList') || document.queryCommandState('insertUnorderedList')) {
+                if (!e.ctrlKey && !e.metaKey && !e.altKey && !editor.node.readOnly && !editor.node.matches(':disabled')) {
                     e.preventDefault();
 
                     if (e.shiftKey) {
@@ -227,7 +246,7 @@ export function eventsEditor(editor) {
         }
         editor._refreshPopover(e.currentTarget, e);
         editor._refreshToolbar();
-    }, { delegate: 'a, td, img', capture: true });
+    }, { delegate: 'a, td, th, img', capture: true });
 
     editor._watchContent();
 }
@@ -374,7 +393,7 @@ export function eventsSource(editor) {
     });
 
     editor.listen(editor._source, 'keydown.ui.editor', (e) => {
-        if (e.code !== 'Tab' || !e.ctrlKey || editor.node.readOnly || editor.node.matches(':disabled')) {
+        if (e.code !== 'Tab' || e.ctrlKey || e.metaKey || e.altKey || editor.node.readOnly || editor.node.matches(':disabled')) {
             return;
         }
 

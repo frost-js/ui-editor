@@ -99,6 +99,7 @@ export function refreshPopover(editor, currentNode, event) {
         },
     );
 
+    $.addClass(editor._popover, editor.constructor.classes.popoverShow);
     $.show(editor._popover);
 
     switch (tagName) {
@@ -111,6 +112,7 @@ export function refreshPopover(editor, currentNode, event) {
             $.show(editor._imgHighlight);
             break;
         case 'td':
+        case 'th':
             editor._renderPopoverItems(editor.options.popovers.table);
             break;
     }
@@ -129,6 +131,7 @@ export function removePopover(editor) {
 
     $.hide(editor._imgHighlight);
     $.hide(editor._imgCursor);
+    $.removeClass(editor._popover, editor.constructor.classes.popoverShow);
     $.hide(editor._popover);
     $.empty(editor._popoverBody);
 

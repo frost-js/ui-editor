@@ -1,6 +1,6 @@
 {
     "name": "@fr0st/ui-editor",
-    "version": "2.0.0",
+    "version": "3.0.0",
     "description": "WYSIWYG editor for Frost UI with customizable toolbars, source editing, media, tables, and undo/redo.",
     "keywords": [
         "ui",

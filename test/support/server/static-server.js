@@ -8,6 +8,11 @@ const resolveModule = (specifier) => new URL(import.meta.resolve(specifier));
 
 const routes = new Map([
     ['/', { contentType: html, file: new URL('../app/index.html', import.meta.url) }],
+    ['/demo/index.html', { contentType: html, file: new URL('../../../demo/index.html', import.meta.url) }],
+    ['/demo/assets/demo.css', { contentType: css, file: new URL('../../../demo/assets/demo.css', import.meta.url) }],
+    ['/demo/assets/demo.js', { contentType: javaScript, file: new URL('../../../demo/assets/demo.js', import.meta.url) }],
+    ['/dist/frost-ui-editor.css', { contentType: css, file: new URL('../../../dist/frost-ui-editor.css', import.meta.url) }],
+    ['/dist/frost-ui-editor.js', { contentType: javaScript, file: new URL('../../../dist/frost-ui-editor.js', import.meta.url) }],
     ['/esm.html', { contentType: html, file: new URL('../app/esm.html', import.meta.url) }],
     ['/umd-min.html', { contentType: html, file: new URL('../app/umd-min.html', import.meta.url) }],
     ['/src/js/nodes.js', { contentType: javaScript, file: new URL('../../../src/js/nodes.js', import.meta.url) }],

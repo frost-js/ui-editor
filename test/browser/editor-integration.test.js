@@ -21,6 +21,7 @@ test('positions link popovers and edits links through an owned modal', async ({ 
     await createEditor(page, '<p><a href="https://example.com/">Example</a></p>');
     await page.locator('.editor a').click();
     await expect(page.locator('.editor-popover')).toBeVisible();
+    await expect(page.locator('.editor-popover')).toHaveCSS('opacity', '1');
     await page.getByRole('button', { name: 'Edit Link', exact: true }).click();
     const modal = page.getByRole('dialog', { name: 'Insert Link' });
     await expect(modal).toBeVisible();

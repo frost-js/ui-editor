@@ -42,6 +42,7 @@ for (const [name, rows, columns] of [
         const html = '<table class="table table-bordered"><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>';
         await createEditor(page, html);
         await page.locator('.editor td').first().click();
+        await expect(page.locator('.editor-popover')).toHaveCSS('opacity', '1');
         await page.getByRole('button', { name, exact: true }).click();
         await expect(page.locator('.editor tr')).toHaveCount(rows);
         await expect(page.locator('.editor tr').first().locator('td')).toHaveCount(columns);
@@ -179,4 +180,16 @@ test('runs a custom image uploader in the editor context', async ({ page }) => {
     await page.getByLabel('Select Files').setInputFiles({ name: 'custom.gif', mimeType: 'image/gif', buffer: Buffer.from(gif, 'base64') });
     await page.getByRole('dialog').getByRole('button', { name: 'Insert Image', exact: true }).click();
     expect(await page.evaluate(() => window.upload)).toEqual({ owned: true, names: ['custom.gif'] });
+});
+
+test('shows the table context toolbar for header cells and dismisses it with Escape', async ({ page }) => {
+    await createEditor(page, '<table><tbody><tr><th>Header</th><td>Cell</td></tr></tbody></table>');
+    await page.locator('.editor th').click();
+    await expect(page.locator('.editor-popover')).toHaveCSS('opacity', '1');
+    await page.getByRole('button', { name: 'Add Row After', exact: true }).click();
+    await expect(page.locator('.editor tr')).toHaveCount(2);
+    await page.locator('.editor th').click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.editor-popover')).toBeHidden();
+    await expect(page.locator('.editor-popover')).not.toHaveClass(/show/);
 });

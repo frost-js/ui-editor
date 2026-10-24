@@ -3,10 +3,13 @@
 @use "vars";
 
 .editor-container {
+    display: flex;
+    flex-direction: column;
     min-block-size: 100%;
 }
 
 .editor {
+    flex: 1 0 auto;
     font-size: inherit;
     font-weight: inherit;
     color: inherit;
@@ -133,14 +136,20 @@
     }
 }
 
-.editor,
-.editor-source {
+.editor-panel {
     --ui-editor-focus-color: #{vars.$editor-focus-color};
     --ui-editor-focus-width: #{vars.$editor-focus-width};
 
-    &:focus-visible {
-        outline: var(--ui-editor-focus-width) solid var(--ui-editor-focus-color);
-        outline-offset: calc(-1 * var(--ui-editor-focus-width));
+    &:focus-within {
+        border-color: var(--ui-editor-focus-color);
+        box-shadow: 0 0 0 var(--ui-editor-focus-width) rgb(from var(--ui-editor-focus-color) r g b / var(--ui-focus-ring-opacity));
+    }
+}
+
+.editor,
+.editor-source {
+    &:focus {
+        outline: none;
     }
 
     &[aria-invalid="true"] {
@@ -182,8 +191,7 @@
 }
 
 @media (forced-colors: active) {
-    .editor:focus-visible,
-    .editor-source:focus-visible,
+    .editor-panel:focus-within,
     .editor-img-resize:focus-visible,
     .editor-table-link:focus-visible,
     .editor-color:focus-visible,

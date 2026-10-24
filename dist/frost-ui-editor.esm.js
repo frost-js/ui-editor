@@ -591,7 +591,7 @@ var classes = {
 	colorLabel: "d-block text-center",
 	colorLabelContainer: "p-2",
 	colorRow: "d-flex flex-row px-2",
-	container: "card shadow-sm",
+	container: "editor-panel card",
 	dropdown: "editor-dropdown dropdown-menu",
 	dropdownButtons: "pt-2 pe-1 pb-1 ps-2 text-nowrap",
 	dropdownGroup: "btn-group",
@@ -630,6 +630,7 @@ var classes = {
 	popover: "editor-popover popover",
 	popoverArrow: "popover-arrow",
 	popoverBody: "popover-body mb-n1 ms-n2 me-n3",
+	popoverShow: "show",
 	resizeBar: "editor-resize card-footer",
 	source: "editor-source font-monospace border-0 p-2 mb-0 w-100",
 	sourceContainer: "d-flex h-100",
@@ -1284,6 +1285,21 @@ function events(editor) {
 	editor._eventsPopover();
 	editor._eventsSource();
 	editor._eventsDrop();
+	let tabNavigation = false;
+	editor.listen(editor._container, "keydown.ui.editor", (event) => {
+		if (![editor._editor, editor._source].includes(event.target)) {
+			tabNavigation = false;
+			return;
+		}
+		if (event.code === "Escape" && !editor._currentNode && !editor._fullScreen) tabNavigation = true;
+		else if (event.code === "Tab" && tabNavigation) {
+			tabNavigation = false;
+			event.stopPropagation();
+		} else if (!["ShiftLeft", "ShiftRight"].includes(event.code)) tabNavigation = false;
+	}, { capture: true });
+	editor.listen(editor._container, "focusout.ui.editor", () => {
+		tabNavigation = false;
+	});
 	editor.listen(editor._container, "keydown.ui.editor", (event) => {
 		if (event.code === "Escape" && editor._currentNode && !editor._modal) {
 			event.preventDefault();
@@ -1395,7 +1411,7 @@ function eventsEditor(editor) {
 					}
 				}
 				break;
-			case "Tab": if (document.queryCommandState("insertOrderedList") || document.queryCommandState("insertUnorderedList")) {
+			case "Tab": if (!e.ctrlKey && !e.metaKey && !e.altKey && !editor.node.readOnly && !editor.node.matches(":disabled")) {
 				e.preventDefault();
 				if (e.shiftKey) editor.outdent();
 				else editor.indent();
@@ -1413,7 +1429,7 @@ function eventsEditor(editor) {
 		editor._refreshPopover(e.currentTarget, e);
 		editor._refreshToolbar();
 	}, {
-		delegate: "a, td, img",
+		delegate: "a, td, th, img",
 		capture: true
 	});
 	editor._watchContent();
@@ -1519,7 +1535,7 @@ function eventsSource(editor) {
 		}
 	});
 	editor.listen(editor._source, "keydown.ui.editor", (e) => {
-		if (e.code !== "Tab" || !e.ctrlKey || editor.node.readOnly || editor.node.matches(":disabled")) return;
+		if (e.code !== "Tab" || e.ctrlKey || e.metaKey || e.altKey || editor.node.readOnly || editor.node.matches(":disabled")) return;
 		e.preventDefault();
 		const start = $.getProperty(editor._source, "selectionStart");
 		const end = $.getProperty(editor._source, "selectionEnd");
@@ -2521,6 +2537,7 @@ function refreshPopover(editor, currentNode, event) {
 			}
 		}
 	});
+	$.addClass(editor._popover, editor.constructor.classes.popoverShow);
 	$.show(editor._popover);
 	switch (tagName) {
 		case "a":
@@ -2531,7 +2548,8 @@ function refreshPopover(editor, currentNode, event) {
 			editor._highlightImage(editor._currentNode);
 			$.show(editor._imgHighlight);
 			break;
-		case "td": editor._renderPopoverItems(editor.options.popovers.table);
+		case "td":
+		case "th": editor._renderPopoverItems(editor.options.popovers.table);
 	}
 	editor._popper.update();
 }
@@ -2543,6 +2561,7 @@ function removePopover(editor) {
 	if (!editor._currentNode) return;
 	$.hide(editor._imgHighlight);
 	$.hide(editor._imgCursor);
+	$.removeClass(editor._popover, editor.constructor.classes.popoverShow);
 	$.hide(editor._popover);
 	$.empty(editor._popoverBody);
 	editor._popper.dispose();

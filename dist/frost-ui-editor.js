@@ -622,7 +622,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		colorLabel: "d-block text-center",
 		colorLabelContainer: "p-2",
 		colorRow: "d-flex flex-row px-2",
-		container: "card shadow-sm",
+		container: "editor-panel card",
 		dropdown: "editor-dropdown dropdown-menu",
 		dropdownButtons: "pt-2 pe-1 pb-1 ps-2 text-nowrap",
 		dropdownGroup: "btn-group",
@@ -661,6 +661,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		popover: "editor-popover popover",
 		popoverArrow: "popover-arrow",
 		popoverBody: "popover-body mb-n1 ms-n2 me-n3",
+		popoverShow: "show",
 		resizeBar: "editor-resize card-footer",
 		source: "editor-source font-monospace border-0 p-2 mb-0 w-100",
 		sourceContainer: "d-flex h-100",
@@ -1315,6 +1316,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		editor._eventsPopover();
 		editor._eventsSource();
 		editor._eventsDrop();
+		let tabNavigation = false;
+		editor.listen(editor._container, "keydown.ui.editor", (event) => {
+			if (![editor._editor, editor._source].includes(event.target)) {
+				tabNavigation = false;
+				return;
+			}
+			if (event.code === "Escape" && !editor._currentNode && !editor._fullScreen) tabNavigation = true;
+			else if (event.code === "Tab" && tabNavigation) {
+				tabNavigation = false;
+				event.stopPropagation();
+			} else if (!["ShiftLeft", "ShiftRight"].includes(event.code)) tabNavigation = false;
+		}, { capture: true });
+		editor.listen(editor._container, "focusout.ui.editor", () => {
+			tabNavigation = false;
+		});
 		editor.listen(editor._container, "keydown.ui.editor", (event) => {
 			if (event.code === "Escape" && editor._currentNode && !editor._modal) {
 				event.preventDefault();
@@ -1426,7 +1442,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						}
 					}
 					break;
-				case "Tab": if (document.queryCommandState("insertOrderedList") || document.queryCommandState("insertUnorderedList")) {
+				case "Tab": if (!e.ctrlKey && !e.metaKey && !e.altKey && !editor.node.readOnly && !editor.node.matches(":disabled")) {
 					e.preventDefault();
 					if (e.shiftKey) editor.outdent();
 					else editor.indent();
@@ -1444,7 +1460,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			editor._refreshPopover(e.currentTarget, e);
 			editor._refreshToolbar();
 		}, {
-			delegate: "a, td, img",
+			delegate: "a, td, th, img",
 			capture: true
 		});
 		editor._watchContent();
@@ -1550,7 +1566,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}
 		});
 		editor.listen(editor._source, "keydown.ui.editor", (e) => {
-			if (e.code !== "Tab" || !e.ctrlKey || editor.node.readOnly || editor.node.matches(":disabled")) return;
+			if (e.code !== "Tab" || e.ctrlKey || e.metaKey || e.altKey || editor.node.readOnly || editor.node.matches(":disabled")) return;
 			e.preventDefault();
 			const start = _fr0st_query.default.getProperty(editor._source, "selectionStart");
 			const end = _fr0st_query.default.getProperty(editor._source, "selectionEnd");
@@ -2552,6 +2568,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				}
 			}
 		});
+		_fr0st_query.default.addClass(editor._popover, editor.constructor.classes.popoverShow);
 		_fr0st_query.default.show(editor._popover);
 		switch (tagName) {
 			case "a":
@@ -2562,7 +2579,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				editor._highlightImage(editor._currentNode);
 				_fr0st_query.default.show(editor._imgHighlight);
 				break;
-			case "td": editor._renderPopoverItems(editor.options.popovers.table);
+			case "td":
+			case "th": editor._renderPopoverItems(editor.options.popovers.table);
 		}
 		editor._popper.update();
 	}
@@ -2574,6 +2592,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		if (!editor._currentNode) return;
 		_fr0st_query.default.hide(editor._imgHighlight);
 		_fr0st_query.default.hide(editor._imgCursor);
+		_fr0st_query.default.removeClass(editor._popover, editor.constructor.classes.popoverShow);
 		_fr0st_query.default.hide(editor._popover);
 		_fr0st_query.default.empty(editor._popoverBody);
 		editor._popper.dispose();

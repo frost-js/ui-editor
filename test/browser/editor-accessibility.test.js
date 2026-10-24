@@ -20,7 +20,7 @@ test('formats from keyboard dropdown controls and restores focus with Escape', a
     await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 });
 
-test('allows Tab to leave source mode and supports Meta formatting and history shortcuts', async ({ page }) => {
+test('supports Escape then Tab to leave source mode and Meta formatting/history shortcuts', async ({ page }) => {
     await createEditor(page);
     await selectContents(page, '.editor p');
     await page.keyboard.press('Meta+b');
@@ -31,8 +31,11 @@ test('allows Tab to leave source mode and supports Meta formatting and history s
     await page.keyboard.press('Meta+Shift+z');
     await expect(page.locator('.editor')).toHaveText('Changed');
     await page.getByRole('button', { name: 'View Source', exact: true }).click();
+    const value = await page.locator('.editor-source').inputValue();
+    await page.keyboard.press('Escape');
     await page.keyboard.press('Tab');
     await expect(page.locator('.editor-source')).not.toBeFocused();
+    await expect(page.locator('.editor-source')).toHaveValue(value);
 });
 
 test('opens a dialog by keyboard and restores focus after Escape', async ({ page }) => {
@@ -94,6 +97,7 @@ test('positions and resizes an image in RTL and dismisses its context toolbar', 
     const image = page.locator('.editor img');
     await image.click();
     await expect(page.getByRole('group', { name: 'Context formatting', exact: true })).toBeVisible();
+    await expect(page.locator('.editor-popover')).toHaveCSS('opacity', '1');
     const rect = await image.boundingBox();
     const overlay = await page.locator('.editor-img-highlight').boundingBox();
     expect(Math.abs(rect.x - overlay.x)).toBeLessThanOrEqual(3);
@@ -108,18 +112,38 @@ test('positions and resizes an image in RTL and dismisses its context toolbar', 
     await expect(page.locator('.editor')).toBeFocused();
 });
 
-test('keeps focus visible and honors reduced motion and forced colors', async ({ page }) => {
+test('matches form-control focus styling across the panel and honors forced colors', async ({ page }) => {
     await createEditor(page);
+    const panel = page.locator('.editor-panel');
+    const expected = await page.evaluate(() => {
+        const input = document.createElement('input');
+        input.className = 'input-outline';
+        input.style.transition = 'none';
+        document.body.append(input);
+        input.focus();
+        const style = getComputedStyle(input);
+        const result = { shadow: style.boxShadow, border: style.borderColor };
+        input.remove();
+        return result;
+    });
     await page.locator('.editor').focus();
-    expect(await page.locator('.editor').evaluate((node) => getComputedStyle(node).outlineStyle)).toBe('solid');
-    await expect(page.getByRole('button', { name: 'Bold', exact: true })).toHaveCSS('transition-duration', '0s');
+    await expect(panel).toHaveCSS('box-shadow', expected.shadow);
+    await expect(panel).toHaveCSS('border-color', expected.border);
+    await expect(panel).toHaveCSS('outline-style', 'none');
+    await expect(page.locator('.editor')).toHaveCSS('outline-style', 'none');
+    const bold = page.getByRole('button', { name: 'Bold', exact: true });
+    await bold.focus();
+    await expect(panel).toHaveCSS('box-shadow', expected.shadow);
+    await expect(bold).toHaveCSS('transition-duration', '0s');
+    await page.getByRole('button', { name: 'View Source', exact: true }).click();
+    await expect(page.locator('.editor-source')).toBeFocused();
+    await expect(page.locator('.editor-source')).toHaveCSS('outline-style', 'none');
+    await expect(panel).toHaveCSS('box-shadow', expected.shadow);
     await page.emulateMedia({ forcedColors: 'active' });
-    await expect(page.locator('.editor')).toHaveCSS('outline-style', 'solid');
-    await page.locator('.editor').evaluate((node) => node.style.setProperty('--ui-editor-focus-width', '5px'));
+    await panel.evaluate((node) => node.style.setProperty('--ui-editor-focus-width', '5px'));
     // Forced colors intentionally supplies a high-contrast 2px outline.
-    await expect(page.locator('.editor')).toHaveCSS('outline-width', '2px');
+    await expect(panel).toHaveCSS('outline-width', '2px');
 });
-
 
 test('keeps formatting dropdowns within a mobile viewport and scrolls long menus', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 480 });
@@ -137,4 +161,38 @@ test('keeps formatting dropdowns within a mobile viewport and scrolls long menus
     const colorRect = await menu.boundingBox();
     expect(colorRect.x).toBeGreaterThanOrEqual(-1);
     expect(colorRect.x + colorRect.width).toBeLessThanOrEqual(321);
+});
+
+for (const height of ['auto', '260px']) {
+    test(`fills the ${height} editing body with a clickable focus surface before and after resizing`, async ({ page }) => {
+        await createEditor(page, '<p>Short content</p>', { height });
+        const surface = page.locator('.editor');
+        const body = page.locator('.card-body');
+        const checkFill = async () => {
+            const frame = await body.boundingBox();
+            const content = await surface.boundingBox();
+            expect(content.height).toBeGreaterThanOrEqual(frame.height - 1);
+            await page.mouse.click(frame.x + 12, frame.y + frame.height - 8);
+            await expect(surface).toBeFocused();
+        };
+        await checkFill();
+        const resize = page.getByRole('separator', { name: 'Resize editor' });
+        await resize.focus();
+        await page.keyboard.press('ArrowDown');
+        await checkFill();
+        await page.keyboard.press('Escape');
+        await page.keyboard.press('Tab');
+        await expect(surface).not.toBeFocused();
+    });
+}
+
+test('indents and outdents rich paragraphs with Tab and Shift+Tab', async ({ page }) => {
+    await createEditor(page, '<p>First</p><p>Second</p>');
+    await selectContents(page, '.editor');
+    await page.keyboard.press('Tab');
+    await expect(page.locator('.editor > div')).toHaveCSS('margin-inline-start', /px$/);
+    expect(await page.locator('.editor > div').evaluate((node) => parseFloat(getComputedStyle(node).marginInlineStart))).toBeGreaterThan(0);
+    await page.keyboard.press('Shift+Tab');
+    await expect(page.locator('.editor > p')).toHaveCount(2);
+    await expect(page.locator('.editor')).toBeFocused();
 });

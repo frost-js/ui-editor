@@ -2,9 +2,9 @@
 
 Bring `@fr0st/ui-editor` into line with the modern sibling `../ui-*` projects while preserving its editing features and supported customization hooks. Deliver the migration in the order below, with regression coverage established before changing editor behavior.
 
-Steps 1–8 are implemented locally. External coverage uploads and npm publishing remain gated pending service activation and trusted-publisher setup. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
+Steps 1–10 are implemented locally, with package metadata prepared for 3.0.0. Tagging and publication remain separate release actions. External coverage uploads and npm publishing remain gated pending service activation and trusted-publisher setup. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
 
-The starting point is commit `dc4c495`, which preserves the existing normalization, indentation, history, source-mode, bundle, and ESLint changes. JavaScript syntax checks passed for 23 files at that checkpoint; browser behavior and build reproducibility still need verification.
+The starting point is commit `dc4c495`, which preserved the existing normalization, indentation, history, source-mode, bundle, and ESLint changes. JavaScript syntax checks passed for 23 files at that checkpoint; the later verification records below cover browser behavior and build reproducibility.
 
 ## Reference projects
 
@@ -141,25 +141,25 @@ Acceptance: pull requests receive reproducible quality checks, stale bundles fai
 
 ## 9. Consolidate and update demos
 
-- [ ] Replace duplicated `demo/light/` and `demo/dark/` pages with `demo/index.html`, `demo/assets/demo.css`, and `demo/assets/demo.js`, following the modern sibling demos.
-- [ ] Add a system/light/dark theme control and section navigation. Keep useful scenarios from every existing demo available in the consolidated page.
-- [ ] Demonstrate default editing, custom toolbars/buttons, custom height, resizing on/off, multiple instances, source mode, lists/history, links/images/videos/tables, methods, and event logging.
-- [ ] Add form submission/reset, disabled state, RTL, and custom upload examples. Keep custom upload examples explicit about their callback contract.
-- [ ] Use supported Frost UI 4 npm CDN assets and local editor bundles in public demos; remove legacy GitHub `@latest` dependency URLs. Use installed dependencies in automated fixtures.
-- [ ] Verify no console errors, working navigation, keyboard access, responsive layout, and correct behavior in both themes. Link the demo from the README.
+- [x] Replace duplicated `demo/light/` and `demo/dark/` pages with `demo/index.html`, `demo/assets/demo.css`, and `demo/assets/demo.js`, following the modern sibling demos.
+- [x] Add a system/light/dark theme control and section navigation. Keep useful scenarios from every existing demo available in the consolidated page.
+- [x] Demonstrate default editing, custom toolbars/buttons, custom height, resizing on/off, multiple instances, source mode, lists/history, links/images/videos/tables, methods, and event logging.
+- [x] Add form submission/reset, disabled state, RTL, and custom upload examples. Keep custom upload examples explicit about their callback contract.
+- [x] Use supported Frost UI 4 npm CDN assets and local editor bundles in public demos; remove legacy GitHub `@latest` dependency URLs. Use installed dependencies in automated fixtures.
+- [x] Verify no console errors, working navigation, keyboard access, responsive layout, and correct behavior in both themes. Link the demo from the README.
 
 Acceptance: one navigable demo demonstrates the supported API and replaces the existing scenario coverage without duplicated theme pages.
 
 ## 10. Rewrite the README and prepare the release
 
-- [ ] Follow the sibling README structure: overview/highlights, badges, installation, usage, options, data attributes, methods, lifecycle, events, fQuery API, accessibility, forms, themes/RTL, Sass customization, development, and license.
-- [ ] Document bundler imports, browser ESM/import maps, and UMD script order. Explain shared peer dependencies, the browser DOM requirement, and the ESM-only package entry.
-- [ ] Document all editor-specific options and extension points, including toolbar/plugin customization, popovers, fonts/colors, keyboard callbacks, image upload, history limits, and language overrides.
-- [ ] Document HTML handling, event timing, source-mode synchronization, disposal, form reset/submission, and known browser limitations.
-- [ ] Document setup, supported Node versions, build/lint commands, browser installation, test/coverage commands, and the requirement to commit generated `dist` files.
-- [ ] Add migration instructions for changed APIs, output HTML, styles, import paths, and dependency requirements. Plan for `3.0.0` if the proposed compatibility changes are retained.
-- [ ] Run final verification from a clean install: lint, build, the complete browser suite, coverage, package-content checks, and a consumer smoke test using the packed tarball. Confirm package exports, CSS/Sass paths, and clean generated artifacts.
-- [ ] Verify README examples and demo snippets against the final implementation before tagging a release.
+- [x] Follow the sibling README structure: overview/highlights, badges, installation, usage, options, data attributes, methods, lifecycle, events, fQuery API, accessibility, forms, themes/RTL, Sass customization, development, and license.
+- [x] Document bundler imports, browser ESM/import maps, and UMD script order. Explain shared peer dependencies, the browser DOM requirement, and the ESM-only package entry.
+- [x] Document all editor-specific options and extension points, including toolbar/plugin customization, popovers, fonts/colors, keyboard callbacks, image upload, history limits, and language overrides.
+- [x] Document HTML handling, event timing, source-mode synchronization, disposal, form reset/submission, and known browser limitations.
+- [x] Document setup, supported Node versions, build/lint commands, browser installation, test/coverage commands, and the requirement to commit generated `dist` files.
+- [x] Add migration instructions for changed APIs, output HTML, styles, import paths, and dependency requirements. Plan for `3.0.0` if the proposed compatibility changes are retained.
+- [x] Run final verification from a clean install: lint, build, the complete browser suite, coverage, package-content checks, and a consumer smoke test using the packed tarball. Confirm package exports, CSS/Sass paths, and clean generated artifacts.
+- [x] Verify README examples and demo snippets against the final implementation before tagging a release.
 
 Acceptance: the package can be installed and used from its documented examples, breaking changes are explained, and release artifacts pass the same checks locally and in CI.
 
@@ -373,6 +373,30 @@ Read-only checks confirmed that `elusivecodes/FrostUI-Editor` has GitHub Actions
 
 - Quality checks and local coverage reports run regardless of service activation. Set the repository variable `CODECOV_ENABLED=true` only after activating the repository in Codecov and verifying OIDC upload access. The upload uses `codecov/codecov-action@v7`, `use_oidc: true`, and `id-token: write`, following the [official action documentation](https://github.com/codecov/codecov-action#using-oidc).
 - The release workflow validates published GitHub releases even while its final publishing step is disabled. Before setting `NPM_PUBLISH_ENABLED=true`, verify package access (and bootstrap the initial publication if needed), then configure npm's GitHub trusted publisher for owner `elusivecodes`, repository `FrostUI-Editor`, workflow `publish.yml`, and no environment restriction unless one is added to the workflow. Allow direct `npm publish` and confirm provenance support using [npm's trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/). The workflow uses Node 24 and tokenless OIDC.
-- These variables are unset, so the workflow files do not enable uploads or publication as part of this change. Actual hosted CI, Codecov upload, and npm publishing have not been run from this local checkout. Activation belongs with the confirmed repository/package destination and release preparation in step 10.
+- These variables are unset, so the workflow files do not enable uploads or publication as part of this change. Actual hosted CI, Codecov upload, and npm publishing have not been run from this local checkout. Activation remains a release prerequisite after local step 10 preparation; it depends on the confirmed repository/package destination.
 
-Steps 9–10 remain pending: consolidated demos and the complete README/release migration guide.
+### Steps 9–10 implementation and compatibility notes
+
+- `demo/index.html` replaces the duplicated light/dark pages and the separate methods/events pages. `demo/assets/demo.css` and `demo/assets/demo.js` follow the sibling layout. The page provides section navigation, persistent system/light/dark selection, default and compact toolbars, a custom plugin, height/resizing examples, independent editors, source/history controls, links/images/video/table tools, forms/reset/disabled/readonly behavior, RTL, methods, and bounded event logging.
+- Public demo dependencies use Frost UI 4 npm CDN assets with local editor bundles. Automated demo checks intercept those dependency requests with installed assets; they require no public CDN. The existing static test server serves explicit demo routes alongside the component fixtures.
+- The custom upload example is a local simulation with explicit file validation, error handling, editor-owned file reading, asynchronous disposal checks, and insertion through `insertImage`. Its callback contract and the application-server alternative are documented.
+- The README now covers supported imports and shared peers, options/data attributes, all public methods, lifecycle/events, fQuery dispatch, plugins/popovers, fonts/colors/styles/language, uploads, keyboard callbacks, forms, HTML policy, accessibility, themes/RTL, Sass, development, and release activation. The 2.x migration guide explains the dependency, ESM, source-path, content, form/event, source-keyboard, and Sass changes.
+- Manifest and lockfile root versions are 3.0.0 in preparation for the breaking release. Repository URLs remain `elusivecodes/FrostUI-Editor`. No tag, GitHub release, repository transfer, npm publication, or external service activation is part of this local migration; those actions require the confirmed destination and service prerequisites above.
+
+
+### Steps 9–10 verification
+
+- A clean `npm ci --no-audit --no-fund` succeeds against the final manifest/lockfile on Node 24.22.0. Shared JavaScript/stylesheet lint, unused Sass checks, and the demo stylesheet check pass. All 12 tracked distribution files are rebuilt with the final demo-review fixes; repeated builds produce byte-identical output.
+- The complete browser suite passes 441 checks (147 cases across Chromium, Firefox, and WebKit), with no skipped or expected-failure cases. The 12 demo checks cover navigation, persistent themes, mobile/RTL sizing, keyboard access, plugins/source mode, independent content, form submission/reset/disabled state, custom upload success/failure, lifecycle methods, and event logging. Additional regression cases cover full-body clicking/resizing, panel focus matching a real Frost UI outline input, header-cell context tools, and actual Tab/Shift+Tab input plus Escape-assisted focus navigation. Console errors and uncaught browser errors are rejected.
+- Coverage passes all 147 Chromium cases with no errors: 97.77% lines, 97.27% statements, 89.14% branches, and 99.42% functions. The existing source inclusion and coverage policy remain unchanged.
+- The light desktop and dark mobile demo layouts, visible table context toolbar, and final panel focus ring were visually inspected. All six npm CDN URLs used by the public demo and README import-map example return HTTP 200. Automated demo checks use installed peer assets independently of that CDN verification.
+- The packed `@fr0st/ui-editor@3.0.0` tarball contains 42 files, including all 12 distribution artifacts, with demos, tests, reports, temporary files, and CI configuration excluded. Installing it and its peers into an isolated consumer succeeds with normal peer validation.
+- The packed consumer builds the documented bundler imports and CSS, then exercises editing, undo, source round trips, and disposal through that build and all four expanded/minified UMD/ESM variants. Browser import maps use the documented minified peer assets. All variants pass without browser/console errors. Package-root/source/CSS/Sass exports resolve, configurable Sass compilation works, and the legacy `src/scss/vars.scss` alias compiles.
+- README/demo local links resolve, and `git diff --check` passes. The local migration is complete; hosted CI, external service activation, tagging, and publication are not claimed by these checks.
+
+
+### Final demo review corrections
+
+- Context toolbars now apply/remove Frost UI 4's `show` class as well as toggling display; the shared `.popover` rule otherwise leaves them transparent. Regression checks assert computed opacity for link, image, and table controls. Header cells now receive the same context actions as data cells.
+- The editor container uses a column flex layout and its editable surface grows to fill the body, including fixed-height and resized editors. Blank-area clicks now focus the editor across the editing body. The entire `.editor-panel` uses `:focus-within` to show the same focused border and translucent ring as Frost UI outline inputs, covering rich/source editing and toolbar focus. Inner editing surfaces no longer draw focus outlines. Focus CSS tokens are configured on the panel; forced colors supplies a visible outline.
+- Tab / Shift+Tab indent/outdent in rich and source editing. Ctrl/Meta/Alt+Tab are left to the browser. Escape followed by Tab / Shift+Tab permits ordinary focus navigation without indentation. This final contract supersedes the Ctrl+Tab source shortcut recorded at the earlier step 6 checkpoint; the README and demo help use the final keys. Source tests send actual keyboard input instead of synthetic Ctrl+Tab events.

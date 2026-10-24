@@ -1,0 +1,19 @@
+section[id] {
+    scroll-margin-top: 6rem;
+}
+
+.demo-event-log {
+    block-size: 15rem;
+    overflow-y: auto;
+}
+
+.demo-code {
+    max-inline-size: 100%;
+    padding: 1rem;
+    overflow: auto;
+    background: var(--ui-secondary-bg);
+}
+
+.demo-event-log > div {
+    overflow-wrap: anywhere;
+}
