@@ -25,14 +25,7 @@ export function _execCommand(command, value) {
 
     this._focusEditor();
 
-    document.execCommand('styleWithCSS', false, ['backColor', 'fontName', 'fontSize', 'foreColor'].includes(command));
-
-    if (['insertOrderedList', 'insertUnorderedList'].includes(command)) {
-        this._observe(false);
-        document.execCommand('formatBlock', false, 'p');
-        this._observe();
-    }
-
+    document.execCommand('styleWithCSS', false, !['bold', 'indent', 'italic', 'outdent', 'strikethrough', 'subscript', 'superscript', 'underline'].includes(command));
     document.execCommand(command, false, value);
 };
 
@@ -251,7 +244,6 @@ export function _updateValue() {
     this._addHistory({ html, selectionData });
 
     $.setValue(this._node, html);
-    $.setValue(this._source, html);
 
     $.triggerEvent(this._node, 'change.ui.editor');
 };

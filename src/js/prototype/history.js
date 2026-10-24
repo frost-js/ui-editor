@@ -75,7 +75,6 @@ export function _restoreHistory({ html, selectionData = null } = {}) {
 
     $.setHTML(this._editor, html);
     $.setValue(this._node, html);
-    $.setValue(this._source, html);
 
     const selection = window.getSelection();
 

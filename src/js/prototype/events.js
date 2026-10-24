@@ -99,16 +99,39 @@ export function _eventsEditor() {
             this._options.keyDown.bind(this)(e);
         }
 
+        const selection = window.getSelection();
+
+        const isIndented = (node) => {
+            return $.is(node, 'li') || $.getStyle(node, 'marginLeft');
+        };
+
         switch (e.code) {
             case 'Backspace':
-                if ($.contents(this._editor).length <= 1 && $.getText(this._editor) === '') {
+                if (
+                    selection.isCollapsed &&
+                    $.isSame(selection.anchorNode, selection.focusNode) &&
+                    (
+                        (
+                            $._isElement(selection.anchorNode) &&
+                            $.getText(selection.anchorNode) === '' &&
+                            isIndented(selection.anchorNode)
+                        ) ||
+                        (
+                            $._isText(selection.anchorNode) &&
+                            selection.anchorOffset === 0 &&
+                            isIndented($.parent(selection.anchorNode))
+                        )
+                    )
+                ) {
+                    e.preventDefault();
+
+                    this.outdent();
+                } else if ($.contents(this._editor).length <= 1 && $.getText(this._editor) === '') {
                     e.preventDefault();
                 }
 
                 break;
             case 'Delete':
-                const selection = window.getSelection();
-
                 if (
                     selection.isCollapsed &&
                     $.isSame(selection.anchorNode, selection.focusNode) &&
@@ -132,6 +155,17 @@ export function _eventsEditor() {
                     }
                 }
 
+                break;
+            case 'Tab':
+                if (document.queryCommandState('insertOrderedList') || document.queryCommandState('insertUnorderedList')) {
+                    e.preventDefault();
+
+                    if (e.shiftKey) {
+                        this.outdent();
+                    } else {
+                        this.indent();
+                    }
+                }
                 break;
         }
     });
@@ -290,15 +324,12 @@ export function _eventsSource() {
 
         refreshLineNumbersDebounced();
 
-        this._addHistory({ html });
-
-        $.setHTML(this._editor, html);
         $.setValue(this._node, html);
         $.triggerEvent(this._node, 'change.ui.editor');
     });
 
     $.addEvent(this._source, 'keydown.ui.editor', (e) => {
-        if (e.key !== 'Tab') {
+        if (e.code !== 'Tab') {
             return;
         }
 

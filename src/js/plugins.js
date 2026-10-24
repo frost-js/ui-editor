@@ -109,8 +109,6 @@ export default {
     },
     orderedList: {
         command: 'insertOrderedList',
-        disableCheck: () => !['', 'p']
-            .includes(document.queryCommandValue('formatBlock')),
     },
     outdent: {
         command: 'outdent',
@@ -132,10 +130,17 @@ export default {
     },
     source: {
         action() {
+            const value = $.getValue(this._node);
+
             if ($.isVisible(this._sourceContainer)) {
+                this._addHistory({ html: value });
+                $.setHTML(this._editor, value);
+
                 this._showEditor();
                 $.focus(this._editor);
             } else {
+                $.setValue(this._source, value);
+
                 this._showSource();
                 $.focus(this._source);
             }
@@ -150,9 +155,6 @@ export default {
         dropdown(dropdown) {
             this._styleDropdown(dropdown);
         },
-        disableCheck: (_) =>
-            document.queryCommandState('insertOrderedList') ||
-            document.queryCommandState('insertUnorderedList'),
     },
     subscript: {
         command: 'subscript',
@@ -179,8 +181,6 @@ export default {
     },
     unorderedList: {
         command: 'insertUnorderedList',
-        disableCheck: () => !['', 'p']
-            .includes(document.queryCommandValue('formatBlock')),
     },
     video: {
         action() {

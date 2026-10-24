@@ -1,7 +1,8 @@
 import $ from '@fr0st/query';
 import { BaseComponent, Modal } from '@fr0st/ui';
 import { addEditor, removeEditor } from './helpers.js';
-import { getRange, selectRange } from './selection.js';
+import { swapTags } from './nodes.js';
+import { getRange, restoreSelection, saveSelection, selectRange } from './selection.js';
 
 /**
  * Editor
@@ -38,7 +39,6 @@ export default class Editor extends BaseComponent {
 
         const html = $.getValue(this._node);
         $.setHTML(this._editor, html);
-        $.setValue(this._source, html);
 
         const range = getRange();
 
@@ -193,7 +193,81 @@ export default class Editor extends BaseComponent {
      * Indent the selection.
      */
     indent() {
-        this._execCommand('indent');
+        if ($.is(this._node, ':disabled')) {
+            return;
+        }
+
+        this._observe(false);
+        this._focusEditor();
+
+        const markers = saveSelection();
+
+        const selection = getSelection();
+
+        const getSelectedNodes = (parent) => {
+            const nodes = [];
+            const contents = $.contents(parent);
+
+            for (const content of contents) {
+                if (!selection.containsNode(content, true)) {
+                    continue;
+                }
+
+                if ($._isText(content) || selection.containsNode(content)) {
+                    nodes.push(content);
+                    continue;
+                }
+
+                const containedNodes = getSelectedNodes(content);
+                const childContents = $.contents(content);
+
+                debugger;
+                if (containedNodes.length === childContents.length) {
+                    nodes.push(content);
+                } else {
+                    nodes.push(...containedNodes);
+                }
+            }
+
+            return nodes;
+        };
+
+        const nodes = getSelectedNodes(this._editor);
+
+        while (nodes.length) {
+            const subNodes = [];
+            subNodes.push(nodes.shift());
+
+            while (nodes.length && $.isSame(nodes[0], subNodes.at(-1).nextSibling)) {
+                subNodes.push(nodes.shift());
+            }
+
+            const parent = $.parent(subNodes[0]).shift();
+
+            if ($.is(parent, 'ol, ul')) {
+                const tagName = $.tagName(parent);
+                const element = $.create(tagName);
+                $.before(subNodes[0], element);
+                $.append(element, subNodes);
+                continue;
+            }
+
+            const container = $.create('div', {
+                style: {
+                    marginLeft: '2em',
+                    marginBottom: 0
+                }
+            });
+
+            $.before(subNodes[0], container);
+            $.append(container, subNodes);
+        }
+
+        restoreSelection(markers);
+
+        this._normalize();
+        this._updateValue();
+        this._observe();
     }
 
     /**
@@ -314,7 +388,32 @@ export default class Editor extends BaseComponent {
      * Outdent the selection.
      */
     outdent() {
+        if ($.is(this._node, ':disabled')) {
+            return;
+        }
+
+        this._observe(false);
+        this._focusEditor();
+
+        const markers1 = saveSelection();
+
+        const blockquotes = $.find('.blockquote', this._editor);
+
+        const tempDivs = swapTags(blockquotes, 'div');
+
+        restoreSelection(markers1);
+
         this._execCommand('outdent');
+
+        const markers2 = saveSelection();
+
+        swapTags(tempDivs, 'blockquote');
+
+        restoreSelection(markers2);
+
+        this._normalize();
+        this._updateValue();
+        this._observe();
     }
 
     /**

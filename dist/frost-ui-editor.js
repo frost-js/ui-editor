@@ -240,6 +240,43 @@
         dragCount = 0;
     }
 
+    function replaceElement(oldElement, newElement) {
+        const newStyles = {
+            ...$.getStyle(oldElement),
+            ...$.getStyle(newElement)
+        };
+
+        const newClasses = [
+            $.getAttribute(oldElement, 'class') || '',
+            $.getAttribute(newElement, 'class') || ''
+        ];
+
+        $.setAttribute(newElement, {
+            ...$.getAttribute(oldElement),
+            ...$.getAttribute(newElement)
+        });
+
+        $.setStyle(newElement, newStyles);
+        $.addClass(newElement, newClasses);
+
+        $.append(newElement, $.contents(oldElement));
+        $.before(oldElement, newElement);
+        $.detach(oldElement);
+    }
+    function swapTags(elements, tagName) {
+        const results = [];
+
+        for (const element of elements) {
+            const newElement = $.create(tagName);
+
+            replaceElement(element, newElement);
+
+            results.push(newElement);
+        }
+
+        return results;
+    }
+
     /**
      * Editor
      * @class
@@ -275,7 +312,6 @@
 
             const html = $.getValue(this._node);
             $.setHTML(this._editor, html);
-            $.setValue(this._source, html);
 
             const range = getRange();
 
@@ -430,7 +466,81 @@
          * Indent the selection.
          */
         indent() {
-            this._execCommand('indent');
+            if ($.is(this._node, ':disabled')) {
+                return;
+            }
+
+            this._observe(false);
+            this._focusEditor();
+
+            const markers = saveSelection();
+
+            const selection = getSelection();
+
+            const getSelectedNodes = (parent) => {
+                const nodes = [];
+                const contents = $.contents(parent);
+
+                for (const content of contents) {
+                    if (!selection.containsNode(content, true)) {
+                        continue;
+                    }
+
+                    if ($._isText(content) || selection.containsNode(content)) {
+                        nodes.push(content);
+                        continue;
+                    }
+
+                    const containedNodes = getSelectedNodes(content);
+                    const childContents = $.contents(content);
+
+                    debugger;
+                    if (containedNodes.length === childContents.length) {
+                        nodes.push(content);
+                    } else {
+                        nodes.push(...containedNodes);
+                    }
+                }
+
+                return nodes;
+            };
+
+            const nodes = getSelectedNodes(this._editor);
+
+            while (nodes.length) {
+                const subNodes = [];
+                subNodes.push(nodes.shift());
+
+                while (nodes.length && $.isSame(nodes[0], subNodes.at(-1).nextSibling)) {
+                    subNodes.push(nodes.shift());
+                }
+
+                const parent = $.parent(subNodes[0]).shift();
+
+                if ($.is(parent, 'ol, ul')) {
+                    const tagName = $.tagName(parent);
+                    const element = $.create(tagName);
+                    $.before(subNodes[0], element);
+                    $.append(element, subNodes);
+                    continue;
+                }
+
+                const container = $.create('div', {
+                    style: {
+                        marginLeft: '2em',
+                        marginBottom: 0
+                    }
+                });
+
+                $.before(subNodes[0], container);
+                $.append(container, subNodes);
+            }
+
+            restoreSelection(markers);
+
+            this._normalize();
+            this._updateValue();
+            this._observe();
         }
 
         /**
@@ -551,7 +661,32 @@
          * Outdent the selection.
          */
         outdent() {
+            if ($.is(this._node, ':disabled')) {
+                return;
+            }
+
+            this._observe(false);
+            this._focusEditor();
+
+            const markers1 = saveSelection();
+
+            const blockquotes = $.find('.blockquote', this._editor);
+
+            const tempDivs = swapTags(blockquotes, 'div');
+
+            restoreSelection(markers1);
+
             this._execCommand('outdent');
+
+            const markers2 = saveSelection();
+
+            swapTags(tempDivs, 'blockquote');
+
+            restoreSelection(markers2);
+
+            this._normalize();
+            this._updateValue();
+            this._observe();
         }
 
         /**
@@ -778,8 +913,6 @@
         },
         orderedList: {
             command: 'insertOrderedList',
-            disableCheck: () => !['', 'p']
-                .includes(document.queryCommandValue('formatBlock')),
         },
         outdent: {
             command: 'outdent',
@@ -801,10 +934,17 @@
         },
         source: {
             action() {
+                const value = $.getValue(this._node);
+
                 if ($.isVisible(this._sourceContainer)) {
+                    this._addHistory({ html: value });
+                    $.setHTML(this._editor, value);
+
                     this._showEditor();
                     $.focus(this._editor);
                 } else {
+                    $.setValue(this._source, value);
+
                     this._showSource();
                     $.focus(this._source);
                 }
@@ -819,9 +959,6 @@
             dropdown(dropdown) {
                 this._styleDropdown(dropdown);
             },
-            disableCheck: (_) =>
-                document.queryCommandState('insertOrderedList') ||
-                document.queryCommandState('insertUnorderedList'),
         },
         subscript: {
             command: 'subscript',
@@ -848,8 +985,6 @@
         },
         unorderedList: {
             command: 'insertUnorderedList',
-            disableCheck: () => !['', 'p']
-                .includes(document.queryCommandValue('formatBlock')),
         },
         video: {
             action() {
@@ -1271,16 +1406,39 @@
                 this._options.keyDown.bind(this)(e);
             }
 
+            const selection = window.getSelection();
+
+            const isIndented = (node) => {
+                return $.is(node, 'li') || $.getStyle(node, 'marginLeft');
+            };
+
             switch (e.code) {
                 case 'Backspace':
-                    if ($.contents(this._editor).length <= 1 && $.getText(this._editor) === '') {
+                    if (
+                        selection.isCollapsed &&
+                        $.isSame(selection.anchorNode, selection.focusNode) &&
+                        (
+                            (
+                                $._isElement(selection.anchorNode) &&
+                                $.getText(selection.anchorNode) === '' &&
+                                isIndented(selection.anchorNode)
+                            ) ||
+                            (
+                                $._isText(selection.anchorNode) &&
+                                selection.anchorOffset === 0 &&
+                                isIndented($.parent(selection.anchorNode))
+                            )
+                        )
+                    ) {
+                        e.preventDefault();
+
+                        this.outdent();
+                    } else if ($.contents(this._editor).length <= 1 && $.getText(this._editor) === '') {
                         e.preventDefault();
                     }
 
                     break;
                 case 'Delete':
-                    const selection = window.getSelection();
-
                     if (
                         selection.isCollapsed &&
                         $.isSame(selection.anchorNode, selection.focusNode) &&
@@ -1304,6 +1462,17 @@
                         }
                     }
 
+                    break;
+                case 'Tab':
+                    if (document.queryCommandState('insertOrderedList') || document.queryCommandState('insertUnorderedList')) {
+                        e.preventDefault();
+
+                        if (e.shiftKey) {
+                            this.outdent();
+                        } else {
+                            this.indent();
+                        }
+                    }
                     break;
             }
         });
@@ -1459,15 +1628,12 @@
 
             refreshLineNumbersDebounced();
 
-            this._addHistory({ html });
-
-            $.setHTML(this._editor, html);
             $.setValue(this._node, html);
             $.triggerEvent(this._node, 'change.ui.editor');
         });
 
         $.addEvent(this._source, 'keydown.ui.editor', (e) => {
-            if (e.key !== 'Tab') {
+            if (e.code !== 'Tab') {
                 return;
             }
 
@@ -1604,14 +1770,7 @@
 
         this._focusEditor();
 
-        document.execCommand('styleWithCSS', false, ['backColor', 'fontName', 'fontSize', 'foreColor'].includes(command));
-
-        if (['insertOrderedList', 'insertUnorderedList'].includes(command)) {
-            this._observe(false);
-            document.execCommand('formatBlock', false, 'p');
-            this._observe();
-        }
-
+        document.execCommand('styleWithCSS', false, !['bold', 'indent', 'italic', 'outdent', 'strikethrough', 'subscript', 'superscript', 'underline'].includes(command));
         document.execCommand(command, false, value);
     }
     /**
@@ -1820,7 +1979,6 @@
         this._addHistory({ html, selectionData });
 
         $.setValue(this._node, html);
-        $.setValue(this._source, html);
 
         $.triggerEvent(this._node, 'change.ui.editor');
     }
@@ -1896,7 +2054,6 @@
 
         $.setHTML(this._editor, html);
         $.setValue(this._node, html);
-        $.setValue(this._source, html);
 
         const selection = window.getSelection();
 
@@ -2133,20 +2290,20 @@
     const transparent = 'rgba(0, 0, 0, 0)';
 
     /**
-     * Determine if a node is a form element.
-     * https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
-     * @param {Node} node The input node.
-     * @return {Boolean} TRUE if the node is a form element, otherwise FALSE.
-     */
-    const isFormElement = (node) => $.is(node, 'button, fieldset, input, object, output, select, textarea');
-
-    /**
      * Determine if a node is phrasing content.
      * https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
      * @param {Node} node The input node.
      * @return {Boolean} TRUE if the node is phrasing content, otherwise FALSE.
      */
     const isPhrasingContent = (node) => $._isText(node) || $.is(node, 'a, abbr, area, audio, b, bdi, bdo, br, button, cite, code, data, datalist, del, dfn, em, embed, i, iframe, img, input, ins, kbd, label, map, mark, math, meter, noscript, object, output, picture, progress, q, ruby, s, samp, script, select, slot, small, span, strong, sub, sup, svg, template, textarea, time, u, var, video, wbr');
+
+    /**
+     * Determine if a node is a form element.
+     * https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
+     * @param {Node} node The input node.
+     * @return {Boolean} TRUE if the node is a form element, otherwise FALSE.
+     */
+    const isFormElement = (node) => $.is(node, 'button, fieldset, input, object, output, select, textarea');
 
     /**
      * Determine if a node is a void element.
@@ -2228,6 +2385,64 @@
 
                 const nextSiblings = contents.splice(i);
                 $.after(element, nextSiblings);
+
+                // TODO: check
+                if ($.is(element, 'p')) {
+                    break;
+                }
+
+                const tagName = $.tagName(element);
+
+                const wrapContents = (parent, nodes) => {
+                    const stack = [];
+                    let lastNode;
+
+                    for (const node of nodes) {
+                        if (isPhrasingContent(node)) {
+                            stack.push(node);
+                            continue;
+                        }
+
+                        if (stack.length) {
+                            const clone = $.clone(element, { deep: false });
+                            const tempNodes = stack.splice(0);
+                            $.append(clone, tempNodes);
+                            $.before(node, clone);
+                        }
+
+                        lastNode = node;
+
+                        if ($.is(node, tagName)) {
+                            continue;
+                        }
+
+                        if ($.is(node, 'h1, h2, h3, h4, h5, h6, p, pre')) {
+                            const clone = $.clone(element, { deep: false });
+                            replaceElement(node, clone);
+                            lastNode = clone;
+                            continue;
+                        }
+
+                        const contents = $.contents(node);
+
+                        wrapContents(node, contents);
+                    }
+
+                    if (stack.length) {
+                        const clone = $.clone(element, { deep: false });
+                        $.append(clone, stack);
+
+                        if (lastNode) {
+                            $.after(lastNode, clone);
+                        } else {
+                            $.append(parent, clone);
+                        }
+                    }
+
+                    return stack;
+                };
+
+                wrapContents(element, nextSiblings);
                 break;
             }
 
@@ -2241,21 +2456,20 @@
      * @param {HTMLElement} container The container.
      */
     function normalizeSpans(container) {
-        const spans = $.find('span', container);
+        const elements = $.find('span', container);
 
-        for (const span of spans) {
-            if ([...$.getProperty(span, 'attributes')].length) {
+        for (const element of elements) {
+            if ([...$.getProperty(element, 'attributes')].length) {
                 continue;
             }
 
-            const contents = $.contents(span);
+            const contents = $.contents(element);
 
             if (contents.length) {
-                $.after(span, contents);
-                next = contents[0];
+                $.after(element, contents);
             }
 
-            $.detach(span);
+            $.detach(element);
         }
     }
     /**
@@ -2263,39 +2477,39 @@
      * @param {HTMLElement} container The container.
      */
     function normalizeStyles(container) {
-        const styleNodes = $.find('[style]', container);
+        const elements = $.find('[style]', container);
 
-        for (const styleNode of styleNodes) {
-            const styles = $.getStyle(styleNode);
+        for (const element of elements) {
+            const styles = $.getStyle(element);
 
             for (const [style, value] of Object.entries(styles)) {
                 if (value === 'inherit') {
-                    $.removeStyle(styleNode, style);
+                    $.removeStyle(element, style);
                     continue;
                 }
 
-                const clone = $.clone(styleNode, { deep: false });
-                $.after(styleNode, clone);
+                const clone = $.clone(element, { deep: false });
+                $.after(element, clone);
                 $.removeAttribute(clone, 'style');
                 let testValue = $.css(clone, style);
                 $.detach(clone);
 
                 if (style === 'background-color' && testValue === transparent) {
-                    testValue = [container, ...$.parents(styleNode, null, container)]
+                    testValue = [container, ...$.parents(element, null, container)]
                         .map((parent) => $.css(parent, style))
                         .filter((parentStyle) => parentStyle !== transparent)
                         .pop();
                 }
 
-                const cssValue = $.css(styleNode, style);
+                const cssValue = $.css(element, style);
 
                 if (cssValue === testValue) {
-                    $.removeStyle(styleNode, style);
+                    $.removeStyle(element, style);
                 }
             }
 
-            if ($.getAttribute(styleNode, 'style') === '') {
-                $.removeAttribute(styleNode, 'style');
+            if ($.getAttribute(element, 'style') === '') {
+                $.removeAttribute(element, 'style');
             }
         }
     }
@@ -3549,7 +3763,7 @@
         colorLabel: 'd-block text-center',
         colorLabelContainer: 'p-2',
         colorRow: 'd-flex flex-row px-2',
-        container: 'card overflow-hidden shadow-sm',
+        container: 'card shadow-sm',
         dropdown: 'dropdown-menu',
         dropdownButtons: 'pt-2 pe-1 pb-1 ps-2 text-nowrap',
         dropdownGroup: 'btn-group',
@@ -3557,7 +3771,7 @@
         dropdownItemDisabled: 'disabled',
         dropdownToggle: 'dropdown-toggle',
         dropHover: 'text-primary',
-        dropTarget: 'editor-drop-target position-absolute w-100 text-center',
+        dropTarget: 'editor-drop-target position-absolute w-100 text-center rounded',
         dropText: 'position-absolute top-50 translate-middle h5 pe-none',
         editor: 'editor w-100 p-2 outline-0',
         editorBody: 'card-body d-flex p-0',
