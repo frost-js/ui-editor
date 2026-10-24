@@ -1,5 +1,5 @@
 import $ from '@fr0st/query';
-import { Modal, generateId } from '@fr0st/ui';
+import { generateId, Modal } from '@fr0st/ui';
 import { getRange, selectNode, selectRange } from './../selection.js';
 
 /**
@@ -13,7 +13,7 @@ export function _removeModal() {
     Modal.init(this._modal).dispose();
     $.remove(this._modal);
     this._modal = null;
-};
+}
 
 /**
  * Show the image modal.
@@ -57,7 +57,7 @@ export function _showImageModal() {
             const src = $.getValue(urlInput);
 
             if (files.length) {
-                this._options.imageUpload.bind(this)(files);
+                this.options.imageUpload.bind(this)(files);
             } else if (src) {
                 this.insertImage(src);
             }
@@ -70,7 +70,7 @@ export function _showImageModal() {
             selectRange(originalRange);
         },
     });
-};
+}
 
 /**
  * Show the link modal.
@@ -158,7 +158,7 @@ export function _showLinkModal(link) {
             selectRange(originalRange);
         },
     });
-};
+}
 
 /**
  * Show the video modal.
@@ -220,4 +220,4 @@ export function _showVideoModal() {
             selectRange(originalRange);
         },
     });
-};
+}

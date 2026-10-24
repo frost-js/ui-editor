@@ -1,21 +1,24 @@
 import $ from '@fr0st/query';
 
-
-
+/**
+ * Replaces an element while preserving its children, attributes, styles, and classes.
+ * @param {HTMLElement} oldElement The element to replace.
+ * @param {HTMLElement} newElement The replacement element.
+ */
 export function replaceElement(oldElement, newElement) {
     const newStyles = {
         ...$.getStyle(oldElement),
-        ...$.getStyle(newElement)
+        ...$.getStyle(newElement),
     };
 
     const newClasses = [
         $.getAttribute(oldElement, 'class') || '',
-        $.getAttribute(newElement, 'class') || ''
+        $.getAttribute(newElement, 'class') || '',
     ];
 
     $.setAttribute(newElement, {
         ...$.getAttribute(oldElement),
-        ...$.getAttribute(newElement)
+        ...$.getAttribute(newElement),
     });
 
     $.setStyle(newElement, newStyles);
@@ -24,8 +27,14 @@ export function replaceElement(oldElement, newElement) {
     $.append(newElement, $.contents(oldElement));
     $.before(oldElement, newElement);
     $.detach(oldElement);
-};
+}
 
+/**
+ * Replaces element tags while retaining their content and attributes.
+ * @param {HTMLElement[]} elements The elements to replace.
+ * @param {string} tagName The replacement tag name.
+ * @returns {HTMLElement[]} The replacement elements.
+ */
 export function swapTags(elements, tagName) {
     const results = [];
 
@@ -38,4 +47,4 @@ export function swapTags(elements, tagName) {
     }
 
     return results;
-};
+}

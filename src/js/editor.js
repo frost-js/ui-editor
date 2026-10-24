@@ -17,18 +17,15 @@ export default class Editor extends BaseComponent {
     constructor(node, options) {
         super(node, options);
 
-        if (!this._options.buttons) {
-            this._options.buttons = this.constructor.buttons;
-        }
+        this._toolbarButtons = this.options.buttons || this.constructor.buttons;
 
-        if (!this._options.fonts) {
-            this._options.fonts = this.constructor.fonts;
-        }
+        this._fonts = this.options.fonts || this.constructor.fonts;
+        this._defaultFont = this.options.defaultFont;
 
-        this._options.fonts = this._options.fonts.filter((font) => document.fonts.check(`12px ${font}`));
+        this._fonts = this._fonts.filter((font) => document.fonts.check(`12px ${font}`));
 
-        if (!this._options.fonts.includes(this._options.defaultFont)) {
-            this._options.defaultFont = this._options.fonts.slice().shift();
+        if (!this._fonts.includes(this._defaultFont)) {
+            this._defaultFont = this._fonts.slice().shift();
         }
 
         this._buttons = [];
@@ -37,8 +34,8 @@ export default class Editor extends BaseComponent {
 
         this._render();
 
-        const html = $.getValue(this._node);
-        $.setHTML(this._editor, html);
+        const html = $.getValue(this.node);
+        $.setHtml(this._editor, html);
 
         const range = getRange();
 
@@ -56,7 +53,7 @@ export default class Editor extends BaseComponent {
 
         addEditor(this);
 
-        $.triggerEvent(this._node, 'init.ui.editor');
+        $.triggerEvent(this.node, 'init.ui.editor');
     }
 
     /**
@@ -78,7 +75,7 @@ export default class Editor extends BaseComponent {
      * Disable the Editor.
      */
     disable() {
-        $.setAttribute(this._node, { disabled: true });
+        $.setAttribute(this.node, { disabled: true });
         this._refreshDisabled();
         this._refreshToolbar();
     }
@@ -111,8 +108,8 @@ export default class Editor extends BaseComponent {
         this._observe = null;
 
         $.remove(this._container);
-        $.show(this._node);
-        $.removeAttribute(this._node, 'tabindex');
+        $.show(this.node);
+        $.removeAttribute(this.node, 'tabindex');
 
         this._buttons = null;
 
@@ -149,7 +146,7 @@ export default class Editor extends BaseComponent {
      * Enable the Editor.
      */
     enable() {
-        $.removeAttribute(this._node, 'disabled');
+        $.removeAttribute(this.node, 'disabled');
         this._refreshDisabled();
         this._refreshToolbar();
     }
@@ -174,14 +171,6 @@ export default class Editor extends BaseComponent {
     }
 
     /**
-     * Format the selected block level element.
-     * @param {string} value The tag name.
-     */
-    formatBlock(value) {
-        this._execCommand('formatBlock', value);
-    }
-
-    /**
      * Set the foreground color.
      * @param {string} value The foreground color.
      */
@@ -190,10 +179,18 @@ export default class Editor extends BaseComponent {
     }
 
     /**
+     * Format the selected block level element.
+     * @param {string} value The tag name.
+     */
+    formatBlock(value) {
+        this._execCommand('formatBlock', value);
+    }
+
+    /**
      * Indent the selection.
      */
     indent() {
-        if ($.is(this._node, ':disabled')) {
+        if ($.is(this.node, ':disabled')) {
             return;
         }
 
@@ -221,7 +218,6 @@ export default class Editor extends BaseComponent {
                 const containedNodes = getSelectedNodes(content);
                 const childContents = $.contents(content);
 
-                debugger;
                 if (containedNodes.length === childContents.length) {
                     nodes.push(content);
                 } else {
@@ -255,8 +251,8 @@ export default class Editor extends BaseComponent {
             const container = $.create('div', {
                 style: {
                     marginLeft: '2em',
-                    marginBottom: 0
-                }
+                    marginBottom: 0,
+                },
             });
 
             $.before(subNodes[0], container);
@@ -296,7 +292,7 @@ export default class Editor extends BaseComponent {
 
         const newImg = this._insertNode(img);
 
-        const image = new Image;
+        const image = new Image();
         image.onload = (_) => {
             const maxWidth = $.width(this._editor, { boxSize: $.CONTENT_BOX });
             const width = Math.min(image.width, maxWidth);
@@ -310,7 +306,7 @@ export default class Editor extends BaseComponent {
      * Insert a link.
      * @param {string} href The link href.
      * @param {string} text The link text.
-     * @param {Boolean} [newWindow] Whether to open the link in a new window.
+     * @param {boolean} [newWindow] Whether to open the link in a new window.
      */
     insertLink(href, text, newWindow) {
         const link = $.create('a', {
@@ -328,18 +324,18 @@ export default class Editor extends BaseComponent {
     }
 
     /**
+     * Create an ordered list for the selection.
+     */
+    insertOrderedList() {
+        this._execCommand('insertOrderedList');
+    }
+
+    /**
      * Insert a text string.
      * @param {string} value The text.
      */
     insertText(value) {
         this._execCommand('insertText', value);
-    }
-
-    /**
-     * Create an ordered list for the selection.
-     */
-    insertOrderedList() {
-        this._execCommand('insertOrderedList');
     }
 
     /**
@@ -388,7 +384,7 @@ export default class Editor extends BaseComponent {
      * Outdent the selection.
      */
     outdent() {
-        if ($.is(this._node, ':disabled')) {
+        if ($.is(this.node, ':disabled')) {
             return;
         }
 

@@ -2,9 +2,9 @@ import $ from '@fr0st/query';
 
 /**
  * Get a node from a container path.
- * @param {array} path The path.
+ * @param {Array} path The path.
  * @param {HTMLElement} container The container.
- * @return {Node|HTMLElement} The node.
+ * @returns {Node|HTMLElement} The node.
  */
 function getNodeFromPath(path, container) {
     let current = container;
@@ -13,13 +13,13 @@ function getNodeFromPath(path, container) {
     }
 
     return current;
-};
+}
 
 /**
  * Get the path to a node from a container.
  * @param {Node|HTMLElement} node The node.
  * @param {HTMLElement} container The container.
- * @return {array} The path.
+ * @returns {Array} The path.
  */
 function getPathToNode(node, container) {
     if ($.isSame(node, container)) {
@@ -28,23 +28,25 @@ function getPathToNode(node, container) {
 
     return [...$.parents(node, null, container), node]
         .map((node) => $.contents($.parent(node).shift()).indexOf(node));
-};
+}
 
 /**
  * Add an item to the history.
  * @param {object} [data] The history data.
+ * @param {string} data.html The serialized editor content.
+ * @param {object|null} [data.selectionData=null] The saved selection paths and offsets.
  */
 export function _addHistory({ html, selectionData = null } = {}) {
     this._history.push({ html, selectionData });
 
-    while (this._history.length > this._options.historyLimit) {
+    while (this._history.length > this.options.historyLimit) {
         this._history.shift();
     }
-};
+}
 
 /**
  * Get selection data for history.
- * @return {object} The selection data.
+ * @returns {object} The selection data.
  */
 export function _getSelectionData() {
     const { anchorNode, anchorOffset, focusNode, focusOffset } = window.getSelection();
@@ -60,21 +62,23 @@ export function _getSelectionData() {
 
     return {
         anchorPath: getPathToNode(anchorNode, this._editor),
-        anchorOffset: anchorOffset,
+        anchorOffset,
         focusPath: getPathToNode(focusNode, this._editor),
-        focusOffset: focusOffset,
+        focusOffset,
     };
-};
+}
 
 /**
  * Restore an item from history.
  * @param {object} [data] The history data.
+ * @param {string} data.html The serialized editor content.
+ * @param {object|null} [data.selectionData=null] The saved selection paths and offsets.
  */
 export function _restoreHistory({ html, selectionData = null } = {}) {
     this._observe(false);
 
-    $.setHTML(this._editor, html);
-    $.setValue(this._node, html);
+    $.setHtml(this._editor, html);
+    $.setValue(this.node, html);
 
     const selection = window.getSelection();
 
@@ -89,4 +93,4 @@ export function _restoreHistory({ html, selectionData = null } = {}) {
 
     this._checkEmpty();
     this._observe();
-};
+}

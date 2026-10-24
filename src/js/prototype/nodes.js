@@ -5,7 +5,7 @@ import { getRange, restoreSelection, saveSelection, selectNode } from './../sele
 /**
  * Insert a (cloned) node into the editor.
  * @param {HTMLElement} node The node to insert.
- * @return {HTMLElement} The new node.
+ * @returns {HTMLElement} The new node.
  */
 export function _insertNode(node) {
     this._focusEditor();
@@ -16,7 +16,7 @@ export function _insertNode(node) {
     range.collapse(false);
 
     return node;
-};
+}
 
 /**
  * Normalize the editor.
@@ -38,12 +38,12 @@ export function _normalize() {
     $.normalize(this._editor);
 
     this._observe();
-};
+}
 
 /**
  * Update a table element.
  * @param {HTMLElement} td The td element.
- * @param {function} callback The callback.
+ * @param {Function} callback The callback.
  */
 export function _updateTable(td, callback) {
     const table = $.closest(td, 'table', this._editor).shift();
@@ -58,4 +58,4 @@ export function _updateTable(td, callback) {
 
     const range = selectNode(td);
     range.collapse(true);
-};
+}

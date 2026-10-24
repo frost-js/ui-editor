@@ -4,22 +4,22 @@ import $ from '@fr0st/query';
  * Check if the editor is empty and populate base markup.
  */
 export function _checkEmpty() {
-    const html = $.getValue(this._node).trim();
+    const html = $.getValue(this.node).trim();
 
     if (html) {
         return;
     }
 
-    $.setHTML(this._editor, '<p><br></p>');
-};
+    $.setHtml(this._editor, '<p><br></p>');
+}
 
 /**
  * Execute a command.
  * @param {string} command The command.
- * @param {Boolean|string} [value] The command argument.
+ * @param {boolean | string} [value] The command argument.
  */
 export function _execCommand(command, value) {
-    if ($.is(this._node, ':disabled')) {
+    if ($.is(this.node, ':disabled')) {
         return;
     }
 
@@ -27,7 +27,7 @@ export function _execCommand(command, value) {
 
     document.execCommand('styleWithCSS', false, !['bold', 'indent', 'italic', 'outdent', 'strikethrough', 'subscript', 'superscript', 'underline'].includes(command));
     document.execCommand(command, false, value);
-};
+}
 
 /**
  * Ensure the editor element has focus.
@@ -44,7 +44,7 @@ export function _focusEditor() {
     }
 
     $.focus(this._editor);
-};
+}
 
 /**
  * Refresh the popover at cursor.
@@ -68,13 +68,13 @@ export function _refreshCursor() {
     }
 
     this._refreshPopover(currentNode);
-};
+}
 
 /**
  * Refresh the editor disabled.
  */
 export function _refreshDisabled() {
-    if ($.is(this._node, ':disabled')) {
+    if ($.is(this.node, ':disabled')) {
         $.addClass(this._editor, this.constructor.classes.editorDisabled);
         $.setStyle(this._editor, { opacity: .5 });
         $.removeAttribute(this._editor, 'contenteditable');
@@ -87,7 +87,7 @@ export function _refreshDisabled() {
         $.removeAttribute(this._editor, 'aria-disabled');
         $.removeAttribute(this._source, 'disabled');
     }
-};
+}
 
 /**
  * Refresh the source line numbers.
@@ -143,7 +143,7 @@ export function _refreshLineNumbers() {
     if (lineNumbers.length > lines.length) {
         $.detach(lineNumbers.slice(lines.length));
     }
-};
+}
 
 /**
  * Refresh the toolbar.
@@ -151,13 +151,13 @@ export function _refreshLineNumbers() {
 export function _refreshToolbar() {
     this._focusEditor();
 
-    const isDisabled = $.is(this._node, ':disabled');
+    const isDisabled = $.is(this.node, ':disabled');
     const isSource = $.isVisible(this._sourceContainer);
 
     for (const { button, data, type } of this._buttons) {
         if ('setContent' in data) {
             const content = data.setContent.bind(this)();
-            $.setHTML(button, content);
+            $.setHtml(button, content);
         }
 
         let enabled = false;
@@ -187,7 +187,7 @@ export function _refreshToolbar() {
             $.removeAttribute(button, 'aria-disabled');
         }
     }
-};
+}
 
 /**
  * Reset the drop text.
@@ -195,18 +195,18 @@ export function _refreshToolbar() {
 export function _resetDropText() {
     $.removeClass(this._dropText, this.constructor.classes.dropHover);
     $.setText(this._dropText, this.constructor.lang.drop.dropHere);
-};
+}
 
 /**
  * Show the drop target.
  */
 export function _showDropTarget() {
-    if ($.is(this._node, ':disabled') || $.isVisible(this._sourceContainer)) {
+    if ($.is(this.node, ':disabled') || $.isVisible(this._sourceContainer)) {
         return;
     }
 
     $.show(this._dropTarget);
-};
+}
 
 /**
  * Show the editor.
@@ -214,7 +214,7 @@ export function _showDropTarget() {
 export function _showEditor() {
     $.show(this._editorScroll);
     $.hide(this._sourceOuter);
-};
+}
 
 /**
  * Show the source.
@@ -225,15 +225,15 @@ export function _showSource() {
     $.hide(this._imgHighlight);
 
     this._refreshLineNumbers();
-};
+}
 
 /**
  * Update the input value.
  */
 export function _updateValue() {
-    const html = $.getHTML(this._editor);
+    const html = $.getHtml(this._editor);
 
-    if (html === $.getValue(this._node)) {
+    if (html === $.getValue(this.node)) {
         return;
     }
 
@@ -243,7 +243,7 @@ export function _updateValue() {
 
     this._addHistory({ html, selectionData });
 
-    $.setValue(this._node, html);
+    $.setValue(this.node, html);
 
-    $.triggerEvent(this._node, 'change.ui.editor');
-};
+    $.triggerEvent(this.node, 'change.ui.editor');
+}

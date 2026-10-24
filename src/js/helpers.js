@@ -6,9 +6,9 @@ let dragCount = 0;
 const editors = new Set();
 
 /**
-* Add an Editor.
-* @param {Editor} editor The editor to add.
-*/
+ * Add an Editor.
+ * @param {Editor} editor The editor to add.
+ */
 export function addEditor(editor) {
     editors.add(editor);
 
@@ -91,7 +91,7 @@ export function addEditor(editor) {
             if ($.isSame(editor._editor, document.activeElement)) {
                 const { html } = editor._history.at(-1);
 
-                $.setHTML(editor._editor, html);
+                $.setHtml(editor._editor, html);
                 $.blur(editor._editor);
             }
 
@@ -116,7 +116,7 @@ export function addEditor(editor) {
     }));
 
     running = true;
-};
+}
 
 /**
  * Remove a Editor.
@@ -139,11 +139,11 @@ export function removeEditor(editor) {
     $.removeEvent(window, 'resize.ui.editor');
 
     running = false;
-};
+}
 
 /**
  * Reset the drag count.
  */
 export function resetDragCount() {
     dragCount = 0;
-};
+}

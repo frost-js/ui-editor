@@ -23,7 +23,7 @@ export function _renderPopover() {
     $.append(this._popover, this._popoverArrow);
     $.append(this._popover, this._popoverBody);
     $.append(this._container, this._popover);
-};
+}
 
 /**
  * Render a popover item.
@@ -47,7 +47,7 @@ export function _renderPopoverItem(type, parent) {
     }
 
     $.append(parent, node);
-};
+}
 
 /**
  * Render popover items.
@@ -72,4 +72,4 @@ export function _renderPopoverItems(items) {
             $.append(this._popoverBody, node);
         }
     }
-};
+}

@@ -117,7 +117,7 @@ export function _colorDropdown(dropdown) {
             });
             $.append(backRow, backLink);
 
-            UI.Tooltip.init(backLink, {
+            Tooltip.init(backLink, {
                 appendTo: document.body,
                 placement: 'bottom',
             });
@@ -134,14 +134,14 @@ export function _colorDropdown(dropdown) {
 
     $.setStyle(dropdown, { minWidth: '350px' });
     $.append(dropdown, container);
-};
+}
 
 /**
  * Render a font dropdown.
  * @param {HTMLElement} dropdown The dropdown.
  */
 export function _fontDropdown(dropdown) {
-    const fonts = this._options.fonts.sort();
+    const fonts = this._fonts.sort();
 
     for (const font of fonts) {
         const button = $.create('li', {
@@ -167,7 +167,7 @@ export function _fontDropdown(dropdown) {
 
         $.append(dropdown, button);
     }
-};
+}
 
 /**
  * Render a font size dropdown.
@@ -197,7 +197,7 @@ export function _fontSizeDropdown(dropdown) {
 
         $.append(dropdown, button);
     }
-};
+}
 
 /**
  * Render a style dropdown.
@@ -231,7 +231,7 @@ export function _styleDropdown(dropdown) {
 
         $.append(dropdown, button);
     }
-};
+}
 
 /**
  * Render a table dropdown.
@@ -311,7 +311,7 @@ export function _tableDropdown(dropdown) {
 
         $.append(container, br);
 
-        const html = $.getHTML(container);
+        const html = $.getHtml(container);
 
         this.insertHTML(html);
     });
@@ -345,4 +345,4 @@ export function _tableDropdown(dropdown) {
 
         $.setText(info, `${targetCol + 1} x ${targetRow + 1}`);
     });
-};
+}

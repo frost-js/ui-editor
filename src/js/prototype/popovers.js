@@ -35,7 +35,7 @@ export function _highlightImage(image) {
 
     $.show(this._imgHighlight);
     $.show(this._imgCursor);
-};
+}
 
 /**
  * Refresh the popover.
@@ -86,20 +86,20 @@ export function _refreshPopover(currentNode, event) {
 
     switch (tagName) {
         case 'a':
-            this._renderPopoverItems(this._options.popovers.link);
+            this._renderPopoverItems(this.options.popovers.link);
             break;
         case 'img':
-            this._renderPopoverItems(this._options.popovers.image);
+            this._renderPopoverItems(this.options.popovers.image);
             this._highlightImage(this._currentNode);
             $.show(this._imgHighlight);
             break;
         case 'td':
-            this._renderPopoverItems(this._options.popovers.table);
+            this._renderPopoverItems(this.options.popovers.table);
             break;
     }
 
     this._popper.update();
-};
+}
 
 /**
  * Remove the popover.
@@ -117,4 +117,4 @@ export function _removePopover() {
     this._popper.dispose();
     this._popper = null;
     this._currentNode = null;
-};
+}

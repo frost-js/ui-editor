@@ -7,7 +7,7 @@ const transparent = 'rgba(0, 0, 0, 0)';
  * Determine if a node is phrasing content.
  * https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
  * @param {Node} node The input node.
- * @return {Boolean} TRUE if the node is phrasing content, otherwise FALSE.
+ * @returns {boolean} TRUE if the node is phrasing content, otherwise FALSE.
  */
 export const isPhrasingContent = (node) => $._isText(node) || $.is(node, 'a, abbr, area, audio, b, bdi, bdo, br, button, cite, code, data, datalist, del, dfn, em, embed, i, iframe, img, input, ins, kbd, label, map, mark, math, meter, noscript, object, output, picture, progress, q, ruby, s, samp, script, select, slot, small, span, strong, sub, sup, svg, template, textarea, time, u, var, video, wbr');
 
@@ -15,7 +15,7 @@ export const isPhrasingContent = (node) => $._isText(node) || $.is(node, 'a, abb
  * Determine if a node is a form element.
  * https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
  * @param {Node} node The input node.
- * @return {Boolean} TRUE if the node is a form element, otherwise FALSE.
+ * @returns {boolean} TRUE if the node is a form element, otherwise FALSE.
  */
 const isFormElement = (node) => $.is(node, 'button, fieldset, input, object, output, select, textarea');
 
@@ -23,14 +23,14 @@ const isFormElement = (node) => $.is(node, 'button, fieldset, input, object, out
  * Determine if a node is a void element.
  * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
  * @param {Node} node The input node.
- * @return {Boolean} TRUE if the node is a void element, otherwise FALSE.
+ * @returns {boolean} TRUE if the node is a void element, otherwise FALSE.
  */
 const isVoidElement = (node) => $.is(node, 'area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr');
 
 /**
  * Determine if a node is a phrasing container.
  * @param {Node} node The input node.
- * @return {Boolean} TRUE if the node is a phrasing container, otherwise FALSE.
+ * @returns {boolean} TRUE if the node is a phrasing container, otherwise FALSE.
  */
 const isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node) && !isVoidElement(node) && !isFormElement(node);
 
@@ -77,7 +77,7 @@ export function joinAdjacentNodes(container, markers) {
 
         $.detach(element);
     }
-};
+}
 
 /**
  * Normalize phrasing containers.
@@ -165,7 +165,7 @@ export function normalizePhrasing(container) {
             $.detach(element);
         }
     }
-};
+}
 
 /**
  * Normalize span elements.
@@ -187,7 +187,7 @@ export function normalizeSpans(container) {
 
         $.detach(element);
     }
-};
+}
 
 /**
  * Normalize style attributes.
@@ -229,4 +229,4 @@ export function normalizeStyles(container) {
             $.removeAttribute(element, 'style');
         }
     }
-};
+}

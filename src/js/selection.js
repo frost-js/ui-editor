@@ -2,7 +2,7 @@ import $ from '@fr0st/query';
 
 /**
  * Get the current selected range.
- * @return {Range} The Range object.
+ * @returns {Range} The Range object.
  */
 export function getRange() {
     const selection = window.getSelection();
@@ -12,11 +12,13 @@ export function getRange() {
     }
 
     return selection.getRangeAt(0);
-};
+}
 
 /**
  * Restore the selection from selection markers.
  * @param {object} markers The selection markers.
+ * @param {Text} [markers.start] The start marker.
+ * @param {Text} [markers.end] The end marker.
  */
 export function restoreSelection({ start, end } = {}) {
     if (!start && !end) {
@@ -38,11 +40,11 @@ export function restoreSelection({ start, end } = {}) {
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
-};
+}
 
 /**
  * Save the selection and return the selection markers.
- * @return {object} The selection markers.
+ * @returns {object} The selection markers.
  */
 export function saveSelection() {
     const selection = window.getSelection();
@@ -65,12 +67,12 @@ export function saveSelection() {
     }
 
     return { start, end };
-};
+}
 
 /**
  * Select a node.
  * @param {HTMLElement} node The element to select.
- * @return {Range} The Range object.
+ * @returns {Range} The Range object.
  */
 export function selectNode(node) {
     const range = $.createRange();
@@ -79,7 +81,7 @@ export function selectNode(node) {
     selectRange(range);
 
     return range;
-};
+}
 
 /**
  * Select a range.
@@ -93,4 +95,4 @@ export function selectRange(range) {
     const selection = window.getSelection();
     selection.removeAllRanges();
     selection.addRange(range);
-};
+}

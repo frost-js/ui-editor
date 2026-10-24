@@ -4,7 +4,7 @@ import { Modal } from '@fr0st/ui';
 /**
  * Create a form checkbox.
  * @param {object} options Options for the checkbox.
- * @return {object} An object containing the form elements.
+ * @returns {object} An object containing the form elements.
  */
 export function _createCheckbox(options) {
     const group = $.create('div', {
@@ -36,12 +36,12 @@ export function _createCheckbox(options) {
     $.append(group, inputContainer);
 
     return { group, input };
-};
+}
 
 /**
  * Create a form file input.
  * @param {object} options Options for the file input.
- * @return {object} An object containing the form elements.
+ * @returns {object} An object containing the form elements.
  */
 export function _createFileInput(options) {
     const group = $.create('div', {
@@ -72,12 +72,12 @@ export function _createFileInput(options) {
     $.append(group, inputContainer);
 
     return { group, input };
-};
+}
 
 /**
  * Create a form text input.
  * @param {object} options Options for the text input.
- * @return {object} An object containing the form elements.
+ * @returns {object} An object containing the form elements.
  */
 export function _createInput(options) {
     const group = $.create('div', {
@@ -119,12 +119,12 @@ export function _createInput(options) {
     $.append(group, invalidFeedback);
 
     return { group, input, invalidFeedback };
-};
+}
 
 /**
  * Create a modal.
  * @param {object} options Options for the modal.
- * @return {HTMLElement} The modal element.
+ * @returns {HTMLElement} The modal element.
  */
 export function _createModal(options) {
     const modal = $.create('div', {
@@ -259,4 +259,4 @@ export function _createModal(options) {
     Modal.init(modal).show();
 
     return modal;
-};
+}

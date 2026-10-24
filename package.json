@@ -1,7 +1,7 @@
 {
     "name": "@fr0st/ui-editor",
     "version": "2.0.0",
-    "description": "FrostUI-Editor is a free, open-source WYSIWYG editor for Javascript.",
+    "description": "WYSIWYG editor for Frost UI with customizable toolbars, source editing, media, tables, and undo/redo.",
     "keywords": [
         "ui",
         "component",
@@ -15,27 +15,30 @@
         "url": "https://github.com/elusivecodes/FrostUI-Editor/issues",
         "email": "elusivecodes@gmail.com"
     },
-    "main": "src/js/index.js",
+    "main": "./dist/frost-ui-editor.esm.js",
     "type": "module",
     "files": [
         "dist",
-        "/LICENSE",
-        "/README.md",
+        "LICENSE",
+        "README.md",
         "src"
     ],
     "scripts": {
-        "build": "npm run css && npm run js",
-        "css": "npm run css-compile && npm run css-prefix && npm run css-minify",
-        "css-compile": "sass --style expanded --source-map --embed-sources --no-error-css src/scss/editor.scss dist/frost-ui-editor.css",
-        "css-lint": "stylelint \"src/scss/**/*.scss\" --fix",
-        "css-minify": "cleancss -O1 --format breakWith=lf --with-rebase --source-map --source-map-inline-sources --output dist/frost-ui-editor.min.css dist/frost-ui-editor.css",
-        "css-prefix": "postcss --replace dist/frost-ui-editor.css",
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "js": "npm run js-compile && npm run js-minify",
-        "js-compile": "rollup --config",
-        "js-lint": "eslint --ext .js .",
-        "js-minify": "terser --compress passes=2 --mangle --source-map \"content=dist/frost-ui-editor.js.map\" --output dist/frost-ui-editor.min.js dist/frost-ui-editor.js",
-        "sass-unused": "fusv src/scss"
+        "autoprefix:css": "postcss --replace dist/frost-ui-editor.css",
+        "build": "npm run build:js && npm run build:css",
+        "build:css": "npm run compile:css && npm run autoprefix:css && npm run minify:css",
+        "build:js": "vite build && vite build --mode umd",
+        "compile:css": "sass --style expanded --source-map --embed-sources --no-error-css src/scss/editor.scss dist/frost-ui-editor.css",
+        "lint": "npm run lint:js && npm run lint:css",
+        "lint:css": "stylelint \"src/scss/**/*.scss\"",
+        "lint:js": "eslint",
+        "lint:sass:unused": "fusv src/scss",
+        "minify:css": "cleancss -O1 --format breakWith=lf --with-rebase --source-map --source-map-inline-sources --output dist/frost-ui-editor.min.css dist/frost-ui-editor.css",
+        "test": "npm run build && npm run test:browser",
+        "test:browser": "playwright test --forbid-only",
+        "test:coverage": "playwright test --config=playwright.coverage.config.js --forbid-only",
+        "test:headed": "playwright test --forbid-only --headed",
+        "test:ui": "playwright test --ui"
     },
     "repository": {
         "type": "git",
@@ -45,18 +48,44 @@
     "license": "MIT",
     "private": false,
     "devDependencies": {
-        "@rollup/plugin-node-resolve": "^15.2.3",
-        "autoprefixer": "^10.4.17",
+        "@fr0st/eslint-config": "^6.0.1",
+        "@fr0st/query": "^5.0.1",
+        "@fr0st/stylelint-config": "^4.0.3",
+        "@fr0st/ui": "^4.0.2",
+        "@playwright/test": "^1.64.1",
+        "autoprefixer": "^10.6.1",
         "clean-css-cli": "^5.6.3",
-        "eslint": "^8.56.0",
-        "eslint-config-google": "^0.14.0",
-        "find-unused-sass-variables": "^5.0.0",
-        "postcss": "^8.4.33",
-        "postcss-cli": "^11.0.0",
-        "rollup": "^4.9.6",
-        "sass": "^1.70.0",
-        "stylelint": "^15.11.0",
-        "stylelint-config-twbs-bootstrap": "^12.0.0",
-        "terser": "^5.27.0"
+        "eslint": "^10.13.0",
+        "find-unused-sass-variables": "^6.2.1",
+        "monocart-reporter": "^2.14.0",
+        "postcss": "^8.5.31",
+        "postcss-cli": "^11.0.1",
+        "sass-embedded": "^1.106.0",
+        "stylelint": "^17.16.0",
+        "vite": "^8.3.4"
+    },
+    "exports": {
+        ".": {
+            "import": "./dist/frost-ui-editor.esm.js",
+            "default": "./dist/frost-ui-editor.esm.js"
+        },
+        "./dist/*": "./dist/*",
+        "./src/*": "./src/*"
+    },
+    "module": "./dist/frost-ui-editor.esm.js",
+    "jsdelivr": "./dist/frost-ui-editor.min.js",
+    "unpkg": "./dist/frost-ui-editor.min.js",
+    "peerDependencies": {
+        "@fr0st/query": "^5.0.0",
+        "@fr0st/ui": "^4.0.0"
+    },
+    "engines": {
+        "node": "^20.19.0 || ^22.13.0 || >=24"
+    },
+    "browserslist": [
+        "baseline newly available"
+    ],
+    "publishConfig": {
+        "access": "public"
     }
 }

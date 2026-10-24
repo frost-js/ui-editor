@@ -12,10 +12,10 @@ export function _events() {
     this._eventsSource();
     this._eventsDrop();
 
-    if (this._options.resizable) {
+    if (this.options.resizable) {
         this._eventsResize();
     }
-};
+}
 
 /**
  * Attach drop events.
@@ -48,24 +48,24 @@ export function _eventsDrop() {
         $.hide(this._dropTarget);
 
         if (e.dataTransfer.files.length) {
-            this._options.imageUpload.bind(this)(e.dataTransfer.files);
+            this.options.imageUpload.bind(this)(e.dataTransfer.files);
         } else {
             const text = e.dataTransfer.getData('text');
             this.insertText(text);
         }
     });
-};
+}
 
 /**
  * Attach editor events.
  */
 export function _eventsEditor() {
     $.addEvent(this._editor, 'focus.ui.editor', (_) => {
-        $.triggerEvent(this._node, 'focus.ui.editor');
+        $.triggerEvent(this.node, 'focus.ui.editor');
     });
 
     $.addEvent(this._editor, 'blur.ui.editor', (_) => {
-        $.triggerEvent(this._node, 'blur.ui.editor');
+        $.triggerEvent(this.node, 'blur.ui.editor');
     });
 
     $.addEvent(this._editor, 'input.ui.editor', (e) => {
@@ -95,8 +95,8 @@ export function _eventsEditor() {
     });
 
     $.addEvent(this._editor, 'keydown.ui.editor', (e) => {
-        if (this._options.keyDown) {
-            this._options.keyDown.bind(this)(e);
+        if (this.options.keyDown) {
+            this.options.keyDown.bind(this)(e);
         }
 
         const selection = window.getSelection();
@@ -215,7 +215,7 @@ export function _eventsEditor() {
     };
 
     this._observe();
-};
+}
 
 /**
  * Attach popover events.
@@ -276,7 +276,7 @@ export function _eventsPopover() {
     $.addEvent(this._editorBody, 'scroll.ui.editor', (_) => {
         this._removePopover();
     });
-};
+}
 
 /**
  * Attach resize events.
@@ -305,7 +305,7 @@ export function _eventsResize() {
     const dragEvent = $.mouseDragFactory(downEvent, moveEvent, upEvent);
 
     $.addEvent(this._resizeBar, 'mousedown.ui.editor', dragEvent);
-};
+}
 
 /**
  * Attach source events.
@@ -324,8 +324,8 @@ export function _eventsSource() {
 
         refreshLineNumbersDebounced();
 
-        $.setValue(this._node, html);
-        $.triggerEvent(this._node, 'change.ui.editor');
+        $.setValue(this.node, html);
+        $.triggerEvent(this.node, 'change.ui.editor');
     });
 
     $.addEvent(this._source, 'keydown.ui.editor', (e) => {
@@ -397,7 +397,7 @@ export function _eventsSource() {
         const scrollY = $.getScrollY(this._source);
         $.setStyle(this._lineNumbers, { marginTop: `${-scrollY}px` });
     }));
-};
+}
 
 /**
  * Attach toolbar events.
@@ -441,4 +441,4 @@ export function _eventsToolbar() {
 
         this._refreshToolbar();
     });
-};
+}

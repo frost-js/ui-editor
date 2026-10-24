@@ -3,18 +3,18 @@ import Editor from './editor.js';
 import icons from './icons.js';
 import plugins from './plugins.js';
 import popovers from './popovers.js';
-import { buttons, colors, fonts, fontSizes, styles } from './values.js';
 import { _events, _eventsDrop, _eventsEditor, _eventsPopover, _eventsResize, _eventsSource, _eventsToolbar } from './prototype/events.js';
 import { _checkEmpty, _execCommand, _focusEditor, _refreshCursor, _refreshDisabled, _refreshLineNumbers, _refreshToolbar, _resetDropText, _showDropTarget, _showEditor, _showSource, _updateValue } from './prototype/helpers.js';
 import { _addHistory, _getSelectionData, _restoreHistory } from './prototype/history.js';
 import { _removeModal, _showImageModal, _showLinkModal, _showVideoModal } from './prototype/modals.js';
 import { _insertNode, _normalize, _updateTable } from './prototype/nodes.js';
 import { _highlightImage, _refreshPopover, _removePopover } from './prototype/popovers.js';
-import { _render, _renderButton, _renderDrop, _renderEditor, _renderResize, _renderSource } from './prototype/render.js';
 import { _colorDropdown, _fontDropdown, _fontSizeDropdown, _styleDropdown, _tableDropdown } from './prototype/render-dropdowns.js';
 import { _renderPopover, _renderPopoverItem, _renderPopoverItems } from './prototype/render-popover.js';
 import { _renderToolbar, _renderToolbarButton, _renderToolbarDropdown, _setToolbarData } from './prototype/render-toolbar.js';
+import { _render, _renderButton, _renderDrop, _renderEditor, _renderResize, _renderSource } from './prototype/render.js';
 import { _createCheckbox, _createFileInput, _createInput, _createModal } from './static/modals.js';
+import { buttons, colors, fonts, fontSizes, styles } from './values.js';
 
 // Editor defaults
 Editor.defaults = {

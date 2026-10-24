@@ -15,7 +15,7 @@ export function _renderToolbar() {
         },
     });
 
-    for (const buttons of this._options.buttons) {
+    for (const buttons of this._toolbarButtons) {
         const buttonGroup = $.create('div', {
             class: this.constructor.classes.btnGroup,
         });
@@ -29,7 +29,7 @@ export function _renderToolbar() {
 
     $.append(header, this._toolbar);
     $.append(this._container, header);
-};
+}
 
 /**
  * Render a toolbar button.
@@ -54,13 +54,13 @@ export function _renderToolbarButton(type, parent) {
     } else {
         $.append(parent, button);
     }
-};
+}
 
 /**
  * Render a toolbar dropdown.
  * @param {HTMLElement} buttonGroup The button group element.
  * @param {HTMLElement} button The button element.
- * @param {Array|function} dropdownContent The dropdown content.
+ * @param {Array|Function} dropdownContent The dropdown content.
  */
 export function _renderToolbarDropdown(buttonGroup, button, dropdownContent) {
     const dropGroup = $.create('div', {
@@ -105,7 +105,7 @@ export function _renderToolbarDropdown(buttonGroup, button, dropdownContent) {
 
     $.append(dropGroup, dropdown);
     $.append(buttonGroup, dropGroup);
-};
+}
 
 /**
  * Set data for a toolbar action.
@@ -123,4 +123,4 @@ export function _setToolbarData(node, data, type) {
     } else if (data.action && type) {
         $.setDataset(node, { uiAction: type });
     }
-};
+}

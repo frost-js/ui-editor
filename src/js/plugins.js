@@ -1,4 +1,5 @@
 import $ from '@fr0st/query';
+import { Modal } from '@fr0st/ui';
 
 export default {
     alignCenter: {
@@ -40,9 +41,9 @@ export default {
         setContent() {
             const fontName = document.queryCommandValue('fontName').replace(/"/g, '');
 
-            return this._options.fonts.includes(fontName) ?
+            return this._fonts.includes(fontName) ?
                 fontName :
-                this._options.defaultFont;
+                this._defaultFont;
         },
         dropdown(dropdown) {
             this._fontDropdown(dropdown);
@@ -67,7 +68,7 @@ export default {
     fullScreen: {
         action() {
             if (this._fullScreen) {
-                UI.Modal.init(this._fullScreen).hide();
+                Modal.init(this._fullScreen).hide();
                 return;
             }
 
@@ -82,7 +83,7 @@ export default {
                     }
                 },
                 onHide: (_) => {
-                    $.insertBefore(this._container, this._node);
+                    $.insertBefore(this._container, this.node);
                     this._fullScreen = null;
                 },
             });
@@ -130,11 +131,11 @@ export default {
     },
     source: {
         action() {
-            const value = $.getValue(this._node);
+            const value = $.getValue(this.node);
 
             if ($.isVisible(this._sourceContainer)) {
                 this._addHistory({ html: value });
-                $.setHTML(this._editor, value);
+                $.setHtml(this._editor, value);
 
                 this._showEditor();
                 $.focus(this._editor);

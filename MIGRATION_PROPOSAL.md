@@ -2,6 +2,8 @@
 
 Bring `@fr0st/ui-editor` into line with the modern sibling `../ui-*` projects while preserving its editing features and supported customization hooks. Deliver the migration in the order below, with regression coverage established before changing editor behavior.
 
+Steps 1–4 are implemented. The compatibility contract and verification results below record the baseline and known failures for later steps.
+
 The starting point is commit `dc4c495`, which preserves the existing normalization, indentation, history, source-mode, bundle, and ESLint changes. JavaScript syntax checks passed for 23 files at that checkpoint; browser behavior and build reproducibility still need verification.
 
 ## Reference projects
@@ -18,18 +20,18 @@ The starting point is commit `dc4c495`, which preserves the existing normalizati
 
 ## 1. Record compatibility requirements
 
-- [ ] Inventory public methods, options, defaults, events, data attributes, and fQuery plugin integration.
-- [ ] Record supported customization through `Editor.buttons`, `classes`, `lang`, `icons`, `plugins`, `popovers`, fonts, colors, and styles. Identify which underscore-prefixed members custom plugins actually require before changing their visibility.
-- [ ] Record current HTML output for formatting, lists, indentation, tables, media, source-mode round trips, and normalization. Distinguish intentional behavior from bugs before changing output.
-- [ ] Preserve the checkpointed changes and turn unfinished normalization work, the `debugger` statement, malformed ARIA attributes, and incomplete ESLint setup into explicit migration tasks.
-- [ ] Decide which compatibility changes require migration notes. Keep replacement of the `execCommand` editing engine outside this migration.
+- [x] Inventory public methods, options, defaults, events, data attributes, and fQuery plugin integration.
+- [x] Record supported customization through `Editor.buttons`, `classes`, `lang`, `icons`, `plugins`, `popovers`, fonts, colors, and styles. Identify which underscore-prefixed members custom plugins actually require before changing their visibility.
+- [x] Record current HTML output for formatting, lists, indentation, tables, media, source-mode round trips, and normalization. Distinguish intentional behavior from bugs before changing output.
+- [x] Preserve the checkpointed changes and turn unfinished normalization work, the `debugger` statement, malformed ARIA attributes, and incomplete ESLint setup into explicit migration tasks.
+- [x] Decide which compatibility changes require migration notes. Keep replacement of the `execCommand` editing engine outside this migration.
 
 Acceptance: there is a defined public contract and a list of intentional behavior changes to verify during implementation.
 
 ## 2. Align dependencies and package metadata
 
-- [ ] Declare `@fr0st/query` and `@fr0st/ui` as peer dependencies and development dependencies so tests use the same supported dependency family as consumers.
-- [ ] Adopt the dependency baseline used by the modern siblings, verifying compatibility when updating the lockfile:
+- [x] Declare `@fr0st/query` and `@fr0st/ui` as peer dependencies and development dependencies so tests use the same supported dependency family as consumers.
+- [x] Adopt the dependency baseline used by the modern siblings, verifying compatibility when updating the lockfile:
 
 | Dependency | Local sibling baseline |
 | --- | --- |
@@ -47,39 +49,39 @@ Acceptance: there is a defined public contract and a list of intentional behavio
 | `clean-css-cli` | `^5.6.3` |
 | `find-unused-sass-variables` | `^6.2.1` |
 
-- [ ] Remove direct Rollup, node-resolve, Terser, `eslint-config-google`, `stylelint-config-twbs-bootstrap`, and `sass` dependencies once their replacements are configured.
-- [ ] Add the sibling Node engine range (`^20.19.0 || ^22.13.0 || >=24`) after checking the selected dependencies against it.
-- [ ] Point `main` and `module` at `./dist/frost-ui-editor.esm.js`. Add an ESM-only root export with `import` and `default` conditions, plus `./dist/*` and supported `./src/*` exports. Do not imply CommonJS support.
-- [ ] Normalize the published `files` entries to `dist`, `LICENSE`, `README.md`, and `src`.
-- [ ] Review package description, keywords, homepage, bugs, and repository metadata. Confirm the intended repository destination before replacing the existing `elusivecodes/FrostUI-Editor` URLs with `frost-js` URLs.
-- [ ] Regenerate and commit `package-lock.json`; verify a clean `npm ci`.
+- [x] Remove direct Rollup, node-resolve, Terser, `eslint-config-google`, `stylelint-config-twbs-bootstrap`, and `sass` dependencies once their replacements are configured.
+- [x] Add the sibling Node engine range (`^20.19.0 || ^22.13.0 || >=24`) after checking the selected dependencies against it.
+- [x] Point `main` and `module` at `./dist/frost-ui-editor.esm.js`. Add an ESM-only root export with `import` and `default` conditions, plus `./dist/*` and supported `./src/*` exports. Do not imply CommonJS support.
+- [x] Normalize the published `files` entries to `dist`, `LICENSE`, `README.md`, and `src`.
+- [x] Review package description, keywords, homepage, bugs, and repository metadata. Confirm the intended repository destination before replacing the existing `elusivecodes/FrostUI-Editor` URLs with `frost-js` URLs.
+- [x] Regenerate and commit `package-lock.json`; verify a clean `npm ci`.
 
 Acceptance: runtime dependencies are explicit, the lockfile installs reproducibly, and metadata describes the intended package and repository.
 
 ## 3. Replace the build and lint pipelines
 
-- [ ] Replace `rollup.config.js` with `vite.config.js`, following `../ui-selectmenu/vite.config.js`.
-- [ ] Build ESM from `src/js/index.js` and UMD from `src/js/browser.js`; rename `wrapper.js` to `browser.js` when switching the entry.
-- [ ] Keep `@fr0st/query` and `@fr0st/ui` external. Preserve UMD globals `fQuery` and `UI`, extend the existing `UI` namespace, and export `UI.Editor`.
-- [ ] Generate these files and their source maps: `frost-ui-editor.esm.js`, `frost-ui-editor.esm.min.js`, `frost-ui-editor.js`, and `frost-ui-editor.min.js`.
-- [ ] Match the sibling build target (`baseline-widely-available`) and output-directory handling so the UMD pass preserves ESM output.
-- [ ] Retain the separate CSS pipeline: Sass compilation, PostCSS autoprefixing, and CleanCSS minification, with expanded/minified CSS and source maps. Build JavaScript before CSS so Vite does not clear generated styles.
-- [ ] Standardize scripts to `build`, `build:js`, `build:css`, `compile:css`, `autoprefix:css`, `minify:css`, `lint`, `lint:js`, `lint:css`, and `lint:sass:unused`.
-- [ ] Complete `eslint.config.js` using the Frost base, browser, and Node configurations. Scope Node settings to configs and server helpers; ignore generated bundles, coverage, reports, and temporary files.
-- [ ] Replace `.stylelintrc.json` with `stylelint.config.js` extending `@fr0st/stylelint-config`. Make lint checks non-mutating; reserve automatic fixes for explicit commands.
-- [ ] Update `postcss.config.js` to sibling conventions and normalize touched-file line endings so generated files do not produce spurious whitespace diagnostics.
-- [ ] Expand `.gitignore` for `.tmp/`, `coverage/`, `playwright-report/`, and `test-results/`, while continuing to track distributable bundles.
+- [x] Replace `rollup.config.js` with `vite.config.js`, following `../ui-selectmenu/vite.config.js`.
+- [x] Build ESM from `src/js/index.js` and UMD from `src/js/browser.js`; rename `wrapper.js` to `browser.js` when switching the entry.
+- [x] Keep `@fr0st/query` and `@fr0st/ui` external. Preserve UMD globals `fQuery` and `UI`, extend the existing `UI` namespace, and export `UI.Editor`.
+- [x] Generate these files and their source maps: `frost-ui-editor.esm.js`, `frost-ui-editor.esm.min.js`, `frost-ui-editor.js`, and `frost-ui-editor.min.js`.
+- [x] Match the sibling build target (`baseline-widely-available`) and output-directory handling so the UMD pass preserves ESM output.
+- [x] Retain the separate CSS pipeline: Sass compilation, PostCSS autoprefixing, and CleanCSS minification, with expanded/minified CSS and source maps. Build JavaScript before CSS so Vite does not clear generated styles.
+- [x] Standardize scripts to `build`, `build:js`, `build:css`, `compile:css`, `autoprefix:css`, `minify:css`, `lint`, `lint:js`, `lint:css`, and `lint:sass:unused`.
+- [x] Complete `eslint.config.js` using the Frost base, browser, and Node configurations. Scope Node settings to configs and server helpers; ignore generated bundles, coverage, reports, and temporary files.
+- [x] Replace `.stylelintrc.json` with `stylelint.config.js` extending `@fr0st/stylelint-config`. Make lint checks non-mutating; reserve automatic fixes for explicit commands.
+- [x] Update `postcss.config.js` to sibling conventions and normalize touched-file line endings so generated files do not produce spurious whitespace diagnostics.
+- [x] Expand `.gitignore` for `.tmp/`, `coverage/`, `playwright-report/`, and `test-results/`, while continuing to track distributable bundles.
 
 Acceptance: lint and build commands run successfully, every expected artifact exists, and repeated builds produce no changes to committed `dist` files.
 
 ## 4. Establish the browser test harness
 
-- [ ] Add `playwright.config.js` with Chromium, Firefox, and WebKit projects, following the sibling test configuration.
-- [ ] Add `test/package.json` with the private ESM package and `#test` import alias; add shared fixtures in `test/support/test.js` and setup helpers in `test/setup/browser.js`.
-- [ ] Serve local built bundles and installed peer assets through `test/support/server/static-server.js`. Keep tests independent of public CDNs.
-- [ ] Add fixture pages under `test/support/app/` for UMD, ESM, and minified bundle loading.
-- [ ] Replace the placeholder `test` script with build followed by browser tests. Add `test:browser`, `test:coverage`, `test:headed`, and `test:ui`, using `--forbid-only` for automated runs.
-- [ ] Capture regressions around the checkpointed normalization, indentation/outdent, source-mode, and history changes before refactoring them. Introduce the harness alongside the runtime work if the old component cannot initialize against the new peers.
+- [x] Add `playwright.config.js` with Chromium, Firefox, and WebKit projects, following the sibling test configuration.
+- [x] Add `test/package.json` with the private ESM package and `#test` import alias; add shared fixtures in `test/support/test.js` and setup helpers in `test/setup/browser.js`.
+- [x] Serve local built bundles and installed peer assets through `test/support/server/static-server.js`. Keep tests independent of public CDNs.
+- [x] Add fixture pages under `test/support/app/` for UMD, ESM, and minified bundle loading.
+- [x] Replace the placeholder `test` script with build followed by browser tests. Add `test:browser`, `test:coverage`, `test:headed`, and `test:ui`, using `--forbid-only` for automated runs.
+- [x] Capture regressions around the checkpointed normalization, indentation/outdent, source-mode, and history changes before refactoring them. Introduce the harness alongside the runtime work if the old component cannot initialize against the new peers.
 
 Acceptance: the harness loads local artifacts and can exercise editor behavior in all three browsers; failures identify concrete migration gaps.
 
@@ -211,3 +213,83 @@ README.md
 ```
 
 Additional focused editor modules or a unit-test directory can be retained when justified by the implementation. The structural goal is a small registration entry, an explicit component lifecycle, and clear module responsibilities with the same build/test/demo conventions as the siblings.
+
+## Compatibility contract for steps 1 through 4
+
+The checkpoint at `dc4c495` defines the starting API. The following contracts guide this stage; fixes to known defects must be documented rather than preserved as required behavior.
+
+### Public entry points and methods
+
+- Package consumers import the default `Editor`; UMD consumers use `UI.Editor`.
+- `Editor.init(textarea, options)` reuses an existing instance. The registered fQuery method is `$(textarea).editor(options)`, with string dispatch such as `$(textarea).editor('bold')`.
+- Formatting methods: `backColor(value)`, `bold()`, `fontName(value)`, `fontSize(value)`, `formatBlock(value)`, `foreColor(value)`, `italic()`, `justifyCenter()`, `justifyFull()`, `justifyLeft()`, `justifyRight()`, `removeFormat()`, `strikethrough()`, `subscript()`, `superscript()`, and `underline()`.
+- Structure and insertion methods: `indent()`, `outdent()`, `insertHorizontalRule()`, `insertHTML(value)`, `insertImage(src)`, `insertLink(href, text, newWindow)`, `insertText(value)`, `insertOrderedList()`, `insertUnorderedList()`, and `unlink()`.
+- State and lifecycle methods: `undo()`, `redo()`, `disable()`, `enable()`, and `dispose()`.
+- Source and fullscreen views are toolbar plugin actions, not public class methods. Content is read from the original textarea; there is no existing editor `getValue()` or `setValue()` method to preserve.
+
+### Options and defaults
+
+| Option | Checkpoint default and behavior |
+| --- | --- |
+| `buttons` | `null`; use `Editor.buttons`, an array of toolbar groups |
+| `fonts` | `null`; use `Editor.fonts` and filter to available fonts |
+| `defaultFont` | `'Arial'`; fall back to the first available configured font |
+| `height` | `'auto'` |
+| `resizable` | `true` |
+| `historyLimit` | `1000`; cap stored history entries |
+| `popovers` | Image size/float/removal actions, link display/edit/unlink, and table row/column/removal actions |
+| `imageUpload(files)` | Read files as data URLs and insert fulfilled results; callback `this` is the editor |
+| `keyDown(event)` | Ctrl+B/I/U/Y/Z invokes formatting or history methods; callback `this` is the editor |
+
+Frost UI resolves `data-ui-*` options on the textarea, such as `data-ui-height`, `data-ui-resizable`, and `data-ui-history-limit`. The `data-ui-toggle="editor"` marker can select elements for explicit initialization through `$('[data-ui-toggle="editor"]').editor()`; data attributes alone do not initialize the editor. Generated `data-ui-action`, `data-ui-command`, and `data-ui-value` attributes route toolbar actions; generated dropdowns use the standard UI dropdown marker. Attribute options are subject to the shared parser; callbacks must be configured in JavaScript.
+
+### Events and content synchronization
+
+- `init.ui.editor` fires on the textarea after rendering, event setup, normalization, and disabled-state refresh.
+- Focus and blur on the contenteditable surface forward `focus.ui.editor` and `blur.ui.editor` to the textarea.
+- `_updateValue()` emits `change.ui.editor` when serialized content differs from the textarea. Source changes update the textarea and emit that event; returning to visual mode loads the source HTML into the surface.
+- Undo/redo restores serialized content and selection. The checkpoint does not explicitly emit a change event from `_restoreHistory()`; event consistency remains a later behavior task.
+- A change callback observes synchronized textarea content. Event counts may vary with browser editing events and mutation delivery; this stage does not promise one event per keystroke.
+
+### Supported customization and existing internal dependencies
+
+Keep `Editor.buttons`, `classes`, `lang`, `icons`, `plugins`, `popovers`, `colors`, `fonts`, `fontSizes`, and `styles` customizable. A toolbar plugin can provide `command`, `value`, `action`, `dropdown`, `setContent`, `setTitle`, `content`, `icon`, `title`, and `disableCheck`; callbacks execute in the editor context where currently bound. Popover definitions support actions and render callbacks, and toolbar/popover arrays control grouping.
+
+Existing built-in plugins depend on `_editor`, `_container`, `_source`, `_sourceContainer`, `_fullScreen`, `_buttons`, `_history`, `_redoHistory`, and `_currentNode`, together with `_showEditor`, `_showSource`, `_refreshToolbar`, `_addHistory`, dropdown renderers, modal helpers, `_insertNode`, `_updateTable`, `_observe`, `_updateValue`, and `_removePopover`. Preserve these operational extension seams until step 5 defines replacements. Command dispatch also uses `_execCommand`; document replacements before making these seams inaccessible.
+
+The inherited node/options fields are implementation dependencies, not the preferred public API. In this stage, code uses the current base accessors and stores effective fonts and toolbar configuration separately so resolved options remain unchanged. Frost UI classes used by module code must be imported explicitly, rather than resolved through UMD globals.
+
+### HTML regression expectations
+
+The browser suite records concrete examples before the larger refactor:
+
+- `<p>Hello world</p>` survives initialization and source-mode entry unchanged.
+- A source edit to `<h2>Source title</h2><p>Source body</p>` appears in both the textarea and visual surface on return.
+- `<p><span>Plain</span> <b>bold</b><b> text</b></p>` normalizes to `<p>Plain <b>bold text</b></p>`.
+- Heading, list, table, link, and image markup is retained in the supported-content fixture.
+- The desired indentation contract keeps selected text inside a margin wrapper and removes indentation on outdent. The checkpoint fails this contract in all three engines for the reasons listed below; the tests carry explicit expected-failure annotations.
+- Typing followed by undo/redo restores the previous/next content and a selection inside the editor.
+
+Browser-produced formatting HTML can differ between engines. Preserve semantic formatting rather than requiring one browser's `execCommand` serialization everywhere. The existing normalization code is not a sanitizer, and retaining markup is not a guarantee that arbitrary input is safe.
+
+### Known defects and later migration work
+
+- The checkpoint's inherited `_node`/`_options` access and uppercase fQuery HTML helpers could not run against the selected peers. This stage updates those calls, keeps effective fonts and toolbar groups separate from resolved options, and imports modal/tooltip classes explicitly.
+- The checkpoint's `debugger` statement has been removed for lint adoption. Finish and review the `normalizePhrasing()` TODO with broader regression cases during step 5.
+- Initial content is not seeded into history when initialization leaves the HTML unchanged, so undo cannot restore the state before the first edit. This is an expected failure in Chromium, Firefox, and WebKit. Subsequent undo/redo is covered by passing regression tests.
+- Indenting a text selection can leave its text outside the margin wrapper in Chromium/WebKit. In Firefox the indentation succeeds, but outdent retains the manual indentation. These are three further expected failures for step 5.
+- Fix `aria-multline`, `aria-model`, and `aria-has-popup` in the accessibility work; they are defects, not compatibility contracts.
+- Form reset, disposal restoration, upload cancellation, keyboard consistency, sanitization, URL handling, and complete editing coverage remain in steps 5–7.
+- The ESM package entry, newer peer majors, changed Node requirements, and any later internal hook changes need release migration notes. Keep the package version unchanged until release preparation.
+- Retain the existing repository URLs until the destination is confirmed. No repository transfer, CI deployment, npm publication, or version release is part of steps 1–4.
+
+### Verification of steps 1 through 4
+
+- Clean `npm ci --offline` succeeds in an empty temporary directory using the updated manifest and lockfile.
+- `npm run lint` succeeds with the shared Frost ESLint and Stylelint configurations.
+- `npm run build` generates all four JavaScript variants, both CSS variants, and their source maps. A repeat build produced identical contents for all 12 distribution files. Sass still warns about `@import`; its module conversion belongs to step 6.
+- `npm run test:browser -- --workers=3` exercises 42 cases across Chromium, Firefox, and WebKit: 36 pass and six reproduce the explicitly documented checkpoint defects. There are no unexpected failures, skipped cases, or flaky results.
+- `npm run test:coverage -- --workers=3` succeeds and produces source-mapped HTML and LCOV reports. Initial line coverage is 55.79%; reaching the proposed coverage target remains step 7.
+- `npm pack --dry-run` includes the 12 expected distribution files and the supported source files, with development fixtures and reports excluded.
+
+Use `npx playwright install --with-deps` to install browser binaries on a fresh development machine. `npm test` builds before running browser tests; `test:browser` and `test:coverage` use the existing build. Expected failures are active regression tests, not skipped cases: Playwright will report an unexpected pass when their associated defect is fixed, prompting removal of the annotation.

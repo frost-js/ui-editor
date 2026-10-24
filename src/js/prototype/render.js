@@ -14,7 +14,7 @@ export function _render() {
     this._editorBody = $.create('div', {
         class: this.constructor.classes.editorBody,
         style: {
-            height: this._options.height,
+            height: this.options.height,
         },
     });
 
@@ -25,21 +25,21 @@ export function _render() {
     this._renderPopover();
     this._renderDrop();
 
-    if (this._options.resizable) {
+    if (this.options.resizable) {
         this._renderResize();
     }
 
     // hide the input node
-    $.hide(this._node);
-    $.setAttribute(this._node, { tabindex: -1 });
+    $.hide(this.node);
+    $.setAttribute(this.node, { tabindex: -1 });
 
-    $.insertBefore(this._container, this._node);
-};
+    $.insertBefore(this._container, this.node);
+}
 
 /**
  * Render a button
  * @param {object} data The button data.
- * @return {HTMLElement} The button.
+ * @returns {HTMLElement} The button.
  */
 export function _renderButton(data) {
     const button = $.create('button', {
@@ -63,15 +63,15 @@ export function _renderButton(data) {
     }
 
     if ('content' in data) {
-        $.setHTML(button, data.content);
+        $.setHtml(button, data.content);
     } else {
-        const content = $.parseHTML(this.constructor.icons[data.icon]);
+        const content = $.parseHtml(this.constructor.icons[data.icon]);
         $.addClass(content, this.constructor.classes.btnIcon);
         $.append(button, content);
     }
 
     return button;
-};
+}
 
 /**
  * Render the drop elements.
@@ -89,7 +89,7 @@ export function _renderDrop() {
     $.append(this._dropTarget, this._dropText);
     $.hide(this._dropTarget);
     $.append(this._container, this._dropTarget);
-};
+}
 
 /**
  * Render the editor elements.
@@ -106,7 +106,7 @@ export function _renderEditor() {
     this._editor = $.create('div', {
         class: this.constructor.classes.editor,
         style: {
-            fontFamily: this._options.defaultFont,
+            fontFamily: this._defaultFont,
         },
         attributes: {
             'role': 'textbox',
@@ -141,7 +141,7 @@ export function _renderEditor() {
     $.append(this._editorContainer, this._editor);
     $.append(this._editorScroll, this._editorContainer);
     $.append(this._editorBody, this._editorScroll);
-};
+}
 
 /**
  * Render the resize bar.
@@ -157,7 +157,7 @@ export function _renderResize() {
     }
 
     $.append(this._container, this._resizeBar);
-};
+}
 
 /**
  * Render the source elements.
@@ -190,4 +190,4 @@ export function _renderSource() {
     $.append(this._sourceContainer, this._sourceScroll);
     $.append(this._sourceOuter, this._sourceContainer);
     $.append(this._editorBody, this._sourceOuter);
-};
+}
