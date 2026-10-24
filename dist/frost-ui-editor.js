@@ -442,8 +442,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			linkText: "Link Text",
 			linkUrl: "Link URL",
 			videoUrl: "Video URL",
-			videoUrlInvalid: "Invalid video URL.",
-			urlInvalid: "Enter a supported URL."
+			videoUrlInvalid: "Invalid video URL."
 		},
 		plugins: {
 			alignCenter: "Align Center",
@@ -818,188 +817,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		return modal;
 	}
 
-// src/js/sanitize.js
-	var tags = Object.fromEntries([
-		"a",
-		"abbr",
-		"b",
-		"bdi",
-		"bdo",
-		"blockquote",
-		"br",
-		"caption",
-		"cite",
-		"code",
-		"col",
-		"colgroup",
-		"dd",
-		"del",
-		"div",
-		"dl",
-		"dt",
-		"em",
-		"figcaption",
-		"figure",
-		"font",
-		"h1",
-		"h2",
-		"h3",
-		"h4",
-		"h5",
-		"h6",
-		"hr",
-		"i",
-		"iframe",
-		"img",
-		"ins",
-		"kbd",
-		"li",
-		"mark",
-		"ol",
-		"p",
-		"pre",
-		"q",
-		"s",
-		"samp",
-		"small",
-		"span",
-		"strong",
-		"sub",
-		"sup",
-		"table",
-		"tbody",
-		"td",
-		"tfoot",
-		"th",
-		"thead",
-		"time",
-		"tr",
-		"u",
-		"ul",
-		"var",
-		"wbr"
-	].map((tag) => [tag, []]));
-	Object.assign(tags, {
-		"*": [
-			"class",
-			"title",
-			"dir",
-			"lang",
-			"style"
-		],
-		"a": [
-			"href",
-			"target",
-			"rel"
-		],
-		"font": [
-			"face",
-			"size",
-			"color"
-		],
-		"img": [
-			"src",
-			"alt",
-			"width",
-			"height"
-		],
-		"iframe": [
-			"src",
-			"title",
-			"width",
-			"height",
-			"allowfullscreen",
-			"frameborder"
-		],
-		"ol": [
-			"start",
-			"reversed",
-			"type"
-		],
-		"li": ["value"],
-		"td": ["colspan", "rowspan"],
-		"th": [
-			"colspan",
-			"rowspan",
-			"scope"
-		],
-		"col": ["span"],
-		"colgroup": ["span"]
-	});
-	var styles$1 = /* @__PURE__ */ new Set([
-		"color",
-		"background-color",
-		"font-family",
-		"font-size",
-		"font-weight",
-		"font-style",
-		"text-decoration",
-		"text-decoration-line",
-		"text-align",
-		"vertical-align",
-		"white-space",
-		"margin-left",
-		"margin-right",
-		"margin-inline-start",
-		"margin-inline-end",
-		"width",
-		"height",
-		"max-width",
-		"max-height",
-		"inline-size",
-		"block-size",
-		"max-inline-size",
-		"max-block-size",
-		"float"
-	]);
-	/**
-	* Checks an editor URL, including relative links and raster image uploads.
-	* @param {string} value The URL.
-	* @param {'link'|'image'|'video'} [kind='link'] The destination type.
-	* @returns {boolean} Whether the URL is supported.
-	*/
-	function isSafeUrl(value, kind = "link") {
-		try {
-			const url = new URL(value, document.baseURI);
-			if (kind === "video") return url.protocol === "https:" && ["www.youtube.com", "www.youtube-nocookie.com"].includes(url.hostname) && /^\/embed\/[\w-]+$/.test(url.pathname);
-			if (kind === "image" && /^data:image\/(?:png|gif|jpeg|webp|avif);base64,[a-z\d+/=\s]+$/i.test(value)) return true;
-			return ["http:", "https:"].includes(url.protocol) || kind === "link" && ["mailto:", "tel:"].includes(url.protocol);
-		} catch {
-			return false;
-		}
-	}
-	/**
-	* Sanitizes supported editor markup before it reaches the live DOM.
-	* @param {string} html Untrusted HTML.
-	* @returns {string} Supported HTML with safe URLs and presentation styles.
-	*/
-	function sanitizeHtml(html) {
-		const template = document.createElement("template");
-		template.innerHTML = _fr0st_query.default.sanitize(html, tags);
-		for (const node of template.content.querySelectorAll("*")) {
-			for (const property of [...node.style]) {
-				const value = node.style.getPropertyValue(property);
-				if (!styles$1.has(property) || /url\s*\(|expression\s*\(|var\s*\(|[\\@]/i.test(value)) node.style.removeProperty(property);
-			}
-			if (!node.style.length) node.removeAttribute("style");
-			for (const [attribute, kind] of [["href", "link"], ["src", node.localName === "iframe" ? "video" : "image"]]) if (node.hasAttribute(attribute) && !isSafeUrl(node.getAttribute(attribute), kind)) node.removeAttribute(attribute);
-			if (node.localName === "iframe") {
-				if (!node.hasAttribute("src")) {
-					node.remove();
-					continue;
-				}
-				node.setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation");
-				node.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
-				if (!node.hasAttribute("title")) node.setAttribute("title", "YouTube video");
-			}
-			if (node.localName === "a") {
-				if (node.getAttribute("target") === "_blank") node.setAttribute("rel", "noopener noreferrer");
-				else node.removeAttribute("target");
-			}
-		}
-		return template.innerHTML;
-	}
-
 // src/js/selection.js
 /** @import { EditorSelectionMarkers } from './types.js'; */
 	/**
@@ -1325,7 +1142,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		/** @type {EditorOptions} */
 		static defaults = {
 			buttons: null,
-			sanitize: sanitizeHtml,
 			popovers: {
 				image: [
 					[
@@ -1500,7 +1316,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (_fr0st_query.default.isVisible(this.#sourceContainer)) {
 					this.#observe(false);
 					try {
-						_fr0st_query.default.setHtml(this.#editor, this.options.sanitize(value));
+						_fr0st_query.default.setHtml(this.#editor, value);
 						this.#normalize();
 						this.#checkEmpty();
 						const html = _fr0st_query.default.getHtml(this.#editor);
@@ -1587,8 +1403,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					class: this.constructor.classes.linkUrl,
 					attributes: {
 						href,
-						target: "_blank",
-						rel: "noopener noreferrer"
+						target: "_blank"
 					}
 				});
 			} },
@@ -1787,7 +1602,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#fonts = (this.options.fonts || this.constructor.fonts).filter((font) => document.fonts.check(`12px ${font}`));
 				this.#defaultFont = this.#fonts.includes(this.options.defaultFont) ? this.options.defaultFont : this.#fonts[0] || "sans-serif";
 				this.#render();
-				_fr0st_query.default.setHtml(this.#editor, this.options.sanitize(_fr0st_query.default.getValue(node)));
+				_fr0st_query.default.setHtml(this.#editor, _fr0st_query.default.getValue(node));
 				this.#refreshDisabled();
 				this.#checkEmpty();
 				this.#events();
@@ -1960,7 +1775,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		insertHtml(value) {
 			if (!this.node || this.node.matches(":disabled") || this.node.readOnly) return;
-			this.#execCommand("insertHTML", this.options.sanitize(value));
+			this.#execCommand("insertHTML", value);
 		}
 		/**
 		* Inserts an image.
@@ -1968,7 +1783,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		insertImage(src) {
 			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
-			if (!isSafeUrl(src, "image")) return;
 			const img = _fr0st_query.default.create("img", { attributes: { src } });
 			const newImg = this.insertNode(img);
 			if (!newImg) return;
@@ -1996,15 +1810,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {boolean} [newWindow] Whether to open the link in a new window.
 		*/
 		insertLink(href, text, newWindow) {
-			if (!isSafeUrl(href)) return;
 			const link = _fr0st_query.default.create("a", {
 				text,
 				attributes: { href }
 			});
-			if (newWindow) _fr0st_query.default.setAttribute(link, {
-				target: "_blank",
-				rel: "noopener noreferrer"
-			});
+			if (newWindow) _fr0st_query.default.setAttribute(link, { target: "_blank" });
 			this.insertNode(link);
 		}
 		/**
@@ -2698,7 +2508,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (this.node.matches(":disabled") || this.node.readOnly) return;
 				refreshLineNumbersDebounced();
 				const template = document.createElement("template");
-				template.innerHTML = this.options.sanitize(this.#source.value);
+				template.innerHTML = this.#source.value;
 				const html = serialize(template.content, template.innerHTML);
 				if (this.node.value !== html) {
 					this.node.value = html;
@@ -2940,7 +2750,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#loadValue(reset = false) {
 			this.#observe(false);
 			try {
-				this.#editor.innerHTML = this.options.sanitize(this.node.value);
+				this.#editor.innerHTML = this.node.value;
 				this.#normalize();
 				this.#checkEmpty();
 				this.node.value = serialize(this.#editor);
@@ -3613,7 +3423,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					multiple: true
 				}
 			});
-			const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+			const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
 				id: (0, _fr0st_ui.generateId)("editor-image-url"),
 				label: this.constructor.lang.modals.imageUrl
 			});
@@ -3634,15 +3444,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					const files = _fr0st_query.default.getProperty(fileInput, "files");
 					const src = _fr0st_query.default.getValue(urlInput);
 					if (files.length) this.options.imageUpload.call(this, files);
-					else if (src) {
-						if (!isSafeUrl(src, "image")) {
-							urlInput.setAttribute("aria-invalid", "true");
-							_fr0st_query.default.addClass(urlGroup, this.constructor.classes.formError);
-							_fr0st_query.default.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
-							return false;
-						}
-						this.insertImage(src);
-					}
+					else if (src) this.insertImage(src);
 				},
 				onShown: (_) => {
 					_fr0st_query.default.focus(fileInput);
@@ -3669,7 +3471,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				id: (0, _fr0st_ui.generateId)("editor-link-text"),
 				label: this.constructor.lang.modals.linkText
 			});
-			const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+			const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
 				id: (0, _fr0st_ui.generateId)("editor-link-url"),
 				label: this.constructor.lang.modals.linkUrl
 			});
@@ -3707,12 +3509,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					const text = _fr0st_query.default.getValue(textInput);
 					const href = _fr0st_query.default.getValue(urlInput);
 					const newWindow = _fr0st_query.default.is(newWindowInput, ":checked");
-					if (!isSafeUrl(href)) {
-						urlInput.setAttribute("aria-invalid", "true");
-						_fr0st_query.default.addClass(urlGroup, this.constructor.classes.formError);
-						_fr0st_query.default.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
-						return false;
-					}
 					this.insertLink(href, text, newWindow);
 				},
 				onShown: (_) => {
@@ -3787,7 +3583,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						height: 315,
 						src: `https://www.youtube.com/embed/${id}`,
 						frameborder: 0,
-						allowfullscreen: true
+						allowfullscreen: true,
+						title: this.constructor.lang.modals.insertVideo
 					} });
 					const html = _fr0st_query.default.getProperty(video, "outerHTML");
 					this.insertHtml(html);

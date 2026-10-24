@@ -49,17 +49,13 @@ test.describe('Editor media', () => {
             await expect(page.locator('.editor img')).toHaveCount(1);
         });
 
-        test('inserts an image by URL with validation feedback and dialog focus restoration', async ({ page }) => {
+        test('inserts an image by URL and restores dialog focus', async ({ page }) => {
             await createEditor(page, '<p>Image</p>', { buttons: [['image']] });
             const button = page.getByRole('button', { name: 'Image', exact: true });
             await button.click();
             const dialog = page.getByRole('dialog', { name: 'Insert Image' });
 
             await expect(dialog.getByLabel('Select Files')).toBeFocused();
-            await dialog.getByLabel('Image URL').fill('javascript:alert(1)');
-            await dialog.getByRole('button', { name: 'Insert Image', exact: true }).click();
-
-            await expect(dialog.getByText('Enter a supported URL.')).toBeVisible();
             await dialog.getByLabel('Image URL').fill(`data:image/gif;base64,${gif}`);
             await dialog.getByRole('button', { name: 'Insert Image', exact: true }).click();
 
@@ -136,6 +132,15 @@ test.describe('Editor media', () => {
     });
 
     test.describe('links', () => {
+        test('inserts an application URL without restricting its scheme', async ({ page }) => {
+            await createEditor(page);
+            await page.evaluate(() => window.editor.insertLink('app:document/42', 'Document', true));
+
+            await expect(page.locator('.editor a')).toHaveText('Document');
+            await expect(page.locator('.editor a')).toHaveAttribute('href', 'app:document/42');
+            await expect(page.locator('.editor a')).toHaveAttribute('target', '_blank');
+        });
+
         test('removes a link without losing its text or selection', async ({ page }) => {
             await createEditor(page, '<p><a href="/example">Example</a> remains</p>');
             await page.locator('.editor a').click();
@@ -148,7 +153,7 @@ test.describe('Editor media', () => {
             await expect(page.locator('.editor a')).toHaveText('Example');
         });
 
-        test('edits an existing new-window link and preserves its target protection', async ({ page }) => {
+        test('edits an existing new-window link and preserves its target', async ({ page }) => {
             await createEditor(page, '<p><a href="https://example.com/" target="_blank">Old</a></p>');
             await page.locator('.editor a').click();
             await page.getByRole('button', { name: 'Edit Link', exact: true }).click();
@@ -162,7 +167,7 @@ test.describe('Editor media', () => {
             await dialog.getByRole('button', { name: 'Insert Link', exact: true }).click();
 
             await expect(page.locator('.editor a')).toHaveText('Custom title');
-            await expect(page.locator('.editor a')).toHaveAttribute('rel', 'noopener noreferrer');
+            await expect(page.locator('.editor a')).toHaveAttribute('target', '_blank');
         });
 
         test('does not serialize popover positioning or add undo entries when viewing a link', async ({ page }) => {
@@ -202,6 +207,26 @@ test.describe('Editor media', () => {
 
             await expect(page.locator('.editor a')).toHaveText('Edited link');
             await expect(page.locator('.modal, .modal-backdrop')).toHaveCount(0);
+        });
+    });
+
+    test.describe('videos', () => {
+        test('shows invalid video feedback and inserts a YouTube embed', async ({ page }) => {
+            await createEditor(page, '<p>Media</p>', { buttons: [['video']] });
+            await page.getByRole('button', { name: 'Video', exact: true }).click();
+            const dialog = page.getByRole('dialog', { name: 'Insert Video' });
+            await dialog.getByLabel('Video URL').fill('https://example.com/watch?v=abc');
+            await dialog.getByRole('button', { name: 'Insert Video', exact: true }).click();
+
+            await expect(dialog.getByLabel('Video URL')).toHaveAttribute('aria-invalid', 'true');
+            await expect(dialog.getByText('Invalid video URL.')).toBeVisible();
+
+            await dialog.getByLabel('Video URL').fill('https://youtu.be/abc-123_X');
+            await dialog.getByRole('button', { name: 'Insert Video', exact: true }).click();
+
+            await expect(page.locator('.editor iframe')).toHaveAttribute('src', 'https://www.youtube.com/embed/abc-123_X');
+            await expect(page.locator('.editor iframe')).toHaveAttribute('title', 'Insert Video');
+            await expect(page.getByRole('dialog')).toHaveCount(0);
         });
     });
 

@@ -8,7 +8,6 @@ import { getSelectionData, restoreSelectionData } from './history.js';
 import icons from './icons.js';
 import { createCheckbox, createFileInput, createInput, createModal } from './modals.js';
 import { isPhrasingContent, joinAdjacentNodes, normalizePhrasing, normalizeSpans, normalizeStyles } from './normalize.js';
-import { isSafeUrl, sanitizeHtml } from './sanitize.js';
 import { getRange, normalizeText, restoreSelection, saveSelection, selectNode, selectRange } from './selection.js';
 import { addEditor, removeEditor, resetDragCount } from './shared-events.js';
 import { buttons, colors, fonts, fontSizes, styles } from './values.js';
@@ -26,7 +25,6 @@ export default class Editor extends BaseComponent {
     /** @type {EditorOptions} */
     static defaults = {
         buttons: null,
-        sanitize: sanitizeHtml,
         popovers: {
             image: [
                 ['imageFull', 'imageHalf', 'imageQuarter', 'imageOriginal'],
@@ -241,7 +239,7 @@ export default class Editor extends BaseComponent {
                 if ($.isVisible(this.#sourceContainer)) {
                     this.#observe(false);
                     try {
-                        $.setHtml(this.#editor, this.options.sanitize(value));
+                        $.setHtml(this.#editor, value);
                         this.#normalize();
                         this.#checkEmpty();
                         const html = $.getHtml(this.#editor);
@@ -362,7 +360,6 @@ export default class Editor extends BaseComponent {
                     attributes: {
                         href,
                         target: '_blank',
-                        rel: 'noopener noreferrer',
                     },
                 });
             },
@@ -605,7 +602,7 @@ export default class Editor extends BaseComponent {
             this.#defaultFont = this.#fonts.includes(this.options.defaultFont) ?
                 this.options.defaultFont : this.#fonts[0] || 'sans-serif';
             this.#render();
-            $.setHtml(this.#editor, this.options.sanitize($.getValue(node)));
+            $.setHtml(this.#editor, $.getValue(node));
             this.#refreshDisabled();
             this.#checkEmpty();
             this.#events();
@@ -825,7 +822,7 @@ export default class Editor extends BaseComponent {
         if (!this.node || this.node.matches(':disabled') || this.node.readOnly) {
             return;
         }
-        this.#execCommand('insertHTML', this.options.sanitize(value));
+        this.#execCommand('insertHTML', value);
     }
 
     /**
@@ -834,9 +831,6 @@ export default class Editor extends BaseComponent {
      */
     insertImage(src) {
         if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly) {
-            return;
-        }
-        if (!isSafeUrl(src, 'image')) {
             return;
         }
         const img = $.create('img', { attributes: { src } });
@@ -869,9 +863,6 @@ export default class Editor extends BaseComponent {
      * @param {boolean} [newWindow] Whether to open the link in a new window.
      */
     insertLink(href, text, newWindow) {
-        if (!isSafeUrl(href)) {
-            return;
-        }
         const link = $.create('a', {
             text,
             attributes: {
@@ -880,7 +871,7 @@ export default class Editor extends BaseComponent {
         });
 
         if (newWindow) {
-            $.setAttribute(link, { target: '_blank', rel: 'noopener noreferrer' });
+            $.setAttribute(link, { target: '_blank' });
         }
 
         this.insertNode(link);
@@ -1828,7 +1819,7 @@ export default class Editor extends BaseComponent {
             }
             refreshLineNumbersDebounced();
             const template = document.createElement('template');
-            template.innerHTML = this.options.sanitize(this.#source.value);
+            template.innerHTML = this.#source.value;
             const html = serialize(template.content, template.innerHTML);
             if (this.node.value !== html) {
                 this.node.value = html;
@@ -2146,7 +2137,7 @@ export default class Editor extends BaseComponent {
     #loadValue(reset = false) {
         this.#observe(false);
         try {
-            this.#editor.innerHTML = this.options.sanitize(this.node.value);
+            this.#editor.innerHTML = this.node.value;
             this.#normalize();
             this.#checkEmpty();
             this.node.value = serialize(this.#editor);
@@ -3068,7 +3059,7 @@ export default class Editor extends BaseComponent {
             },
         });
 
-        const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+        const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
             id: generateId('editor-image-url'),
             label: this.constructor.lang.modals.imageUrl,
         });
@@ -3098,12 +3089,6 @@ export default class Editor extends BaseComponent {
                 if (files.length) {
                     this.options.imageUpload.call(this, files);
                 } else if (src) {
-                    if (!isSafeUrl(src, 'image')) {
-                        urlInput.setAttribute('aria-invalid', 'true');
-                        $.addClass(urlGroup, this.constructor.classes.formError);
-                        $.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
-                        return false;
-                    }
                     this.insertImage(src);
                 }
             },
@@ -3137,7 +3122,7 @@ export default class Editor extends BaseComponent {
             label: this.constructor.lang.modals.linkText,
         });
 
-        const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+        const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
             id: generateId('editor-link-url'),
             label: this.constructor.lang.modals.linkUrl,
         });
@@ -3189,12 +3174,6 @@ export default class Editor extends BaseComponent {
                 const href = $.getValue(urlInput);
                 const newWindow = $.is(newWindowInput, ':checked');
 
-                if (!isSafeUrl(href)) {
-                    urlInput.setAttribute('aria-invalid', 'true');
-                    $.addClass(urlGroup, this.constructor.classes.formError);
-                    $.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
-                    return false;
-                }
                 this.insertLink(href, text, newWindow);
             },
             onShown: (_) => {
@@ -3293,6 +3272,7 @@ export default class Editor extends BaseComponent {
                         src: `https://www.youtube.com/embed/${id}`,
                         frameborder: 0,
                         allowfullscreen: true,
+                        title: this.constructor.lang.modals.insertVideo,
                     },
                 });
 

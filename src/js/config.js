@@ -104,7 +104,6 @@ export const lang = {
         linkUrl: 'Link URL',
         videoUrl: 'Video URL',
         videoUrlInvalid: 'Invalid video URL.',
-        urlInvalid: 'Enter a supported URL.',
     },
     plugins: {
         alignCenter: 'Align Center',
@@ -169,4 +168,3 @@ export const lang = {
         h6: 'Header 6',
     },
 };
-

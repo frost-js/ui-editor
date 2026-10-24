@@ -18,7 +18,6 @@ A WYSIWYG editor for Frost UI, with customizable toolbars, HTML source editing, 
 - Custom buttons, dropdowns, popovers, upload callbacks, and language dictionaries
 - Native form submission, reset, validation, disabled, and readonly behavior
 - Accessible labels, keyboard controls, light/dark themes, and RTL
-- Default HTML sanitization and configurable content policy
 - Native `Editor` class and `editor` fQuery plugin, with existing-instance reuse
 - ESM and UMD bundles, expanded/minified CSS, source maps, and Sass modules
 - JSDoc-powered IntelliSense and Chromium, Firefox, and WebKit regression tests
@@ -155,7 +154,6 @@ Changes to defaults apply to newly created instances.
 | `historyLimit` | `number` | `1000` | Maximum snapshots including initial content; bounded to at least one. |
 | `popovers` | `object` | See [Popovers](#popovers) | Image, link, and table action groups. |
 | `imageUpload` | `function` | Editor-owned file reader | `(files) => void \| Promise<void>`, with the editor as `this`; inserts successful local raster data URLs by default. |
-| `sanitize` | `function` | Built-in HTML policy | Synchronous `(html) => string`; a replacement returns trusted HTML. |
 | `keyDown` | `function \| null` | Formatting/history shortcuts | Runs on rich-editor keydown with the editor as `this`; `null` disables that callback. Structural editing keys still work. |
 
 ### Image upload
@@ -269,9 +267,9 @@ Data attributes configure options; they do not initialize Editor by themselves. 
 | `formatBlock(tag)` | `void` | Set a block tag, such as `'h2'` or `'p'`. |
 | `indent()` | `void` | Indent selected blocks or list items while retaining selection. |
 | `insertHorizontalRule()` | `void` | Insert a horizontal rule. |
-| `insertHtml(html)` | `void` | Insert sanitized HTML at the selection. |
-| `insertImage(src)` | `void` | Insert a protocol-checked image. |
-| `insertLink(href, text, newWindow?)` | `void` | Insert a protocol-checked link; newWindow defaults to false. |
+| `insertHtml(html)` | `void` | Insert HTML at the selection. |
+| `insertImage(src)` | `void` | Insert an image. |
+| `insertLink(href, text, newWindow?)` | `void` | Insert a link; newWindow defaults to false. |
 | `insertNode(node)` | `HTMLElement\|null` | Insert a trusted DOM element, recording history and synchronizing the textarea. |
 | `insertOrderedList()` | `void` | Toggle ordered-list formatting. |
 | `insertText(text)` | `void` | Insert literal text at the selection. |
@@ -284,7 +282,7 @@ Data attributes configure options; they do not initialize Editor by themselves. 
 | `onDispose(callback)` | `void` | Register extension cleanup; run it immediately if the editor is already disposed. |
 | `outdent()` | `void` | Outdent selected blocks or list items while retaining selection. |
 | `redo()` | `void` | Restore the next content and selection snapshot. |
-| `refresh()` | `void` | Reload the assigned textarea value, sanitize/normalize it, and update state without emitting a change event. |
+| `refresh()` | `void` | Reload and normalize the assigned textarea value and update state without emitting a change event. |
 | `removeFormat()` | `void` | Remove formatting from the selection. |
 | `strikethrough()` | `void` | Toggle strikethrough formatting. |
 | `subscript()` | `void` | Toggle subscript formatting. |
@@ -352,7 +350,7 @@ Register before initialization to observe `init`. fQuery exposes the namespace o
 
 Change callbacks observe synchronized textarea content. Mutation delivery and browser editing events can affect counts; there is no one-event-per-keystroke guarantee. The editor does not synthesize a separate native input event for every command.
 
-Initialization can synchronize changed sanitized/normalized content before `init`; an unchanged initial value does not produce a change notification. `refresh()` and native reset do not emit an editor change event.
+Initialization can synchronize normalized content before `init`; an unchanged initial value does not produce a change notification. `refresh()` and native reset do not emit an editor change event.
 
 ## fQuery API
 
@@ -394,7 +392,7 @@ The editing engine still uses browser `contenteditable` and deprecated `document
 
 ## Forms
 
-The original named textarea remains the submitted form control. Rich editing, commands, undo/redo, and source input keep `textarea.value` current. Source input is sanitized immediately for submission; returning to rich mode normalizes HTML and records a history operation if it changed. Empty editing scaffolding serializes as `''` for native required validation.
+The original named textarea remains the submitted form control. Rich editing, commands, undo/redo, and source input keep `textarea.value` current. Source input synchronizes immediately for submission; returning to rich mode normalizes HTML and records a history operation if it changed. Empty editing scaffolding serializes as `''` for native required validation.
 
 After assigning `textarea.value`, call `editor.refresh()` or dispatch `input`/`change` on the textarea to reload it. Native form reset waits for its default action, restores the default value, clears history, and emits no editor change event. Canceling reset leaves editing state intact. Disabled controls/fieldsets block editing and follow native submission rules, including the first-legend exception. Readonly controls remain selectable and submitted, and allow viewing source.
 
@@ -418,13 +416,9 @@ import Editor from '@fr0st/ui-editor';
 Editor.init(document.querySelector('#form-document'));
 ```
 
-### HTML and URL policy
+### HTML handling
 
-HTML is sanitized before initial rendering, insertion, paste, external value reloads, and source rendering/submission. The default policy preserves editor headings, inline formatting, legacy font presentation, lists, tables, selected presentation styles, raster data images, and supported YouTube embeds. It removes scripts, SVG, form controls, arbitrary embeds, event attributes, IDs, unsafe URLs, and layout/resource-loading CSS. Normalization also repairs unsupported nesting and merges equivalent inline nodes. Submitted HTML can differ from the original input.
-
-Links accept relative/HTTP(S) URLs, `mailto:`, and `tel:`. Images accept relative/HTTP(S) URLs and base64 PNG/JPEG/GIF/WebP/AVIF data. New-window links receive `rel="noopener noreferrer"`. The video dialog accepts HTTPS YouTube watch URLs and `youtu.be` links; resulting embeds use HTTPS `www.youtube.com/embed/…` or `www.youtube-nocookie.com/embed/…`, a sandbox, referrer policy, and accessible title.
-
-A synchronous `sanitize(html)` option replaces the HTML policy and returns trusted HTML. Toolbar/icon HTML, plugin renderers, direct DOM mutations, and `insertNode()` also cross a trusted application boundary. Public image/link insertion still validates URL protocols. Validate and sanitize submitted content on the server for its eventual display context; the browser policy is not a substitute for that boundary.
+Editor loads and inserts HTML directly. Normalization repairs unsupported nesting and merges equivalent inline nodes. Source edits synchronize with the submitted textarea; returning to rich mode applies normalization. The video dialog converts YouTube watch URLs and `youtu.be` links into embeds.
 
 ## Customization
 

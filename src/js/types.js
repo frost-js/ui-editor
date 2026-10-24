@@ -77,7 +77,6 @@
  * @property {number} [historyLimit=1000] Maximum history snapshots, including the initial content; at least one.
  * @property {EditorPopoverGroups} [popovers] Image, link, and table action groups.
  * @property {EditorUploadCallback} [imageUpload] The image upload callback; the default reader is canceled on disposal.
- * @property {(html: string) => string} [sanitize] Sanitizes HTML before initial load, source rendering, insertion, and paste; overrides are trusted.
  * @property {EditorKeyDownCallback|null} [keyDown] A keyboard callback, or null to disable shortcuts.
  */
 

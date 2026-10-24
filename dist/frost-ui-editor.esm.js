@@ -411,8 +411,7 @@ var lang = {
 		linkText: "Link Text",
 		linkUrl: "Link URL",
 		videoUrl: "Video URL",
-		videoUrlInvalid: "Invalid video URL.",
-		urlInvalid: "Enter a supported URL."
+		videoUrlInvalid: "Invalid video URL."
 	},
 	plugins: {
 		alignCenter: "Align Center",
@@ -787,188 +786,6 @@ function createModal(Component, options) {
 	return modal;
 }
 
-// src/js/sanitize.js
-var tags = Object.fromEntries([
-	"a",
-	"abbr",
-	"b",
-	"bdi",
-	"bdo",
-	"blockquote",
-	"br",
-	"caption",
-	"cite",
-	"code",
-	"col",
-	"colgroup",
-	"dd",
-	"del",
-	"div",
-	"dl",
-	"dt",
-	"em",
-	"figcaption",
-	"figure",
-	"font",
-	"h1",
-	"h2",
-	"h3",
-	"h4",
-	"h5",
-	"h6",
-	"hr",
-	"i",
-	"iframe",
-	"img",
-	"ins",
-	"kbd",
-	"li",
-	"mark",
-	"ol",
-	"p",
-	"pre",
-	"q",
-	"s",
-	"samp",
-	"small",
-	"span",
-	"strong",
-	"sub",
-	"sup",
-	"table",
-	"tbody",
-	"td",
-	"tfoot",
-	"th",
-	"thead",
-	"time",
-	"tr",
-	"u",
-	"ul",
-	"var",
-	"wbr"
-].map((tag) => [tag, []]));
-Object.assign(tags, {
-	"*": [
-		"class",
-		"title",
-		"dir",
-		"lang",
-		"style"
-	],
-	"a": [
-		"href",
-		"target",
-		"rel"
-	],
-	"font": [
-		"face",
-		"size",
-		"color"
-	],
-	"img": [
-		"src",
-		"alt",
-		"width",
-		"height"
-	],
-	"iframe": [
-		"src",
-		"title",
-		"width",
-		"height",
-		"allowfullscreen",
-		"frameborder"
-	],
-	"ol": [
-		"start",
-		"reversed",
-		"type"
-	],
-	"li": ["value"],
-	"td": ["colspan", "rowspan"],
-	"th": [
-		"colspan",
-		"rowspan",
-		"scope"
-	],
-	"col": ["span"],
-	"colgroup": ["span"]
-});
-var styles$1 = /* @__PURE__ */ new Set([
-	"color",
-	"background-color",
-	"font-family",
-	"font-size",
-	"font-weight",
-	"font-style",
-	"text-decoration",
-	"text-decoration-line",
-	"text-align",
-	"vertical-align",
-	"white-space",
-	"margin-left",
-	"margin-right",
-	"margin-inline-start",
-	"margin-inline-end",
-	"width",
-	"height",
-	"max-width",
-	"max-height",
-	"inline-size",
-	"block-size",
-	"max-inline-size",
-	"max-block-size",
-	"float"
-]);
-/**
-* Checks an editor URL, including relative links and raster image uploads.
-* @param {string} value The URL.
-* @param {'link'|'image'|'video'} [kind='link'] The destination type.
-* @returns {boolean} Whether the URL is supported.
-*/
-function isSafeUrl(value, kind = "link") {
-	try {
-		const url = new URL(value, document.baseURI);
-		if (kind === "video") return url.protocol === "https:" && ["www.youtube.com", "www.youtube-nocookie.com"].includes(url.hostname) && /^\/embed\/[\w-]+$/.test(url.pathname);
-		if (kind === "image" && /^data:image\/(?:png|gif|jpeg|webp|avif);base64,[a-z\d+/=\s]+$/i.test(value)) return true;
-		return ["http:", "https:"].includes(url.protocol) || kind === "link" && ["mailto:", "tel:"].includes(url.protocol);
-	} catch {
-		return false;
-	}
-}
-/**
-* Sanitizes supported editor markup before it reaches the live DOM.
-* @param {string} html Untrusted HTML.
-* @returns {string} Supported HTML with safe URLs and presentation styles.
-*/
-function sanitizeHtml(html) {
-	const template = document.createElement("template");
-	template.innerHTML = $.sanitize(html, tags);
-	for (const node of template.content.querySelectorAll("*")) {
-		for (const property of [...node.style]) {
-			const value = node.style.getPropertyValue(property);
-			if (!styles$1.has(property) || /url\s*\(|expression\s*\(|var\s*\(|[\\@]/i.test(value)) node.style.removeProperty(property);
-		}
-		if (!node.style.length) node.removeAttribute("style");
-		for (const [attribute, kind] of [["href", "link"], ["src", node.localName === "iframe" ? "video" : "image"]]) if (node.hasAttribute(attribute) && !isSafeUrl(node.getAttribute(attribute), kind)) node.removeAttribute(attribute);
-		if (node.localName === "iframe") {
-			if (!node.hasAttribute("src")) {
-				node.remove();
-				continue;
-			}
-			node.setAttribute("sandbox", "allow-scripts allow-same-origin allow-presentation");
-			node.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
-			if (!node.hasAttribute("title")) node.setAttribute("title", "YouTube video");
-		}
-		if (node.localName === "a") {
-			if (node.getAttribute("target") === "_blank") node.setAttribute("rel", "noopener noreferrer");
-			else node.removeAttribute("target");
-		}
-	}
-	return template.innerHTML;
-}
-
 // src/js/selection.js
 /** @import { EditorSelectionMarkers } from './types.js'; */
 /**
@@ -1294,7 +1111,6 @@ var Editor = class extends BaseComponent {
 	/** @type {EditorOptions} */
 	static defaults = {
 		buttons: null,
-		sanitize: sanitizeHtml,
 		popovers: {
 			image: [
 				[
@@ -1469,7 +1285,7 @@ var Editor = class extends BaseComponent {
 			if ($.isVisible(this.#sourceContainer)) {
 				this.#observe(false);
 				try {
-					$.setHtml(this.#editor, this.options.sanitize(value));
+					$.setHtml(this.#editor, value);
 					this.#normalize();
 					this.#checkEmpty();
 					const html = $.getHtml(this.#editor);
@@ -1556,8 +1372,7 @@ var Editor = class extends BaseComponent {
 				class: this.constructor.classes.linkUrl,
 				attributes: {
 					href,
-					target: "_blank",
-					rel: "noopener noreferrer"
+					target: "_blank"
 				}
 			});
 		} },
@@ -1756,7 +1571,7 @@ var Editor = class extends BaseComponent {
 			this.#fonts = (this.options.fonts || this.constructor.fonts).filter((font) => document.fonts.check(`12px ${font}`));
 			this.#defaultFont = this.#fonts.includes(this.options.defaultFont) ? this.options.defaultFont : this.#fonts[0] || "sans-serif";
 			this.#render();
-			$.setHtml(this.#editor, this.options.sanitize($.getValue(node)));
+			$.setHtml(this.#editor, $.getValue(node));
 			this.#refreshDisabled();
 			this.#checkEmpty();
 			this.#events();
@@ -1929,7 +1744,7 @@ var Editor = class extends BaseComponent {
 	*/
 	insertHtml(value) {
 		if (!this.node || this.node.matches(":disabled") || this.node.readOnly) return;
-		this.#execCommand("insertHTML", this.options.sanitize(value));
+		this.#execCommand("insertHTML", value);
 	}
 	/**
 	* Inserts an image.
@@ -1937,7 +1752,6 @@ var Editor = class extends BaseComponent {
 	*/
 	insertImage(src) {
 		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
-		if (!isSafeUrl(src, "image")) return;
 		const img = $.create("img", { attributes: { src } });
 		const newImg = this.insertNode(img);
 		if (!newImg) return;
@@ -1965,15 +1779,11 @@ var Editor = class extends BaseComponent {
 	* @param {boolean} [newWindow] Whether to open the link in a new window.
 	*/
 	insertLink(href, text, newWindow) {
-		if (!isSafeUrl(href)) return;
 		const link = $.create("a", {
 			text,
 			attributes: { href }
 		});
-		if (newWindow) $.setAttribute(link, {
-			target: "_blank",
-			rel: "noopener noreferrer"
-		});
+		if (newWindow) $.setAttribute(link, { target: "_blank" });
 		this.insertNode(link);
 	}
 	/**
@@ -2667,7 +2477,7 @@ var Editor = class extends BaseComponent {
 			if (this.node.matches(":disabled") || this.node.readOnly) return;
 			refreshLineNumbersDebounced();
 			const template = document.createElement("template");
-			template.innerHTML = this.options.sanitize(this.#source.value);
+			template.innerHTML = this.#source.value;
 			const html = serialize(template.content, template.innerHTML);
 			if (this.node.value !== html) {
 				this.node.value = html;
@@ -2909,7 +2719,7 @@ var Editor = class extends BaseComponent {
 	#loadValue(reset = false) {
 		this.#observe(false);
 		try {
-			this.#editor.innerHTML = this.options.sanitize(this.node.value);
+			this.#editor.innerHTML = this.node.value;
 			this.#normalize();
 			this.#checkEmpty();
 			this.node.value = serialize(this.#editor);
@@ -3582,7 +3392,7 @@ var Editor = class extends BaseComponent {
 				multiple: true
 			}
 		});
-		const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+		const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
 			id: generateId("editor-image-url"),
 			label: this.constructor.lang.modals.imageUrl
 		});
@@ -3603,15 +3413,7 @@ var Editor = class extends BaseComponent {
 				const files = $.getProperty(fileInput, "files");
 				const src = $.getValue(urlInput);
 				if (files.length) this.options.imageUpload.call(this, files);
-				else if (src) {
-					if (!isSafeUrl(src, "image")) {
-						urlInput.setAttribute("aria-invalid", "true");
-						$.addClass(urlGroup, this.constructor.classes.formError);
-						$.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
-						return false;
-					}
-					this.insertImage(src);
-				}
+				else if (src) this.insertImage(src);
 			},
 			onShown: (_) => {
 				$.focus(fileInput);
@@ -3638,7 +3440,7 @@ var Editor = class extends BaseComponent {
 			id: generateId("editor-link-text"),
 			label: this.constructor.lang.modals.linkText
 		});
-		const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+		const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
 			id: generateId("editor-link-url"),
 			label: this.constructor.lang.modals.linkUrl
 		});
@@ -3676,12 +3478,6 @@ var Editor = class extends BaseComponent {
 				const text = $.getValue(textInput);
 				const href = $.getValue(urlInput);
 				const newWindow = $.is(newWindowInput, ":checked");
-				if (!isSafeUrl(href)) {
-					urlInput.setAttribute("aria-invalid", "true");
-					$.addClass(urlGroup, this.constructor.classes.formError);
-					$.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
-					return false;
-				}
 				this.insertLink(href, text, newWindow);
 			},
 			onShown: (_) => {
@@ -3756,7 +3552,8 @@ var Editor = class extends BaseComponent {
 					height: 315,
 					src: `https://www.youtube.com/embed/${id}`,
 					frameborder: 0,
-					allowfullscreen: true
+					allowfullscreen: true,
+					title: this.constructor.lang.modals.insertVideo
 				} });
 				const html = $.getProperty(video, "outerHTML");
 				this.insertHtml(html);
