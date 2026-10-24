@@ -1645,9 +1645,7 @@ var Editor = class extends BaseComponent {
 		this.#refreshDisabled();
 		this.#refreshToolbar();
 	}
-	/**
-	* Disposes the Editor.
-	*/
+	/** @inheritdoc */
 	dispose() {
 		if (!this.node || this.#disposing) return;
 		this.#disposing = true;

@@ -694,9 +694,7 @@ export default class Editor extends BaseComponent {
         this.#refreshToolbar();
     }
 
-    /**
-     * Disposes the Editor.
-     */
+    /** @inheritdoc */
     dispose() {
         if (!this.node || this.#disposing) {
             return;
