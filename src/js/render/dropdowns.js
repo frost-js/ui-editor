@@ -1,88 +1,90 @@
+/** @import Editor from './../editor.js'; */
 import $ from '@fr0st/query';
 import { Tooltip } from '@fr0st/ui';
 
 /**
  * Render a color dropdown.
+ * @param {Editor} editor The editor instance.
  * @param {HTMLElement} dropdown The dropdown.
  */
-export function _colorDropdown(dropdown) {
+export function colorDropdown(editor, dropdown) {
     const container = $.create('li', {
-        class: this.constructor.classes.colorContainerRow,
+        class: editor.constructor.classes.colorContainerRow,
     });
 
     const col1 = $.create('div', {
-        class: this.constructor.classes.colorContainerColumn,
+        class: editor.constructor.classes.colorContainerColumn,
     });
 
     const col2 = $.create('div', {
-        class: this.constructor.classes.colorContainerColumn,
+        class: editor.constructor.classes.colorContainerColumn,
     });
 
     const foreLabel = $.create('small', {
-        text: this.constructor.lang.dropdowns.colorForeground,
-        class: this.constructor.classes.colorLabel,
+        text: editor.constructor.lang.dropdowns.colorForeground,
+        class: editor.constructor.classes.colorLabel,
     });
 
     const backLabel = $.create('small', {
-        text: this.constructor.lang.dropdowns.colorBackground,
-        class: this.constructor.classes.colorLabel,
+        text: editor.constructor.lang.dropdowns.colorBackground,
+        class: editor.constructor.classes.colorLabel,
     });
 
     $.append(col1, foreLabel);
     $.append(col2, backLabel);
 
     const foreDefaultContainer = $.create('div', {
-        class: this.constructor.classes.colorLabelContainer,
+        class: editor.constructor.classes.colorLabelContainer,
     });
     $.append(col1, foreDefaultContainer);
 
     const backDefaultContainer = $.create('div', {
-        class: this.constructor.classes.colorLabelContainer,
+        class: editor.constructor.classes.colorLabelContainer,
     });
     $.append(col2, backDefaultContainer);
 
     const foreDefault = $.create('button', {
-        text: this.constructor.lang.dropdowns.colorDefault,
-        class: this.constructor.classes.colorDefaultBtn,
+        text: editor.constructor.lang.dropdowns.colorDefault,
+        class: editor.constructor.classes.colorDefaultBtn,
         attributes: {
             type: 'button',
         },
     });
     $.append(foreDefaultContainer, foreDefault);
 
-    this._setToolbarData(foreDefault, {
+    editor._setToolbarData(foreDefault, {
         command: 'foreColor',
         value: 'initial',
     });
 
     const backDefault = $.create('button', {
-        text: this.constructor.lang.dropdowns.colorTransparent,
-        class: this.constructor.classes.colorDefaultBtn,
+        text: editor.constructor.lang.dropdowns.colorTransparent,
+        class: editor.constructor.classes.colorDefaultBtn,
         attributes: {
             type: 'button',
         },
     });
     $.append(backDefaultContainer, backDefault);
 
-    this._setToolbarData(backDefault, {
+    editor._setToolbarData(backDefault, {
         command: 'backColor',
         value: 'initial',
     });
 
-    for (const colorRow of this.constructor.colors) {
+    for (const colorRow of editor.constructor.colors) {
         const foreRow = $.create('div', {
-            class: this.constructor.classes.colorRow,
+            class: editor.constructor.classes.colorRow,
         });
         $.append(col1, foreRow);
 
         const backRow = $.create('div', {
-            class: this.constructor.classes.colorRow,
+            class: editor.constructor.classes.colorRow,
         });
         $.append(col2, backRow);
 
         for (const [colorName, color] of Object.entries(colorRow)) {
             const foreLink = $.create('button', {
-                class: this.constructor.classes.color,
+                class: editor.constructor.classes.color,
                 style: {
                     backgroundColor: color,
                 },
@@ -94,18 +96,18 @@ export function _colorDropdown(dropdown) {
             });
             $.append(foreRow, foreLink);
 
-            Tooltip.init(foreLink, {
+            editor._ownComponent(Tooltip.init(foreLink, {
                 appendTo: document.body,
                 placement: 'bottom',
-            });
+            }));
 
-            this._setToolbarData(foreLink, {
+            editor._setToolbarData(foreLink, {
                 command: 'foreColor',
                 value: color,
             });
 
             const backLink = $.create('button', {
-                class: this.constructor.classes.color,
+                class: editor.constructor.classes.color,
                 style: {
                     backgroundColor: color,
                 },
@@ -117,12 +119,12 @@ export function _colorDropdown(dropdown) {
             });
             $.append(backRow, backLink);
 
-            Tooltip.init(backLink, {
+            editor._ownComponent(Tooltip.init(backLink, {
                 appendTo: document.body,
                 placement: 'bottom',
-            });
+            }));
 
-            this._setToolbarData(backLink, {
+            editor._setToolbarData(backLink, {
                 command: 'backColor',
                 value: color,
             });
@@ -138,15 +140,16 @@ export function _colorDropdown(dropdown) {
 
 /**
  * Render a font dropdown.
+ * @param {Editor} editor The editor instance.
  * @param {HTMLElement} dropdown The dropdown.
  */
-export function _fontDropdown(dropdown) {
-    const fonts = this._fonts.sort();
+export function fontDropdown(editor, dropdown) {
+    const fonts = editor._fonts.sort();
 
     for (const font of fonts) {
         const button = $.create('li', {
             text: font,
-            class: this.constructor.classes.dropdownItem,
+            class: editor.constructor.classes.dropdownItem,
             style: {
                 fontFamily: font,
             },
@@ -161,9 +164,9 @@ export function _fontDropdown(dropdown) {
             value: font,
         };
 
-        this._buttons.push({ button, data });
+        editor._buttons.push({ button, data });
 
-        this._setToolbarData(button, data);
+        editor._setToolbarData(button, data);
 
         $.append(dropdown, button);
     }
@@ -171,15 +174,16 @@ export function _fontDropdown(dropdown) {
 
 /**
  * Render a font size dropdown.
+ * @param {Editor} editor The editor instance.
  * @param {HTMLElement} dropdown The dropdown.
  */
-export function _fontSizeDropdown(dropdown) {
-    const sizes = Object.values(this.constructor.fontSizes);
+export function fontSizeDropdown(editor, dropdown) {
+    const sizes = Object.values(editor.constructor.fontSizes);
 
     for (const size of sizes) {
         const button = $.create('li', {
             text: size,
-            class: this.constructor.classes.dropdownItem,
+            class: editor.constructor.classes.dropdownItem,
             attributes: {
                 'role': 'button',
                 'aria-label': size,
@@ -191,9 +195,9 @@ export function _fontSizeDropdown(dropdown) {
             value: size,
         };
 
-        this._buttons.push({ button, data });
+        editor._buttons.push({ button, data });
 
-        this._setToolbarData(button, data);
+        editor._setToolbarData(button, data);
 
         $.append(dropdown, button);
     }
@@ -201,21 +205,22 @@ export function _fontSizeDropdown(dropdown) {
 
 /**
  * Render a style dropdown.
+ * @param {Editor} editor The editor instance.
  * @param {HTMLElement} dropdown The dropdown.
  */
-export function _styleDropdown(dropdown) {
-    for (const tag of this.constructor.styles) {
+export function styleDropdown(editor, dropdown) {
+    for (const tag of editor.constructor.styles) {
         const button = $.create('li', {
-            class: this.constructor.classes.dropdownItem,
+            class: editor.constructor.classes.dropdownItem,
             attributes: {
                 'role': 'button',
-                'aria-label': this.constructor.lang.styles[tag],
+                'aria-label': editor.constructor.lang.styles[tag],
             },
         });
 
         const content = $.create(tag, {
-            text: this.constructor.lang.styles[tag],
-            class: this.constructor.classes.styleContent,
+            text: editor.constructor.lang.styles[tag],
+            class: editor.constructor.classes.styleContent,
         });
 
         $.append(button, content);
@@ -225,9 +230,9 @@ export function _styleDropdown(dropdown) {
             value: tag.toUpperCase(),
         };
 
-        this._buttons.push({ button, data });
+        editor._buttons.push({ button, data });
 
-        this._setToolbarData(button, data);
+        editor._setToolbarData(button, data);
 
         $.append(dropdown, button);
     }
@@ -235,20 +240,21 @@ export function _styleDropdown(dropdown) {
 
 /**
  * Render a table dropdown.
+ * @param {Editor} editor The editor instance.
  * @param {HTMLElement} dropdown The dropdown.
  */
-export function _tableDropdown(dropdown) {
+export function tableDropdown(editor, dropdown) {
     const container = $.create('li');
 
     for (let i = 0; i < 10; i++) {
         const row = $.create('div', {
-            class: this.constructor.classes.tableRow,
+            class: editor.constructor.classes.tableRow,
         });
         $.append(container, row);
 
         for (let j = 0; j < 10; j++) {
             const cell = $.create('div', {
-                class: this.constructor.classes.tableCell,
+                class: editor.constructor.classes.tableCell,
             });
             $.append(row, cell);
 
@@ -257,7 +263,7 @@ export function _tableDropdown(dropdown) {
             }
 
             const link = $.create('a', {
-                class: this.constructor.classes.tableLink,
+                class: editor.constructor.classes.tableLink,
                 attributes: {
                     href: '#',
                 },
@@ -271,21 +277,21 @@ export function _tableDropdown(dropdown) {
     }
 
     const info = $.create('span', {
-        class: this.constructor.classes.tableInfo,
+        class: editor.constructor.classes.tableInfo,
     });
 
-    $.addClass(dropdown, this.constructor.classes.tableDropdown);
+    $.addClass(dropdown, editor.constructor.classes.tableDropdown);
     $.append(dropdown, container);
     $.append(dropdown, info);
 
-    $.addEventDelegate(container, 'click.ui.editor', 'a', (e) => {
+    editor.listen(container, 'click.ui.editor', (e) => {
         const cols = $.getDataset(e.currentTarget, 'uiColumn');
         const rows = $.getDataset(e.currentTarget, 'uiRow');
 
         const container = $.create('div');
 
         const table = $.create('table', {
-            class: this.constructor.classes.table,
+            class: editor.constructor.classes.table,
         });
 
         const tbody = $.create('tbody');
@@ -313,10 +319,10 @@ export function _tableDropdown(dropdown) {
 
         const html = $.getHtml(container);
 
-        this.insertHTML(html);
-    });
+        editor.insertHTML(html);
+    }, { delegate: 'a' });
 
-    $.addEventDelegate(container, 'mouseover.ui.editor', 'a', (e) => {
+    editor.listen(container, 'mouseover.ui.editor', (e) => {
         const targetCol = $.getDataset(e.currentTarget, 'uiColumn');
         const targetRow = $.getDataset(e.currentTarget, 'uiRow');
 
@@ -330,9 +336,9 @@ export function _tableDropdown(dropdown) {
             const row = $.getDataset(element, 'uiRow');
 
             if (col <= targetCol && row <= targetRow) {
-                $.addClass(element, this.constructor.classes.tableHover);
+                $.addClass(element, editor.constructor.classes.tableHover);
             } else {
-                $.removeClass(element, this.constructor.classes.tableHover);
+                $.removeClass(element, editor.constructor.classes.tableHover);
             }
 
             const parent = $.parent(element);
@@ -344,5 +350,5 @@ export function _tableDropdown(dropdown) {
         }
 
         $.setText(info, `${targetCol + 1} x ${targetRow + 1}`);
-    });
+    }, { delegate: 'a' });
 }

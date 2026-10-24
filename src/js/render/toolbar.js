@@ -1,56 +1,59 @@
+/** @import Editor from './../editor.js'; */
 import $ from '@fr0st/query';
 
 /**
  * Render the toolbar.
+ * @param {Editor} editor The editor instance.
  */
-export function _renderToolbar() {
+export function renderToolbar(editor) {
     const header = $.create('div', {
-        class: this.constructor.classes.toolbar,
+        class: editor.constructor.classes.toolbar,
     });
 
-    this._toolbar = $.create('div', {
-        class: this.constructor.classes.toolbarButtons,
+    editor._toolbar = $.create('div', {
+        class: editor.constructor.classes.toolbarButtons,
         attributes: {
             role: 'toolbar',
         },
     });
 
-    for (const buttons of this._toolbarButtons) {
+    for (const buttons of editor._toolbarButtons) {
         const buttonGroup = $.create('div', {
-            class: this.constructor.classes.btnGroup,
+            class: editor.constructor.classes.btnGroup,
         });
 
         for (const type of buttons) {
-            this._renderToolbarButton(type, buttonGroup);
+            editor._renderToolbarButton(type, buttonGroup);
         }
 
-        $.append(this._toolbar, buttonGroup);
+        $.append(editor._toolbar, buttonGroup);
     }
 
-    $.append(header, this._toolbar);
-    $.append(this._container, header);
+    $.append(header, editor._toolbar);
+    $.append(editor._container, header);
 }
 
 /**
  * Render a toolbar button.
+ * @param {Editor} editor The editor instance.
  * @param {string} type The button type.
  * @param {HTMLElement} parent The parent element.
  */
-export function _renderToolbarButton(type, parent) {
-    const data = this.constructor.plugins[type];
+export function renderToolbarButton(editor, type, parent) {
+    const data = editor.constructor.plugins[type];
 
-    const button = this._renderButton({
+    const button = editor._renderButton({
         icon: type,
-        title: this.constructor.lang.plugins[type],
+        title: editor.constructor.lang.plugins[type],
         ...data,
     });
 
-    this._buttons.push({ button, data, type });
+    editor._buttons.push({ button, data, type });
 
-    this._setToolbarData(button, data, type);
+    editor._setToolbarData(button, data, type);
 
     if ('dropdown' in data) {
-        this._renderToolbarDropdown(parent, button, data.dropdown);
+        editor._renderToolbarDropdown(parent, button, data.dropdown);
     } else {
         $.append(parent, button);
     }
@@ -58,49 +61,50 @@ export function _renderToolbarButton(type, parent) {
 
 /**
  * Render a toolbar dropdown.
+ * @param {Editor} editor The editor instance.
  * @param {HTMLElement} buttonGroup The button group element.
  * @param {HTMLElement} button The button element.
  * @param {Array|Function} dropdownContent The dropdown content.
  */
-export function _renderToolbarDropdown(buttonGroup, button, dropdownContent) {
+export function renderToolbarDropdown(editor, buttonGroup, button, dropdownContent) {
     const dropGroup = $.create('div', {
-        class: this.constructor.classes.dropdownGroup,
+        class: editor.constructor.classes.dropdownGroup,
         attributes: {
             role: 'group',
         },
     });
 
-    $.addClass(button, this.constructor.classes.dropdownToggle);
+    $.addClass(button, editor.constructor.classes.dropdownToggle);
     $.setDataset(button, { uiToggle: 'dropdown' });
     $.setAttribute(button, {
-        'aria-has-popup': true,
+        'aria-haspopup': true,
         'aria-expanded': false,
     });
     $.append(dropGroup, button);
 
     const dropdown = $.create('ul', {
-        class: this.constructor.classes.dropdown,
+        class: editor.constructor.classes.dropdown,
     });
 
     if ($._isArray(dropdownContent)) {
-        $.addClass(dropdown, this.constructor.classes.dropdownButtons);
+        $.addClass(dropdown, editor.constructor.classes.dropdownButtons);
 
         for (const dropdownItems of dropdownContent) {
             const subDropGroup = $.create('div', {
-                class: this.constructor.classes.btnGroup,
+                class: editor.constructor.classes.btnGroup,
                 attributes: {
                     role: 'group',
                 },
             });
 
             for (const type of dropdownItems) {
-                this._renderToolbarButton(type, subDropGroup);
+                editor._renderToolbarButton(type, subDropGroup);
             }
 
             $.append(dropdown, subDropGroup);
         }
     } else if ($._isFunction(dropdownContent)) {
-        dropdownContent.bind(this)(dropdown);
+        dropdownContent.bind(editor)(dropdown);
     }
 
     $.append(dropGroup, dropdown);
@@ -109,11 +113,12 @@ export function _renderToolbarDropdown(buttonGroup, button, dropdownContent) {
 
 /**
  * Set data for a toolbar action.
+ * @param {Editor} editor The editor instance.
  * @param {HTMLElement} node The action node.
  * @param {object} data The data to set.
  * @param {string} [type] The action type.
  */
-export function _setToolbarData(node, data, type) {
+export function setToolbarData(editor, node, data, type) {
     if (data.command) {
         $.setDataset(node, { uiCommand: data.command });
 

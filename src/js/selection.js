@@ -1,98 +1,107 @@
+/** @import { EditorSelectionMarkers } from './types.js'; */
+
 import $ from '@fr0st/query';
 
 /**
- * Get the current selected range.
- * @returns {Range} The Range object.
+ * Gets the current range, optionally restricted to an editing boundary.
+ * @param {HTMLElement|null} [container=null] The optional editing boundary.
+ * @returns {Range|null} The owned range, or null when the selection is elsewhere.
  */
-export function getRange() {
+export function getRange(container = null) {
     const selection = window.getSelection();
-
     if (!selection.rangeCount) {
         return null;
     }
-
-    return selection.getRangeAt(0);
+    const range = selection.getRangeAt(0);
+    return !container || (container.contains(range.startContainer) && container.contains(range.endContainer)) ? range : null;
 }
 
 /**
- * Restore the selection from selection markers.
- * @param {object} markers The selection markers.
- * @param {Text} [markers.start] The start marker.
- * @param {Text} [markers.end] The end marker.
+ * Restores a range from markers and removes the markers without losing direction.
+ * @param {EditorSelectionMarkers} [markers] The selection markers.
  */
-export function restoreSelection({ start, end } = {}) {
-    if (!start && !end) {
+export function restoreSelection({ start, end, backward = false } = {}) {
+    if (!start?.isConnected || !end?.isConnected) {
+        start?.remove();
+        end?.remove();
         return;
     }
-
     const range = $.createRange();
-
-    if (start && $.isConnected(start)) {
-        range.setStartAfter(start);
-        $.detach(start);
-    }
-
-    if (end && $.isConnected(end)) {
-        range.setEndBefore(end);
-        $.detach(end);
-    }
-
+    range.setStartAfter(start);
+    range.setEndBefore(end);
+    start.remove();
+    end.remove();
     const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+    if (backward) {
+        selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
+    } else {
+        selectRange(range);
+    }
 }
 
 /**
- * Save the selection and return the selection markers.
- * @returns {object} The selection markers.
+ * Saves a range as empty text markers inside an optional editing boundary.
+ * @param {HTMLElement|null} [container=null] The optional editing boundary.
+ * @returns {EditorSelectionMarkers} The markers and selection direction.
  */
-export function saveSelection() {
-    const selection = window.getSelection();
-
-    let start;
-    let end;
-    if (selection.rangeCount) {
-        start = $.createText('');
-        end = $.createText('');
-
-        const range = selection.getRangeAt(0);
-        const rangeStart = range.cloneRange();
-        const rangeEnd = range.cloneRange();
-
-        rangeStart.collapse(true);
-        rangeEnd.collapse(false);
-
-        rangeStart.insertNode(start);
-        rangeEnd.insertNode(end);
+export function saveSelection(container = null) {
+    const range = getRange(container);
+    if (!range) {
+        return {};
     }
-
-    return { start, end };
+    const selection = window.getSelection();
+    const backward = !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+    const start = $.createText('');
+    const end = $.createText('');
+    const startRange = range.cloneRange();
+    const endRange = range.cloneRange();
+    startRange.collapse(true);
+    endRange.collapse(false);
+    endRange.insertNode(end);
+    startRange.insertNode(start);
+    return { start, end, backward };
 }
 
 /**
- * Select a node.
+ * Selects a node.
  * @param {HTMLElement} node The element to select.
- * @returns {Range} The Range object.
+ * @returns {Range} The selected range.
  */
 export function selectNode(node) {
     const range = $.createRange();
     range.selectNode(node);
-
     selectRange(range);
-
     return range;
 }
 
 /**
- * Select a range.
- * @param {Range} range The range to select.
+ * Restores a connected range.
+ * @param {Range|null} range The range to select.
+ * @param {boolean} [backward=false] Whether to restore a backward selection.
  */
-export function selectRange(range) {
-    if (!range) {
+export function selectRange(range, backward = false) {
+    if (!range || !range.startContainer.isConnected || !range.endContainer.isConnected) {
         return;
     }
-
     const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+    if (backward) {
+        selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
+    } else {
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+}
+
+/**
+ * Normalizes text nodes while preserving the live range and its direction.
+ * @param {HTMLElement} container The content boundary.
+ */
+export function normalizeText(container) {
+    const range = getRange(container)?.cloneRange();
+    const selection = window.getSelection();
+    const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+    $.normalize(container);
+    if (range) {
+        selectRange(range, backward);
+    }
 }

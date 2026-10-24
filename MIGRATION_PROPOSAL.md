@@ -2,7 +2,7 @@
 
 Bring `@fr0st/ui-editor` into line with the modern sibling `../ui-*` projects while preserving its editing features and supported customization hooks. Deliver the migration in the order below, with regression coverage established before changing editor behavior.
 
-Steps 1–4 are implemented. The compatibility contract and verification results below record the baseline and known failures for later steps.
+Steps 1–5 are implemented. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
 
 The starting point is commit `dc4c495`, which preserves the existing normalization, indentation, history, source-mode, bundle, and ESLint changes. JavaScript syntax checks passed for 23 files at that checkpoint; browser behavior and build reproducibility still need verification.
 
@@ -87,16 +87,16 @@ Acceptance: the harness loads local artifacts and can exercise editor behavior i
 
 ## 5. Align code and file structure with the current component model
 
-- [ ] Keep `src/js/index.js` small: import the configured component, register it with `initComponent('editor', Editor)`, and export it as default. Keep `browser.js` as the named `Editor` re-export.
-- [ ] Move static defaults, classes, language configuration, and implementation methods out of the registration entry and into the component or focused modules. Remove the `prototype/` and `static/` assembly pattern as their implementations move.
-- [ ] Retain focused modules such as `selection.js`, `normalize.js`, `nodes.js`, `plugins.js`, and `popovers.js` where they have useful responsibilities. Avoid combining the whole editor into one oversized file.
-- [ ] Replace inherited `_node` and `_options` access with the current `node` and `options` accessors. Store filtered fonts, effective buttons, and other derived state separately instead of mutating frozen resolved options.
-- [ ] Use private state for implementation details where it does not break supported extensions. Provide explicit methods for plugin operations that currently depend on private implementation details.
-- [ ] Audit fQuery method names/signatures, DOM traversal, drag utilities, Popper, dropdown, and modal usage against the installed dependency versions.
-- [ ] Use `this.listen(...)` for instance-owned listeners and retain reference-counted cleanup for shared document/window listeners. Make observer, timer, modal, popover, and asynchronous upload cleanup safe across disposal and multiple instances.
-- [ ] Validate the input element; make initialization failure cleanup and repeated disposal reliable. Restore original textarea visibility, attributes, and focus behavior on disposal.
-- [ ] Correct ARIA names (`aria-multiline`, `aria-modal`, and `aria-haspopup`) and remove the `debugger` statement. Resolve unfinished normalization code through regression tests.
-- [ ] Add JSDoc types for options, language, plugins, callbacks, history entries, selections, methods, and events; follow sibling `@import` conventions where applicable.
+- [x] Keep `src/js/index.js` small: import the configured component, register it with `initComponent('editor', Editor)`, and export it as default. Keep `browser.js` as the named `Editor` re-export.
+- [x] Move static defaults, classes, language configuration, and implementation methods out of the registration entry and into the component or focused modules. Remove the `prototype/` and `static/` assembly pattern as their implementations move.
+- [x] Retain focused modules such as `selection.js`, `normalize.js`, `nodes.js`, `plugins.js`, and `popovers.js` where they have useful responsibilities. Avoid combining the whole editor into one oversized file.
+- [x] Replace inherited `_node` and `_options` access with the current `node` and `options` accessors. Store filtered fonts, effective buttons, and other derived state separately instead of mutating frozen resolved options.
+- [x] Use private state for implementation details where it does not break supported extensions. Provide explicit methods for plugin operations that currently depend on private implementation details.
+- [x] Audit fQuery method names/signatures, DOM traversal, drag utilities, Popper, dropdown, and modal usage against the installed dependency versions.
+- [x] Use `this.listen(...)` for instance-owned listeners and retain reference-counted cleanup for shared document/window listeners. Make observer, timer, modal, popover, and asynchronous upload cleanup safe across disposal and multiple instances.
+- [x] Validate the input element; make initialization failure cleanup and repeated disposal reliable. Restore original textarea visibility, attributes, and focus behavior on disposal.
+- [x] Correct ARIA names (`aria-multiline`, `aria-modal`, and `aria-haspopup`) and remove the `debugger` statement. Resolve unfinished normalization code through regression tests.
+- [x] Add JSDoc types for options, language, plugins, callbacks, history entries, selections, methods, and events; follow sibling `@import` conventions where applicable.
 
 Acceptance: the editor works with current Frost dependencies, uses the current lifecycle model, and retains documented extension contracts.
 
@@ -180,15 +180,27 @@ dist/                         # Tracked ESM, UMD, CSS, minified files, and maps
 src/
   js/
     browser.js                # Named export for UMD
-    editor.js                 # Component, defaults, and lifecycle
+    editor.js                 # Component lifecycle and callable extension methods
+    commands.js               # Portable block and list indentation
+    config.js                 # Defaults, classes, and language
+    content.js                # Content synchronization and command helpers
+    events.js                 # Managed instance listeners
     index.js                  # Registration and default export
-    helpers.js
+    helpers.js                # Shared listeners with exact cleanup
+    history.js
     icons.js
     nodes.js
     normalize.js
     plugins.js
-    popovers.js
+    popovers.js               # Customizable popover definitions
+    positioning.js
+    render/
+      dropdowns.js
+      editor.js
+      popover.js
+      toolbar.js
     selection.js
+    types.js                  # JSDoc contracts
     values.js
   scss/
     _vars.scss
@@ -214,9 +226,9 @@ README.md
 
 Additional focused editor modules or a unit-test directory can be retained when justified by the implementation. The structural goal is a small registration entry, an explicit component lifecycle, and clear module responsibilities with the same build/test/demo conventions as the siblings.
 
-## Compatibility contract for steps 1 through 4
+## Compatibility contract
 
-The checkpoint at `dc4c495` defines the starting API. The following contracts guide this stage; fixes to known defects must be documented rather than preserved as required behavior.
+The checkpoint at `dc4c495` defines the starting API. The public contracts below remain supported; step 5 resolves the checkpoint defects and changes the internal organization as recorded below.
 
 ### Public entry points and methods
 
@@ -238,7 +250,7 @@ The checkpoint at `dc4c495` defines the starting API. The following contracts gu
 | `resizable` | `true` |
 | `historyLimit` | `1000`; cap stored history entries |
 | `popovers` | Image size/float/removal actions, link display/edit/unlink, and table row/column/removal actions |
-| `imageUpload(files)` | Read files as data URLs and insert fulfilled results; callback `this` is the editor |
+| `imageUpload(files)` | Read files as data URLs, insert fulfilled results, and return a completion promise; callback `this` is the editor, and pending default reads are aborted on disposal |
 | `keyDown(event)` | Ctrl+B/I/U/Y/Z invokes formatting or history methods; callback `this` is the editor |
 
 Frost UI resolves `data-ui-*` options on the textarea, such as `data-ui-height`, `data-ui-resizable`, and `data-ui-history-limit`. The `data-ui-toggle="editor"` marker can select elements for explicit initialization through `$('[data-ui-toggle="editor"]').editor()`; data attributes alone do not initialize the editor. Generated `data-ui-action`, `data-ui-command`, and `data-ui-value` attributes route toolbar actions; generated dropdowns use the standard UI dropdown marker. Attribute options are subject to the shared parser; callbacks must be configured in JavaScript.
@@ -247,15 +259,15 @@ Frost UI resolves `data-ui-*` options on the textarea, such as `data-ui-height`,
 
 - `init.ui.editor` fires on the textarea after rendering, event setup, normalization, and disabled-state refresh.
 - Focus and blur on the contenteditable surface forward `focus.ui.editor` and `blur.ui.editor` to the textarea.
-- `_updateValue()` emits `change.ui.editor` when serialized content differs from the textarea. Source changes update the textarea and emit that event; returning to visual mode loads the source HTML into the surface.
-- Undo/redo restores serialized content and selection. The checkpoint does not explicitly emit a change event from `_restoreHistory()`; event consistency remains a later behavior task.
+- `_updateValue()` emits `change.ui.editor` when serialized content differs from the textarea. Source changes update the textarea and emit that event; returning to visual mode normalizes and commits the source HTML as one history operation. Viewing source without editing preserves redo.
+- Undo/redo restores serialized content and selection, including backward selections, and emits `change.ui.editor` when the textarea value changes.
 - A change callback observes synchronized textarea content. Event counts may vary with browser editing events and mutation delivery; this stage does not promise one event per keystroke.
 
 ### Supported customization and existing internal dependencies
 
 Keep `Editor.buttons`, `classes`, `lang`, `icons`, `plugins`, `popovers`, `colors`, `fonts`, `fontSizes`, and `styles` customizable. A toolbar plugin can provide `command`, `value`, `action`, `dropdown`, `setContent`, `setTitle`, `content`, `icon`, `title`, and `disableCheck`; callbacks execute in the editor context where currently bound. Popover definitions support actions and render callbacks, and toolbar/popover arrays control grouping.
 
-Existing built-in plugins depend on `_editor`, `_container`, `_source`, `_sourceContainer`, `_fullScreen`, `_buttons`, `_history`, `_redoHistory`, and `_currentNode`, together with `_showEditor`, `_showSource`, `_refreshToolbar`, `_addHistory`, dropdown renderers, modal helpers, `_insertNode`, `_updateTable`, `_observe`, `_updateValue`, and `_removePopover`. Preserve these operational extension seams until step 5 defines replacements. Command dispatch also uses `_execCommand`; document replacements before making these seams inaccessible.
+Existing built-in plugins depend on `_editor`, `_container`, `_source`, `_sourceContainer`, `_fullScreen`, `_buttons`, `_history`, `_redoHistory`, and `_currentNode`, together with `_showEditor`, `_showSource`, `_refreshToolbar`, `_addHistory`, dropdown renderers, modal helpers, `_insertNode`, `_updateTable`, `_observe`, `_updateValue`, and `_removePopover`. These remain callable class methods and accessible operational fields for existing plugins; lifecycle bookkeeping is private. Command dispatch also uses `_execCommand`; document replacements before making these seams inaccessible.
 
 The inherited node/options fields are implementation dependencies, not the preferred public API. In this stage, code uses the current base accessors and stores effective fonts and toolbar configuration separately so resolved options remain unchanged. Frost UI classes used by module code must be imported explicitly, rather than resolved through UMD globals.
 
@@ -267,23 +279,25 @@ The browser suite records concrete examples before the larger refactor:
 - A source edit to `<h2>Source title</h2><p>Source body</p>` appears in both the textarea and visual surface on return.
 - `<p><span>Plain</span> <b>bold</b><b> text</b></p>` normalizes to `<p>Plain <b>bold text</b></p>`.
 - Heading, list, table, link, and image markup is retained in the supported-content fixture.
-- The desired indentation contract keeps selected text inside a margin wrapper and removes indentation on outdent. The checkpoint fails this contract in all three engines for the reasons listed below; the tests carry explicit expected-failure annotations.
+- Indentation keeps selected text inside valid block wrappers and nests list items under their preceding sibling. Outdent removes one wrapper or list nesting level, preserves unselected siblings and blockquotes, and retains selection text and direction.
 - Typing followed by undo/redo restores the previous/next content and a selection inside the editor.
 
 Browser-produced formatting HTML can differ between engines. Preserve semantic formatting rather than requiring one browser's `execCommand` serialization everywhere. The existing normalization code is not a sanitizer, and retaining markup is not a guarantee that arbitrary input is safe.
 
-### Known defects and later migration work
+### Resolved defects and remaining migration work
 
 - The checkpoint's inherited `_node`/`_options` access and uppercase fQuery HTML helpers could not run against the selected peers. This stage updates those calls, keeps effective fonts and toolbar groups separate from resolved options, and imports modal/tooltip classes explicitly.
-- The checkpoint's `debugger` statement has been removed for lint adoption. Finish and review the `normalizePhrasing()` TODO with broader regression cases during step 5.
-- Initial content is not seeded into history when initialization leaves the HTML unchanged, so undo cannot restore the state before the first edit. This is an expected failure in Chromium, Firefox, and WebKit. Subsequent undo/redo is covered by passing regression tests.
-- Indenting a text selection can leave its text outside the margin wrapper in Chromium/WebKit. In Firefox the indentation succeeds, but outdent retains the manual indentation. These are three further expected failures for step 5.
-- Fix `aria-multline`, `aria-model`, and `aria-has-popup` in the accessibility work; they are defects, not compatibility contracts.
-- Form reset, disposal restoration, upload cancellation, keyboard consistency, sanitization, URL handling, and complete editing coverage remain in steps 5–7.
+- The `debugger` statement and unfinished normalization branch have been removed. Normalization now splits phrasing wrappers around nested blocks while retaining both inline fragments, selection boundaries, and surrounding content.
+- Initial content now seeds history even when initialization leaves the HTML unchanged, so undo restores the state before the first edit. Zero, negative, and non-finite history limits are bounded safely.
+- Text-selection indentation and outdent now use DOM operations consistently across Chromium, Firefox, and WebKit. Tests cover partial and backward selections, collapsed carets, multiple paragraphs, selected siblings, and ordered/unordered list nesting.
+- The malformed ARIA names have been corrected to `aria-multiline`, `aria-modal`, and `aria-haspopup`. Full label propagation and accessibility styling remain step 6.
+- Disposal restoration, failed initialization cleanup, default upload cancellation, and managed listener/resource ownership are complete. Native form reset/validation, full keyboard consistency, sanitization, URL handling, and complete editing coverage remain in steps 6–7.
 - The ESM package entry, newer peer majors, changed Node requirements, and any later internal hook changes need release migration notes. Keep the package version unchanged until release preparation.
-- Retain the existing repository URLs until the destination is confirmed. No repository transfer, CI deployment, npm publication, or version release is part of steps 1–4.
+- Retain the existing repository URLs until the destination is confirmed. No repository transfer, CI deployment, npm publication, or version release is part of steps 1–5.
 
-### Verification of steps 1 through 4
+### Verification at the steps 1 through 4 checkpoint
+
+These results record the earlier baseline. Step 5 verification below supersedes its expected failures and coverage baseline.
 
 - Clean `npm ci --offline` succeeds in an empty temporary directory using the updated manifest and lockfile.
 - `npm run lint` succeeds with the shared Frost ESLint and Stylelint configurations.
@@ -292,4 +306,23 @@ Browser-produced formatting HTML can differ between engines. Preserve semantic f
 - `npm run test:coverage -- --workers=3` succeeds and produces source-mapped HTML and LCOV reports. Initial line coverage is 55.79%; reaching the proposed coverage target remains step 7.
 - `npm pack --dry-run` includes the 12 expected distribution files and the supported source files, with development fixtures and reports excluded.
 
-Use `npx playwright install --with-deps` to install browser binaries on a fresh development machine. `npm test` builds before running browser tests; `test:browser` and `test:coverage` use the existing build. Expected failures are active regression tests, not skipped cases: Playwright will report an unexpected pass when their associated defect is fixed, prompting removal of the annotation.
+Use `npx playwright install --with-deps` to install browser binaries on a fresh development machine. `npm test` builds before running browser tests; `test:browser` and `test:coverage` use the existing build. The six expected-failure annotations from that checkpoint have been removed after fixing their defects in step 5.
+
+### Step 5 implementation and compatibility notes
+
+- `index.js` only registers and exports the configured class. Defaults, classes, and language live in `config.js`; focused modules own content, commands, events, history, dialogs, positioning, and rendering. The `prototype/` and `static/` assembly directories are removed.
+- Existing callable underscore methods and customization dictionaries remain available. Lifecycle state, observers, owned child components, file readers, pending image loads, and original textarea attributes are private.
+- Extensions can use inherited `listen(...)` for instance listeners, `_ownComponent(component)` for child Frost UI components, `_onDispose(callback)` for synchronous cleanup, and `_debounce(callback)` for work that must not run after disposal. Use `_observe(...)` rather than accessing the old observer field.
+- Shared document/window listeners are reference counted and removed by their exact callbacks. Disposing an editor preserves application listeners using the same namespace and leaves other editors operational. Pointer gestures, queued callbacks, and default image reads cannot continue mutating a disposed instance.
+- Initialization validates textarea inputs and restores the textarea on failure. Disposal is repeatable, restores original visibility/attributes, restores focus when appropriate, and completes cleanup even when an extension cleanup callback throws. Commands stop safely if a focus callback disposes the owner.
+- Modal factories own their listeners and dispose/remove dialogs after hiding. Fullscreen returns the editor to its original location before cleanup. Popper uses logical `start` alignment, activation dismisses obstructing tooltips, and strikethrough dispatches to the correct public method.
+- JSDoc contracts for options, language, plugins, popovers, callbacks, input/modal factories, history, selection, and events live in `types.js` and are imported by source modules. Resolved options remain unchanged while effective fonts and toolbar configuration are derived separately.
+- Direct imports from the removed `src/js/prototype/*` and `src/js/static/*` paths need migration. Prefer the package entry or `src/js/index.js`; callable class hooks retain their names. Normalized source edits, undo/redo change events, and predictable normalization of invalid nested blocks should be noted for the next major release.
+
+### Step 5 verification
+
+- Shared JavaScript and stylesheet lint checks pass.
+- The complete Playwright suite passes 153 cases across Chromium, Firefox, and WebKit, with no expected-failure annotations or skipped tests.
+- Coverage generation, package contents, and reproducible distribution builds are verified alongside the browser suite. Source line coverage is 76.30%; the broader coverage target remains step 7.
+
+Steps 6–10 remain pending, including Sass modules/current styling, native form and accessibility work, broader coverage, CI/release automation, consolidated demos, and the complete README/release migration guide.

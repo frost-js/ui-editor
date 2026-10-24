@@ -68,6 +68,25 @@ test('restores content and selection through undo and redo', async ({ page }) =>
     })).toBe(true);
 });
 
+test('preserves redo across source viewing and clears it when source content changes', async ({ page }) => {
+    await page.evaluate(() => window.editor.insertText('!'));
+    await expect(page.locator('#editor')).toHaveValue('<p>Hello world!</p>');
+    await page.evaluate(() => window.editor.undo());
+    await page.getByRole('button', { name: 'View Source', exact: true }).click();
+    await page.getByRole('button', { name: 'View Source', exact: true }).click();
+    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    await expect(page.locator('#editor')).toHaveValue('<p>Hello world!</p>');
+    await page.evaluate(() => window.editor.undo());
+    await page.getByRole('button', { name: 'View Source', exact: true }).click();
+    await page.locator('.editor-source').fill('<p>New source</p>');
+    await page.getByRole('button', { name: 'View Source', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Redo', exact: true })).toHaveAttribute('aria-disabled', 'true');
+    await page.evaluate(() => window.editor.redo());
+    await expect(page.locator('#editor')).toHaveValue('<p>New source</p>');
+    await page.evaluate(() => window.editor.undo());
+    await expect(page.locator('#editor')).toHaveValue('<p>Hello world</p>');
+});
+
 test('can undo the first edit back to the initial content', async ({ page }) => {
     await page.locator('.editor').click();
     await page.keyboard.press('End');
@@ -75,11 +94,10 @@ test('can undo the first edit back to the initial content', async ({ page }) => 
     await expect(page.locator('#editor')).toHaveValue('<p>Hello world!</p>');
     await page.evaluate(() => window.editor.undo());
 
-    test.fail(true, 'Step 5: the checkpoint does not seed history with initial content (MIGRATION_PROPOSAL.md).');
     await expect(page.locator('#editor')).toHaveValue('<p>Hello world</p>');
 });
 
-test('indents and outdents a text selection without losing its indentation', async ({ page, browserName }) => {
+test('indents and outdents a text selection without losing its indentation', async ({ page }) => {
     await page.locator('.editor').focus();
     await page.evaluate(() => {
         const paragraph = document.querySelector('.editor p');
@@ -89,9 +107,6 @@ test('indents and outdents a text selection without losing its indentation', asy
     });
     await expect(page.locator('.editor')).toHaveText('Hello world');
 
-    test.fail(true, browserName === 'firefox' ?
-        'Step 5: checkpoint outdent retains the manual indentation in Firefox (MIGRATION_PROPOSAL.md).' :
-        'Step 5: checkpoint text-selection indentation leaves text outside the wrapper in Chromium/WebKit (MIGRATION_PROPOSAL.md).');
     await expect(page.locator('.editor div[style*="margin-left"]')).toHaveText('Hello world');
     await page.evaluate(() => window.editor.outdent());
     await expect(page.locator('.editor')).toHaveText('Hello world');

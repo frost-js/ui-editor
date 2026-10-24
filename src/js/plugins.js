@@ -1,6 +1,9 @@
+/** @import { EditorPlugin } from './types.js'; */
+
 import $ from '@fr0st/query';
 import { Modal } from '@fr0st/ui';
 
+/** @type {Record<string, EditorPlugin>} */
 export default {
     alignCenter: {
         command: 'justifyCenter',
@@ -87,6 +90,7 @@ export default {
                     this._fullScreen = null;
                 },
             });
+            this._ownComponent(Modal.init(this._fullScreen));
         },
     },
     hr: {
@@ -132,25 +136,36 @@ export default {
     source: {
         action() {
             const value = $.getValue(this.node);
-
             if ($.isVisible(this._sourceContainer)) {
-                this._addHistory({ html: value });
-                $.setHtml(this._editor, value);
-
+                this._observe(false);
+                try {
+                    $.setHtml(this._editor, value);
+                    this._normalize();
+                    this._checkEmpty();
+                    const html = $.getHtml(this._editor);
+                    if (this._history.at(-1)?.html !== html) {
+                        this._redoHistory = [];
+                        this._addHistory({ html });
+                    }
+                    this._updateValue();
+                } finally {
+                    this._observe();
+                }
+                if (!this.node) {
+                    return;
+                }
                 this._showEditor();
-                $.focus(this._editor);
+                this._focusEditor();
             } else {
                 $.setValue(this._source, value);
-
                 this._showSource();
                 $.focus(this._source);
             }
-
             this._refreshToolbar();
         },
     },
     strikethrough: {
-        command: 'strikeThrough',
+        command: 'strikethrough',
     },
     style: {
         dropdown(dropdown) {

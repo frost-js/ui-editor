@@ -1,5 +1,4 @@
 import $ from '@fr0st/query';
-import { replaceElement } from './nodes.js';
 
 const transparent = 'rgba(0, 0, 0, 0)';
 
@@ -40,42 +39,24 @@ const isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node
  * @param {object} markers The selection markers.
  */
 export function joinAdjacentNodes(container, markers) {
-    const elements = $.find('*', container);
-
-    const isMarker = (node) =>
-        (markers.start && $.isSame(node, markers.start)) ||
-        (markers.end && $.isSame(node, markers.end));
-
-    for (const element of elements) {
-        if (
-            isMarker(element) ||
-            !isPhrasingContainer(element)
-        ) {
+    const isMarker = (node) => node === markers.start || node === markers.end;
+    for (const element of [...container.querySelectorAll('*')]) {
+        if (!container.contains(element) || !isPhrasingContainer(element)) {
             continue;
         }
-
-        const moveMarkers = [];
-        let next = element.nextSibling;
-        while (next && isMarker(next)) {
-            moveMarkers.push(next);
-            next = next.nextSibling;
+        while (true) {
+            const between = [];
+            let next = element.nextSibling;
+            while (next && isMarker(next)) {
+                between.push(next);
+                next = next.nextSibling;
+            }
+            if (!next || !isPhrasingContainer(next) || !$.isEqual(element, next, { shallow: true })) {
+                break;
+            }
+            element.append(...between, ...next.childNodes);
+            next.remove();
         }
-
-        if (
-            !next ||
-            !isPhrasingContainer(next) ||
-            !$.isEqual(element, next, { shallow: true })
-        ) {
-            continue;
-        }
-
-        $.prepend(next, $.contents(element));
-
-        if (moveMarkers.length) {
-            $.prepend(next, moveMarkers);
-        }
-
-        $.detach(element);
     }
 }
 
@@ -84,86 +65,43 @@ export function joinAdjacentNodes(container, markers) {
  * @param {HTMLElement} container The container.
  */
 export function normalizePhrasing(container) {
-    const elements = $.find('h1, h2, h3, h4, h5, h6, p, pre', container);
-
+    const elements = [...container.querySelectorAll('*')].reverse();
     for (const element of elements) {
-        const contents = $.contents(element);
-
-        if (!contents.length) {
+        if (!container.contains(element) ||
+            (!element.matches('p, h1, h2, h3, h4, h5, h6, pre') && !isPhrasingContainer(element)) ||
+            [...element.childNodes].every(isPhrasingContent)) {
             continue;
         }
-
-        for (const [i, child] of contents.entries()) {
+        const fragment = document.createDocumentFragment();
+        let group = [];
+        let first = true;
+        const flush = () => {
+            if (!group.length) {
+                return;
+            }
+            if (group.every((node) => node.nodeType === Node.TEXT_NODE && !node.textContent)) {
+                fragment.append(...group);
+            } else {
+                const wrapper = element.cloneNode(false);
+                if (!first) {
+                    wrapper.removeAttribute('id');
+                }
+                first = false;
+                wrapper.append(...group);
+                fragment.append(wrapper);
+            }
+            group = [];
+        };
+        for (const child of [...element.childNodes]) {
             if (isPhrasingContent(child)) {
-                continue;
+                group.push(child);
+            } else {
+                flush();
+                fragment.append(child);
             }
-
-            const nextSiblings = contents.splice(i);
-            $.after(element, nextSiblings);
-
-            // TODO: check
-            if ($.is(element, 'p')) {
-                break;
-            }
-
-            const tagName = $.tagName(element);
-
-            const wrapContents = (parent, nodes) => {
-                const stack = [];
-                let lastNode;
-
-                for (const node of nodes) {
-                    if (isPhrasingContent(node)) {
-                        stack.push(node);
-                        continue;
-                    }
-
-                    if (stack.length) {
-                        const clone = $.clone(element, { deep: false });
-                        const tempNodes = stack.splice(0);
-                        $.append(clone, tempNodes);
-                        $.before(node, clone);
-                    }
-
-                    lastNode = node;
-
-                    if ($.is(node, tagName)) {
-                        continue;
-                    }
-
-                    if ($.is(node, 'h1, h2, h3, h4, h5, h6, p, pre')) {
-                        const clone = $.clone(element, { deep: false });
-                        replaceElement(node, clone);
-                        lastNode = clone;
-                        continue;
-                    }
-
-                    const contents = $.contents(node);
-
-                    wrapContents(node, contents);
-                }
-
-                if (stack.length) {
-                    const clone = $.clone(element, { deep: false });
-                    $.append(clone, stack);
-
-                    if (lastNode) {
-                        $.after(lastNode, clone);
-                    } else {
-                        $.append(parent, clone);
-                    }
-                }
-
-                return stack;
-            };
-
-            wrapContents(element, nextSiblings);
-            break;
         }
-
-        if (!contents.length) {
-            $.detach(element);
-        }
+        flush();
+        element.replaceWith(fragment);
     }
 }
 

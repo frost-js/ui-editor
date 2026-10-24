@@ -1,6 +1,9 @@
+/** @import { EditorPopover } from './types.js'; */
+
 import $ from '@fr0st/query';
 import { getRange } from './selection.js';
 
+/** @type {Record<string, EditorPopover>} */
 export default {
     floatLeft: {
         action(node) {
