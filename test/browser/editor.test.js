@@ -31,6 +31,20 @@ test.describe('Editor', () => {
                 });
             }
 
+            test('initializes multiple textareas and returns the first instance', async ({ page }) => {
+                await page.evaluate(() => {
+                    $.append(document.body, $.create('textarea', {
+                        attributes: { id: 'second' },
+                    }));
+                });
+
+                const instance = await page.evaluateHandle(() => $('textarea').editor({ buttons: [] }));
+
+                expect(await instance.evaluate((value) => $.getData('#editor', UI.Editor.DATA_KEY) === value)).toBe(true);
+                expect(await page.evaluate(() => $.getData('#second', UI.Editor.DATA_KEY) instanceof UI.Editor)).toBe(true);
+                await expect(page.locator('.editor')).toHaveCount(2);
+            });
+
             test('keeps resolved options unchanged while deriving fonts and toolbar state', async ({ page }) => {
                 const instance = await page.evaluateHandle(() => UI.Editor.init($.findOne('#editor'), {
                     buttons: [['bold', 'italic', 'source', 'undo', 'redo']],
@@ -143,6 +157,14 @@ test.describe('Editor', () => {
     test.describe('#dispose', () => {
         test.describe('registration', () => {
             test.beforeEach(setupEditor);
+
+            test('disposes through QuerySet', async ({ page }) => {
+                await page.evaluate(() => $('#editor').editor({ buttons: [] }));
+                await page.evaluate(() => $('#editor').editor('dispose'));
+
+                await expect(page.locator('#editor')).toBeVisible();
+                await expect(page.locator('.editor')).toHaveCount(0);
+            });
 
             test('restores the textarea and releases its registered instance', async ({ page }) => {
                 const instance = await page.evaluateHandle(() => UI.Editor.init($.findOne('#editor')));
@@ -368,52 +390,28 @@ test.describe('Editor', () => {
         });
     });
 
-    test.describe('fQuery API', () => {
-        test.beforeEach(setupEditor);
+    for (const method of ['disable', 'enable']) {
+        test.describe(`#${method}`, () => {
+            for (const name of ['class', 'QuerySet']) {
+                test(`updates the editing surface (${name})`, async ({ page }) => {
+                    await createEditor(page);
+                    await page.evaluate(({ method, name }) => {
+                        if (method === 'enable') {
+                            window.editor.disable();
+                        }
 
-        test('initializes multiple textareas and returns the first instance', async ({ page }) => {
-            await page.evaluate(() => {
-                $.append(document.body, $.create('textarea', {
-                    attributes: { id: 'second' },
-                }));
-            });
+                        if (name === 'class') {
+                            window.editor[method]();
+                        } else {
+                            $('#editor').editor(method);
+                        }
+                    }, { method, name });
 
-            const instance = await page.evaluateHandle(() => $('textarea').editor({ buttons: [] }));
-
-            expect(await instance.evaluate((value) => $.getData('#editor', UI.Editor.DATA_KEY) === value)).toBe(true);
-            expect(await page.evaluate(() => $.getData('#second', UI.Editor.DATA_KEY) instanceof UI.Editor)).toBe(true);
-            await expect(page.locator('.editor')).toHaveCount(2);
+                    await expect(page.locator('.editor')).toHaveAttribute('contenteditable', String(method === 'enable'));
+                });
+            }
         });
-
-        test('dispatches public editing, history, state, and disposal methods', async ({ page }) => {
-            await page.evaluate(() => $('#editor').editor({ buttons: [['undo', 'redo']] }));
-
-            await page.evaluate(() => $('#editor').editor('insertHtml', '!'));
-
-            await expect(page.locator('#editor')).toHaveValue('<p>Hello world!</p>');
-
-            await page.evaluate(() => $('#editor').editor('undo'));
-
-            await expect(page.locator('#editor')).toHaveValue('<p>Hello world</p>');
-
-            await page.evaluate(() => $('#editor').editor('redo'));
-
-            await expect(page.locator('#editor')).toHaveValue('<p>Hello world!</p>');
-
-            await page.evaluate(() => $('#editor').editor('disable'));
-
-            await expect(page.locator('.editor')).toHaveAttribute('contenteditable', 'false');
-
-            await page.evaluate(() => $('#editor').editor('enable'));
-
-            await expect(page.locator('.editor')).toHaveAttribute('contenteditable', 'true');
-
-            await page.evaluate(() => $('#editor').editor('dispose'));
-
-            await expect(page.locator('#editor')).toBeVisible();
-            await expect(page.locator('.editor')).toHaveCount(0);
-        });
-    });
+    }
 
     test.describe('events', () => {
         test.beforeEach(setupEditor);

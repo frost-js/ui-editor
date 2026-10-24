@@ -1,5 +1,6 @@
 import process from 'node:process';
 import { test as base, expect } from '@playwright/test';
+import { addCoverageReport } from 'monocart-reporter';
 import { setupClock } from '../setup/browser.js';
 
 const collectCoverage = process.env.FROST_UI_EDITOR_COVERAGE === 'true';
@@ -58,8 +59,6 @@ const test = base.extend({
             await use();
 
             if (collectCoverage) {
-                // Coverage runs on Node 24; regular tests also support Node 20.
-                const { addCoverageReport } = await import('monocart-reporter');
                 const coverage = await page.coverage.stopJSCoverage();
 
                 await addCoverageReport(coverage, testInfo);

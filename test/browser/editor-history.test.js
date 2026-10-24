@@ -2,6 +2,33 @@ import { expect, test } from '#test';
 import { createEditor } from '../setup/editor.js';
 
 test.describe('Editor history', () => {
+    for (const method of ['redo', 'undo']) {
+        test.describe(`#${method}`, () => {
+            for (const name of ['class', 'QuerySet']) {
+                test(`restores the expected content (${name})`, async ({ page }) => {
+                    await createEditor(page);
+                    await page.evaluate(({ method, name }) => {
+                        window.editor.insertHtml('!');
+
+                        if (method === 'redo') {
+                            window.editor.undo();
+                        }
+
+                        if (name === 'class') {
+                            window.editor[method]();
+                        } else {
+                            $('#editor').editor(method);
+                        }
+                    }, { method, name });
+
+                    await expect(page.locator('#editor')).toHaveValue(
+                        method === 'redo' ? '<p>Hello world!</p>' : '<p>Hello world</p>',
+                    );
+                });
+            }
+        });
+    }
+
     test.describe('#undo and #redo', () => {
         test('restores content and selection through undo and redo', async ({ page }) => {
             await createEditor(page);

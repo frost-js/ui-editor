@@ -63,6 +63,23 @@ test.describe('Editor editing', () => {
         });
     });
 
+    test.describe('#insertHtml', () => {
+        for (const name of ['class', 'QuerySet']) {
+            test(`inserts HTML and synchronizes the textarea (${name})`, async ({ page }) => {
+                await createEditor(page);
+                await page.evaluate((name) => {
+                    if (name === 'class') {
+                        window.editor.insertHtml('!');
+                    } else {
+                        $('#editor').editor('insertHtml', '!');
+                    }
+                }, name);
+
+                await expect(page.locator('#editor')).toHaveValue('<p>Hello world!</p>');
+            });
+        }
+    });
+
     test.describe('#insertNode', () => {
         test('inserts a trusted element with history and honors disabled state', async ({ page }) => {
             await createEditor(page);
