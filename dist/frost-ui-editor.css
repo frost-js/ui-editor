@@ -1,3 +1,19 @@
+.editor-panel {
+  --ui-editor-focus-color: var(--ui-primary);
+  --ui-editor-focus-width: var(--ui-focus-ring-width);
+}
+.editor-panel:focus-within {
+  border-color: var(--ui-editor-focus-color);
+  box-shadow: 0 0 0 var(--ui-editor-focus-width) rgb(from var(--ui-editor-focus-color) r g b/var(--ui-focus-ring-opacity));
+}
+
+.editor-container,
+.editor-scroll,
+.editor-source,
+.card-body:has(> .editor-scroll) {
+  min-inline-size: 0;
+}
+
 .editor-container {
   display: flex;
   flex-direction: column;
@@ -9,20 +25,95 @@
   font-size: inherit;
   font-weight: inherit;
   color: inherit;
+  overflow-wrap: anywhere;
   background-color: inherit;
 }
-
-.editor-resize {
-  padding: 1px 0;
-  cursor: ns-resize;
-}
-.editor-resize hr {
-  inline-size: 25px;
-  margin: 1px auto 0;
+.editor img,
+.editor iframe,
+.editor table {
+  max-inline-size: 100%;
 }
 
 .editor-source {
   resize: none;
+}
+
+.editor:focus,
+.editor-source:focus {
+  outline: none;
+}
+.editor[aria-invalid=true],
+.editor-source[aria-invalid=true] {
+  outline: var(--ui-border-width) solid var(--ui-danger);
+  outline-offset: calc(-1 * var(--ui-border-width));
+}
+
+.editor-disabled {
+  --ui-editor-disabled-opacity: 0.5;
+  opacity: var(--ui-editor-disabled-opacity);
+}
+
+.btn-editor {
+  --ui-btn-bg: transparent;
+  --ui-btn-border-color: transparent;
+  --ui-btn-color: var(--ui-body-color);
+  --ui-btn-hover-bg: var(--ui-tertiary-bg);
+  --ui-btn-hover-border-color: transparent;
+  --ui-btn-active-bg: rgba(var(--ui-body-color-rgb), 0.2);
+  --ui-btn-focus-shadow-color: var(--ui-primary);
+}
+
+.btn-outline-editor {
+  --ui-btn-bg: transparent;
+  --ui-btn-border-color: var(--ui-body-color);
+  --ui-btn-color: var(--ui-body-color);
+  --ui-btn-hover-bg: rgba(var(--ui-body-color-rgb), 0.2);
+  --ui-btn-hover-border-color: var(--ui-body-color);
+  --ui-btn-active-bg: var(--ui-body-color);
+  --ui-btn-active-color: var(--ui-body-bg);
+  --ui-btn-active-border-color: var(--ui-body-color);
+  --ui-btn-focus-shadow-color: var(--ui-primary);
+}
+
+.editor-dropdown {
+  inline-size: max-content;
+  max-inline-size: calc(100vw - 1rem);
+  max-block-size: min(75vh, 40rem);
+  overflow: auto;
+}
+.editor-dropdown .dropdown-item {
+  white-space: nowrap;
+}
+
+.editor-color {
+  --ui-editor-color-height: 20px;
+  block-size: var(--ui-editor-color-height);
+}
+
+.editor-table-link {
+  margin-block-end: 1px;
+  margin-inline-end: 1px;
+  opacity: 0.5;
+}
+
+.editor-popover {
+  max-inline-size: calc(100vw - 1rem);
+}
+.editor-popover .popover-body {
+  overflow-wrap: anywhere;
+}
+
+.editor-link-url {
+  --ui-editor-link-url-max-width: 200px;
+  max-inline-size: var(--ui-editor-link-url-max-width);
+  vertical-align: middle;
+}
+
+.editor-img-cursor {
+  --ui-editor-img-cursor-size: 2rem;
+  inline-size: var(--ui-editor-img-cursor-size);
+  block-size: var(--ui-editor-img-cursor-size);
+  transform: translate(-50%, -50%);
 }
 
 .editor-img-highlight {
@@ -33,13 +124,6 @@
   z-index: var(--ui-editor-img-highlight-z-index);
   background-color: var(--ui-editor-img-highlight-bg);
   border: var(--ui-editor-img-highlight-border-width) dashed var(--ui-editor-img-highlight-border-color);
-}
-
-.editor-img-cursor {
-  --ui-editor-img-cursor-size: 2rem;
-  inline-size: var(--ui-editor-img-cursor-size);
-  block-size: var(--ui-editor-img-cursor-size);
-  transform: translate(-50%, -50%);
 }
 
 .editor-img-size {
@@ -68,90 +152,13 @@
   background-color: var(--ui-editor-drop-target-bg);
 }
 
-.editor-link-url {
-  --ui-editor-link-url-max-width: 200px;
-  max-inline-size: var(--ui-editor-link-url-max-width);
-  vertical-align: middle;
+.editor-resize {
+  padding: 1px 0;
+  cursor: ns-resize;
 }
-
-.editor-color {
-  --ui-editor-color-height: 20px;
-  block-size: var(--ui-editor-color-height);
-}
-
-.editor-table-link {
-  margin-block-end: 1px;
-  margin-inline-end: 1px;
-  opacity: 0.5;
-}
-
-.btn-editor {
-  --ui-btn-bg: transparent;
-  --ui-btn-border-color: transparent;
-  --ui-btn-color: var(--ui-body-color);
-  --ui-btn-hover-bg: var(--ui-tertiary-bg);
-  --ui-btn-hover-border-color: transparent;
-  --ui-btn-active-bg: rgba(var(--ui-body-color-rgb), 0.2);
-  --ui-btn-focus-shadow-color: var(--ui-primary);
-}
-
-.btn-outline-editor {
-  --ui-btn-bg: transparent;
-  --ui-btn-border-color: var(--ui-body-color);
-  --ui-btn-color: var(--ui-body-color);
-  --ui-btn-hover-bg: rgba(var(--ui-body-color-rgb), 0.2);
-  --ui-btn-hover-border-color: var(--ui-body-color);
-  --ui-btn-active-bg: var(--ui-body-color);
-  --ui-btn-active-color: var(--ui-body-bg);
-  --ui-btn-active-border-color: var(--ui-body-color);
-  --ui-btn-focus-shadow-color: var(--ui-primary);
-}
-
-.editor-container,
-.editor-scroll,
-.editor-source,
-.card-body:has(> .editor-scroll) {
-  min-inline-size: 0;
-}
-
-.editor {
-  overflow-wrap: anywhere;
-}
-.editor img,
-.editor iframe,
-.editor table {
-  max-inline-size: 100%;
-}
-
-.editor-panel {
-  --ui-editor-focus-color: var(--ui-primary);
-  --ui-editor-focus-width: var(--ui-focus-ring-width);
-}
-.editor-panel:focus-within {
-  border-color: var(--ui-editor-focus-color);
-  box-shadow: 0 0 0 var(--ui-editor-focus-width) rgb(from var(--ui-editor-focus-color) r g b/var(--ui-focus-ring-opacity));
-}
-
-.editor:focus,
-.editor-source:focus {
-  outline: none;
-}
-.editor[aria-invalid=true],
-.editor-source[aria-invalid=true] {
-  outline: var(--ui-border-width) solid var(--ui-danger);
-  outline-offset: calc(-1 * var(--ui-border-width));
-}
-
-.editor-disabled {
-  --ui-editor-disabled-opacity: 0.5;
-  opacity: var(--ui-editor-disabled-opacity);
-}
-
-.editor-popover {
-  max-inline-size: calc(100vw - 1rem);
-}
-.editor-popover .popover-body {
-  overflow-wrap: anywhere;
+.editor-resize hr {
+  inline-size: 25px;
+  margin: 1px auto 0;
 }
 
 .editor-table-link:focus-visible,
@@ -191,15 +198,6 @@
   .btn-outline-editor.active {
     outline: 1px solid Highlight;
   }
-}
-.editor-dropdown {
-  inline-size: max-content;
-  max-inline-size: calc(100vw - 1rem);
-  max-block-size: min(75vh, 40rem);
-  overflow: auto;
-}
-.editor-dropdown .dropdown-item {
-  white-space: nowrap;
 }
 
 /*# sourceMappingURL=frost-ui-editor.css.map */
