@@ -13,30 +13,11 @@ const routes = new Map([
     ['/demo/assets/demo.js', { contentType: javaScript, file: new URL('../../../demo/assets/demo.js', import.meta.url) }],
     ['/dist/frost-ui-editor.css', { contentType: css, file: new URL('../../../dist/frost-ui-editor.css', import.meta.url) }],
     ['/dist/frost-ui-editor.js', { contentType: javaScript, file: new URL('../../../dist/frost-ui-editor.js', import.meta.url) }],
-    ['/esm.html', { contentType: html, file: new URL('../app/esm.html', import.meta.url) }],
-    ['/umd-min.html', { contentType: html, file: new URL('../app/umd-min.html', import.meta.url) }],
-    ['/src/js/nodes.js', { contentType: javaScript, file: new URL('../../../src/js/nodes.js', import.meta.url) }],
-    ['/src/js/selection.js', { contentType: javaScript, file: new URL('../../../src/js/selection.js', import.meta.url) }],
     ['/assets/frost-ui-editor.js', { contentType: javaScript, file: new URL('../../../dist/frost-ui-editor.js', import.meta.url) }],
     ['/assets/frost-ui-editor.css', { contentType: css, file: new URL('../../../dist/frost-ui-editor.css', import.meta.url) }],
     ['/assets/frost-ui-bundle.js', { contentType: javaScript, file: resolveModule('@fr0st/ui/dist/frost-ui-bundle.js') }],
     ['/assets/frost-ui.css', { contentType: css, file: resolveModule('@fr0st/ui/dist/frost-ui.css') }],
 ]);
-
-for (const filename of ['frost-ui-editor.esm.js', 'frost-ui-editor.esm.min.js', 'frost-ui-editor.min.js']) {
-    routes.set(`/assets/${filename}`, {
-        contentType: javaScript,
-        file: new URL(`../../../dist/${filename}`, import.meta.url),
-    });
-}
-
-for (const [filename, specifier] of [
-    ['frost-core.esm.js', '@fr0st/core'],
-    ['fquery.esm.js', '@fr0st/query'],
-    ['frost-ui.esm.js', '@fr0st/ui'],
-]) {
-    routes.set(`/assets/${filename}`, { contentType: javaScript, file: resolveModule(specifier) });
-}
 
 const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');

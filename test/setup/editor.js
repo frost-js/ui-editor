@@ -13,8 +13,14 @@ export async function createEditor(page, html = '<p>Hello world</p>', options = 
         node.id = 'editor';
         node.value = html;
         document.body.append(node);
-        window.editor = UI.Editor.init(node, { buttons: [['bold', 'source', 'undo', 'redo']], ...options });
-    }, { html, options });
+        window.editor = UI.Editor.init(node, {
+            buttons: [['bold', 'source', 'undo', 'redo']],
+            ...options,
+        });
+    }, {
+        html,
+        options,
+    });
 }
 
 /**
