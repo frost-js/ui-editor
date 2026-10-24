@@ -413,3 +413,26 @@ At the step 8 checkpoint, read-only checks found GitHub Actions enabled for `elu
 - `package.json` follows the `ui-selectmenu` field order, author format, and shared keywords, with editor-specific search terms. The repository URL uses the sibling `git+https` format.
 - Repository links continue to target `elusivecodes/FrostUI-Editor`, matching the current Git remote. Changing the repository destination remains separate from metadata normalization.
 - Dependency versions, scripts, engine/browser requirements, published files, and package entry points already match the sibling baseline. The legacy Sass export remains alongside the source wildcard, following `ui-autocomplete`; the package version remains 3.0.0.
+
+## Upgrading from 2.x
+
+This migration prepares a major release, **3.0.0**, because dependency, module, content, and keyboard contracts changed:
+
+1. Upgrade shared peers to `@fr0st/query` 5 and `@fr0st/ui` 4. Remove duplicate/older Frost UI or fQuery bundles and load Frost UI 4 CSS before the editor CSS.
+2. Switch package-root imports to the default ESM export. CommonJS `require()` is not supported. UMD consumers keep `UI.Editor` and load Frost UI's all-in-one bundle first. Browser ESM users need the import map in the [README installation examples](./README.md#browser-esm).
+3. Replace direct imports from the removed `src/js/prototype/*`, `src/js/static/*`, and `wrapper.js` paths with the package entry, `src/js/index.js`, or `src/js/browser.js` as appropriate. Prefer `instance.node` and `instance.options` to inherited `_node`/`_options`; do not mutate resolved options.
+4. Review stored HTML against the sanitization policy before rollout. Scripts, arbitrary embeds, SVG, form controls, IDs, unsafe attributes/URLs/styles, and unsupported structure may be removed or normalized. Provide a reviewed synchronous `sanitize` replacement only when your application requires another policy. Empty scaffolding now submits as an empty string; indentation uses logical margins. Browser-produced markup, including Firefox `font` elements, may differ.
+5. Reload programmatic textarea updates with `refresh()` or native input/change events. Source input synchronizes sanitized submitted HTML immediately; undo/redo emit changes and native reset clears history silently. Observe synchronized values rather than relying on exact event counts.
+6. Use Tab / Shift+Tab for indentation in rich and source modes. Press Escape, then Tab / Shift+Tab to move focus out of an editing field. Browser Ctrl+Tab shortcuts remain available. Review form validation, disabled/readonly state, and visible focus in your application.
+7. Convert Sass `@import` overrides to `@use ... with (...)`. Rename `$btn-border-color` to `$btn-editor-border-color`, `$btn-editor-focus-shadow-rgb` to `$btn-editor-focus-shadow-color`, and `$btn-outline-editor-focus-shadow-rgb` to `$btn-outline-editor-focus-shadow-color`. The legacy `src/scss/vars.scss` package path remains an alias; filesystem consumers should use `_vars.scss`.
+8. Use Node `^20.19.0 || ^22.13.0 || >=24` for development/builds; use Node 24 for coverage because reporter dependencies require a newer runtime. Rebuild and commit the tracked distribution files, then exercise your plugin/upload overrides and representative saved content in all supported browsers.
+
+Existing static dictionaries and callable extension hooks are retained; observers, readers, timers, and lifecycle resources are now owned and cleaned up by the instance. The legacy editing engine is retained. Implementation and verification records appear above.
+
+## Release preparation
+
+CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24, with coverage collected once. The release workflow requires a GitHub release tag of `v${version}` matching `package.json` (currently `v3.0.0`), installs dependencies, lints, builds, tests Chromium, verifies tracked artifacts, and checks package contents before running `npm publish --provenance`. The workflows follow the sibling `ui-tables` setup.
+
+CI uploads coverage from Node 24 Chromium using Codecov OIDC. Published GitHub releases trigger validation and npm publication, with no additional enable variables. Configure Codecov access and npm trusted publishing for the intended repository/package destination as described under [External service activation](#external-service-activation). Local development commands do not create tags or releases, publish packages, or transfer the repository.
+
+To try the 3.0.0 checkout before publication, run `npm ci`, `npm run build`, and `npm pack`, then install the resulting tarball in a browser project. The README installation examples follow the sibling package/CDN format and describe the prepared release.

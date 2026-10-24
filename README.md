@@ -1,7 +1,11 @@
 # Frost UI Editor
 
 [![CI](https://github.com/elusivecodes/FrostUI-Editor/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/elusivecodes/FrostUI-Editor/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/elusivecodes/FrostUI-Editor/branch/main/graph/badge.svg)](https://codecov.io/gh/elusivecodes/FrostUI-Editor)
 [![npm version](https://img.shields.io/npm/v/%40fr0st%2Fui-editor?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-editor)
+[![npm downloads](https://img.shields.io/npm/dm/%40fr0st%2Fui-editor?style=flat-square)](https://www.npmjs.com/package/@fr0st/ui-editor)
+[![JS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-Editor/main/dist/frost-ui-editor.min.js?compression=gzip&label=JS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-Editor/blob/main/dist/frost-ui-editor.min.js)
+[![CSS gzip size](https://img.badgesize.io/elusivecodes/FrostUI-Editor/main/dist/frost-ui-editor.min.css?compression=gzip&label=CSS%20gzip%20size&style=flat-square)](https://github.com/elusivecodes/FrostUI-Editor/blob/main/dist/frost-ui-editor.min.css)
 [![license](https://img.shields.io/github/license/elusivecodes/FrostUI-Editor?style=flat-square)](./LICENSE)
 
 A WYSIWYG editor for Frost UI, with customizable toolbars, HTML source editing, media, tables, and native textarea integration.
@@ -19,17 +23,17 @@ A WYSIWYG editor for Frost UI, with customizable toolbars, HTML source editing, 
 - ESM and UMD bundles, expanded/minified CSS, source maps, and Sass modules
 - JSDoc-powered IntelliSense and Chromium, Firefox, and WebKit regression tests
 
-Explore [the demo](./demo/index.html) for working examples. This checkout prepares **3.0.0**; registry availability and publication are separate from the local migration. See [Migrating from 2.x](#migrating-from-2x) before upgrading.
+Explore [the demo](./demo/index.html) for interactive examples.
 
 ## Installation
 
 ### Browser projects / bundlers
 
-Once 3.0.0 is published:
-
-```sh
-npm install @fr0st/ui-editor@^3 @fr0st/query@^5 @fr0st/ui@^4
+```bash
+npm i @fr0st/ui-editor
 ```
+
+Frost UI Editor's package entry point is ESM-only and requires a browser DOM. Import the default `Editor` export and the stylesheets in browser projects and bundlers.
 
 ```js
 import '@fr0st/ui/dist/frost-ui.min.css';
@@ -37,78 +41,109 @@ import '@fr0st/ui-editor/dist/frost-ui-editor.min.css';
 import Editor from '@fr0st/ui-editor';
 ```
 
-The package root is ESM-only and requires a browser DOM. It does not provide a CommonJS entry or server renderer. In SSR applications, initialize the editor on the client after its textarea mounts. `@fr0st/query` 5 and `@fr0st/ui` 4 are peer dependencies; use the same instances throughout the application. Published `dist/*` and `src/*` files are available through matching package subpaths.
+`@fr0st/ui` and `@fr0st/query` are peer dependencies so the component shares the application's instances.
 
-To try this checkout before publication, run `npm ci`, `npm run build`, and `npm pack`, then install the resulting tarball in a browser project.
+### Browser (ESM)
 
-### Browser ESM / import maps
-
-Serve the editor's built `dist/` directory at `/dist/`. Load Frost UI CSS first. fQuery imports `@fr0st/core`, so direct browser imports need all three dependency mappings. These versions match the verified development baseline:
+The ESM bundle imports `@fr0st/ui` and `@fr0st/query`. fQuery also imports `@fr0st/core`, so map all three dependencies when loading the bundle directly in a browser:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4.0.2/dist/frost-ui.min.css">
-<link rel="stylesheet" href="/dist/frost-ui-editor.min.css">
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui-editor@latest/dist/frost-ui-editor.min.css">
 <script type="importmap">
 {
     "imports": {
-        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@4.0.1/dist/frost-core.esm.min.js",
-        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@5.0.1/dist/fquery.esm.min.js",
-        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@4.0.2/dist/frost-ui.esm.min.js"
+        "@fr0st/core": "https://cdn.jsdelivr.net/npm/@fr0st/core@latest/dist/frost-core.esm.min.js",
+        "@fr0st/query": "https://cdn.jsdelivr.net/npm/@fr0st/query@latest/dist/fquery.esm.min.js",
+        "@fr0st/ui": "https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.esm.min.js"
     }
 }
 </script>
-<label for="browser-document">Document</label>
-<textarea id="browser-document" name="document"></textarea>
 <script type="module">
-    import Editor from '/dist/frost-ui-editor.esm.min.js';
-    Editor.init(document.querySelector('#browser-document'));
+    import Editor from 'https://cdn.jsdelivr.net/npm/@fr0st/ui-editor@latest/dist/frost-ui-editor.esm.min.js';
 </script>
 ```
 
-### Browser UMD
+### Browser (UMD)
+
+Load the bundles from your own copy or a CDN:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui.min.css">
-<link rel="stylesheet" href="/dist/frost-ui-editor.min.css">
-<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@4/dist/frost-ui-bundle.min.js" defer></script>
-<script src="/dist/frost-ui-editor.min.js" defer></script>
-<script src="/app.js" defer></script>
+<link
+    rel="stylesheet"
+    href="/path/to/dist/frost-ui.min.css">
+<link
+    rel="stylesheet"
+    href="/path/to/dist/frost-ui-editor.min.css">
+<script src="/path/to/dist/frost-ui-bundle.min.js"></script>
+<script src="/path/to/dist/frost-ui-editor.min.js"></script>
+<!-- or -->
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui.min.css">
+<link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fr0st/ui-editor@latest/dist/frost-ui-editor.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui@latest/dist/frost-ui-bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fr0st/ui-editor@latest/dist/frost-ui-editor.min.js"></script>
+<script>
+    const { Editor } = globalThis.UI;
+</script>
 ```
 
-In `app.js`, call `UI.Editor.init(textarea)`. Frost UI's all-in-one bundle supplies `globalThis.UI` and `globalThis.fQuery`; the editor adds `UI.Editor` to that existing namespace. Keep this script order. Use either the ESM setup or the UMD setup on a page so dependency instances are shared.
+The UMD bundle adds `Editor` to the existing `globalThis.UI` object. Load Frost UI's all-in-one bundle first; it supplies the `UI` and `fQuery` globals.
+
+The package root resolves to the prebuilt ESM bundle. Published files under `dist/` and `src/` are also available through matching package subpaths.
 
 ## Usage
 
-Start with a labeled textarea. Its initial value is HTML:
+Start with a labeled textarea. Its initial value is HTML; the editor keeps the original textarea synchronized for form submission:
 
 ```html
 <label for="document">Document</label>
-<textarea id="document" name="document" aria-describedby="document-help">&lt;p&gt;Start writing here.&lt;/p&gt;</textarea>
+<textarea
+    id="document"
+    name="document"
+    aria-describedby="document-help">&lt;p&gt;Start writing here.&lt;/p&gt;</textarea>
 <p id="document-help">Format your document or edit its HTML source.</p>
 ```
 
 ```js
 import Editor from '@fr0st/ui-editor';
 
-const textarea = document.querySelector('#document');
-const editor = Editor.init(textarea, {
-    height: '260px',
-    historyLimit: 100,
-});
-
-// The original textarea always contains the submitted HTML.
-const html = textarea.value;
-
-// Reload content assigned by application code.
-textarea.value = '<h2>Updated document</h2><p>New content.</p>';
-editor.refresh();
+const editor = Editor.init(
+    document.querySelector('#document'),
+    {
+        height: '260px',
+        historyLimit: 100,
+    },
+);
 ```
 
-Initialization requires a textarea. Data attributes configure an editor but do not initialize it automatically. Explicitly initialize each textarea, or use the [fQuery API](#fquery-api).
+Initialization requires a textarea. Read its `value` for the current HTML. Initialize after the element exists; in SSR applications, initialize on the client after mounting.
 
 ## Options
 
-Options resolve from `Editor.defaults`, then the textarea's `data-ui-*` attributes, then the object passed to `Editor.init()`. Resolved `editor.options` are shallow-frozen; change defaults before creating instances, or dispose and reinitialize to replace options.
+Options are resolved in this order:
+
+1. Component defaults
+2. The element's `data-ui-*` attributes
+3. Options passed to `Editor.init()`
+
+Resolved `instance.options` are shallow-frozen. Dispose and reinitialize to replace options on an existing instance.
+
+Set application-wide defaults before initialization:
+
+```js
+Editor.defaults.height = '260px';
+Editor.defaults.historyLimit = 100;
+```
+
+Changes to defaults apply to newly created instances.
 
 | Option | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -118,10 +153,280 @@ Options resolve from `Editor.defaults`, then the textarea's `data-ui-*` attribut
 | `height` | `string \| number` | `'auto'` | Content area height, such as `'260px'`; numeric values use pixels. |
 | `resizable` | `boolean` | `true` | Render the editor resize handle. |
 | `historyLimit` | `number` | `1000` | Maximum snapshots including initial content; bounded to at least one. |
-| `popovers` | `object` | See below | Image, link, and table action groups. |
+| `popovers` | `object` | See [Popovers](#popovers) | Image, link, and table action groups. |
 | `imageUpload` | `function` | Editor-owned file reader | `(files) => void \| Promise<void>`, with the editor as `this`; inserts successful local raster data URLs by default. |
 | `sanitize` | `function` | Built-in HTML policy | Synchronous `(html) => string`; a replacement returns trusted HTML. |
 | `keyDown` | `function \| null` | Formatting/history shortcuts | Runs on rich-editor keydown with the editor as `this`; `null` disables that callback. Structural editing keys still work. |
+
+### Image upload
+
+The default callback reads files through editor-owned FileReaders, inserts successful results, and cancels pending reads on disposal. A custom callback owns its asynchronous work, failure handling, and insertion:
+
+```js
+Editor.init(document.querySelector('#upload'), {
+    async imageUpload(files) {
+        const controller = new AbortController();
+        this._onDispose(() => controller.abort());
+        try {
+            const body = new FormData();
+            for (const file of files) {
+                body.append('images', file);
+            }
+            const response = await fetch('/api/images', {
+                method: 'POST',
+                body,
+                signal: controller.signal,
+            });
+            if (!response.ok) {
+                throw new Error('Image upload failed');
+            }
+            const { urls } = await response.json();
+            if (!this.node) {
+                return;
+            }
+            for (const url of urls) {
+                this.insertImage(url);
+            }
+        } catch (error) {
+            if (this.node) {
+                console.error(error);
+            }
+        }
+    },
+});
+```
+
+This example assumes an application endpoint returning `{ urls: string[] }`; validate files and permissions there. The callback receives `FileList` or `File[]`, and runs with the editor as `this`. The editor does not consume a returned URL, await completion at the dialog/drop call site, or catch custom rejections. Keep selection changes during uploads in mind: `insertImage()` uses the editor's current/saved selection at insertion time. The [demo callback](./demo/assets/demo.js) works locally without an upload service.
+
+### Keyboard callback
+
+To add a shortcut while preserving the defaults, save and call the default callback:
+
+```js
+const defaultKeyDown = Editor.defaults.keyDown;
+Editor.init(document.querySelector('#shortcuts'), {
+    keyDown(event) {
+        if (event.key === 'F2') {
+            event.preventDefault();
+            this.insertText('Reviewed');
+            return;
+        }
+        defaultKeyDown.call(this, event);
+    },
+});
+```
+
+Calling `preventDefault()` stops subsequent structural key handling for that event.
+
+## Data attributes
+
+Use kebab-case `data-ui-*` attributes for serializable options. Arrays and objects use JSON. Supply callbacks through JavaScript.
+
+| Attribute | Example |
+| --- | --- |
+| `data-ui-buttons` | `data-ui-buttons='[["bold","italic"],["source"]]'` |
+| `data-ui-default-font` | `data-ui-default-font="Georgia"` |
+| `data-ui-fonts` | `data-ui-fonts='["Georgia","Arial"]'` |
+| `data-ui-height` | `data-ui-height="240px"` |
+| `data-ui-history-limit` | `data-ui-history-limit="100"` |
+| `data-ui-popovers` | `data-ui-popovers='{"image":[]}'` |
+| `data-ui-resizable` | `data-ui-resizable="false"` |
+
+```html
+<label for="configured-document">Document</label>
+<textarea
+    id="configured-document"
+    name="document"
+    data-ui-toggle="editor"
+    data-ui-height="240px"
+    data-ui-resizable="false"
+    data-ui-history-limit="100"
+    data-ui-buttons='[["bold","italic"],["source"]]'></textarea>
+```
+
+```js
+import $ from '@fr0st/query';
+import '@fr0st/ui-editor';
+
+$('[data-ui-toggle="editor"]').editor();
+```
+
+Data attributes configure options; they do not initialize Editor by themselves. Initialize through the class or fQuery plugin. Changing an option's data attribute after initialization does not reconfigure the existing instance. `disabled`, `readonly`, `required`, `name`, `dir`, and `lang` remain native textarea attributes.
+
+## Methods
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `Editor.init(node, options?)` | `Editor` | Return the existing instance for an element or create one. |
+| `backColor(color)` | `void` | Set the selection background color. |
+| `bold()` | `void` | Toggle bold formatting. |
+| `disable()` | `void` | Disable the native textarea and generated editing controls. |
+| `dispose()` | `void` | Release owned resources, remove generated markup, and restore the textarea. |
+| `enable()` | `void` | Enable the textarea and generated controls; an ancestor disabled fieldset still takes precedence. |
+| `fontName(name)` | `void` | Set the selected font family. |
+| `fontSize(pixels)` | `void` | Set one of the configured pixel sizes. |
+| `foreColor(color)` | `void` | Set the selection text color. |
+| `formatBlock(tag)` | `void` | Set a block tag, such as `'h2'` or `'p'`. |
+| `indent()` | `void` | Indent selected blocks or list items while retaining selection. |
+| `insertHorizontalRule()` | `void` | Insert a horizontal rule. |
+| `insertHTML(html)` | `void` | Insert sanitized HTML at the selection. |
+| `insertImage(src)` | `void` | Insert a protocol-checked image. |
+| `insertLink(href, text, newWindow?)` | `void` | Insert a protocol-checked link; newWindow defaults to false. |
+| `insertOrderedList()` | `void` | Toggle ordered-list formatting. |
+| `insertText(text)` | `void` | Insert literal text at the selection. |
+| `insertUnorderedList()` | `void` | Toggle unordered-list formatting. |
+| `italic()` | `void` | Toggle italic formatting. |
+| `justifyCenter()` | `void` | Center the selection. |
+| `justifyFull()` | `void` | Justify the selection. |
+| `justifyLeft()` | `void` | Align the selection left. |
+| `justifyRight()` | `void` | Align the selection right. |
+| `outdent()` | `void` | Outdent selected blocks or list items while retaining selection. |
+| `redo()` | `void` | Restore the next content and selection snapshot. |
+| `refresh()` | `void` | Reload the assigned textarea value, sanitize/normalize it, and update state without emitting a change event. |
+| `removeFormat()` | `void` | Remove formatting from the selection. |
+| `strikethrough()` | `void` | Toggle strikethrough formatting. |
+| `subscript()` | `void` | Toggle subscript formatting. |
+| `superscript()` | `void` | Toggle superscript formatting. |
+| `underline()` | `void` | Toggle underline formatting. |
+| `undo()` | `void` | Restore the previous content and selection snapshot. |
+| `unlink()` | `void` | Remove link formatting while preserving its text. |
+
+```js
+const textarea = document.querySelector('#document');
+textarea.value = '<h2>Updated document</h2><p>New content.</p>';
+editor.refresh();
+
+console.log(textarea.value);
+editor.disable();
+editor.enable();
+editor.dispose();
+```
+
+Formatting commands operate on the rich editing selection and are disabled for readonly/disabled fields. Source, fullscreen, video, and table dialogs are toolbar plugins rather than public methods with those names.
+
+History includes the initial snapshot; new edits clear redo. `refresh()` records changed content without clearing existing undo history. Native reset restores defaults and clears history.
+
+## Lifecycle
+
+Calling `Editor.init()` again for the same element returns its existing instance. Dispose the current instance before reinitializing with different options.
+
+An instance exposes its original textarea as `instance.node` and its shallow-frozen resolved configuration as `instance.options`. Both become `null` after disposal.
+
+`dispose()` releases owned listeners, observers, dialogs, popovers, file reads, and deferred work. It restores original textarea visibility and managed attributes while retaining its current value. Repeated disposal is safe. Use a new instance before calling other methods after disposal.
+
+If initialization fails, the component releases resources it created and removes its registered instance before rethrowing the error. The textarea can then be initialized again.
+
+Removing the original textarea through fQuery disposes the component automatically. Call `dispose()` before removing it through native DOM APIs.
+
+## Events
+
+Events originate on the original textarea:
+
+| Event | Description |
+| --- | --- |
+| `init.ui.editor` | Initialization completed. |
+| `change.ui.editor` | Changed HTML has been synchronized to the textarea, including undo/redo and source input. |
+| `focus.ui.editor` | An editing view received focus. |
+| `blur.ui.editor` | An editing view lost focus. |
+
+```js
+import $ from '@fr0st/query';
+import Editor from '@fr0st/ui-editor';
+
+$.addEvent(
+    '#document',
+    'init.ui.editor change.ui.editor focus.ui.editor blur.ui.editor',
+    (event) => {
+        console.log(event.type, event.currentTarget.value);
+    },
+);
+
+Editor.init(document.querySelector('#document'));
+```
+
+Register before initialization to observe `init`. fQuery exposes the namespace on `event.namespace`; the underlying event type is `init`, `change`, `focus`, or `blur`.
+
+Change callbacks observe synchronized textarea content. Mutation delivery and browser editing events can affect counts; there is no one-event-per-keystroke guarantee. The editor does not synthesize a separate native input event for every command.
+
+Initialization can synchronize changed sanitized/normalized content before `init`; an unchanged initial value does not produce a change notification. `refresh()` and native reset do not emit an editor change event.
+
+## fQuery API
+
+Importing Editor registers `editor` on `fQuery.QuerySet`:
+
+```js
+import $ from '@fr0st/query';
+import '@fr0st/ui-editor';
+
+const editor = $('#document').editor({
+    height: '260px',
+});
+
+$('#document').editor('insertText', 'Hello');
+$('#document').editor('undo');
+$('#document').editor('disable');
+$('#document').editor('enable');
+$('#document').editor('dispose');
+```
+
+Pass an options object to initialize every matched element, or pass a public method name followed by its arguments. The first component or method result is returned; the plugin is not chainable. String dispatch initializes an absent instance first, including when dispatching `dispose`.
+
+## Accessibility
+
+The complete editor panel uses the same focused border and translucent ring as Frost UI outline inputs whenever an editing view or toolbar control has focus. Textarea labels and `aria-label`, `aria-labelledby`, `aria-describedby`, `aria-errormessage`, `aria-invalid`, `required`, `dir`, and `lang` reach both editing views. Toolbar/dropdown/table choices use named native buttons. Focus remains visible; Escape closes dialogs/dropdowns and restores invoking focus, and dismisses context controls.
+
+| Keys | Action |
+| --- | --- |
+| Ctrl/Meta+B, I, U | Bold, italic, underline in rich mode. |
+| Ctrl/Meta+Z | Undo. |
+| Ctrl/Meta+Shift+Z or Ctrl/Meta+Y | Redo. |
+| Tab / Shift+Tab in rich mode | Indent/outdent selected blocks or list items. |
+| Tab / Shift+Tab in source mode | Insert a tab or indent/outdent selected HTML lines. |
+| Escape, then Tab / Shift+Tab | Leave the editing field without indenting. |
+| Up/Down on the editor resize handle | Change editor height. |
+| Left/Right on the image width handle | Change image width. |
+
+The editing engine still uses browser `contenteditable` and deprecated `document.execCommand()` APIs. Serialization, font handling, and native selection/editing details differ by browser; depend on semantic formatting rather than byte-identical HTML. Real operating-system IME behavior and assistive technology combinations need application testing; automated composition events do not replace those checks.
+
+## Forms
+
+The original named textarea remains the submitted form control. Rich editing, commands, undo/redo, and source input keep `textarea.value` current. Source input is sanitized immediately for submission; returning to rich mode normalizes HTML and records a history operation if it changed. Empty editing scaffolding serializes as `''` for native required validation.
+
+After assigning `textarea.value`, call `editor.refresh()` or dispatch `input`/`change` on the textarea to reload it. Native form reset waits for its default action, restores the default value, clears history, and emits no editor change event. Canceling reset leaves editing state intact. Disabled controls/fieldsets block editing and follow native submission rules, including the first-legend exception. Readonly controls remain selectable and submitted, and allow viewing source.
+
+Native required and custom validity checks use the textarea. Invalid events focus the visible editing view. Keep help/error text associated through `aria-describedby` and `aria-errormessage`; set application validation feedback on the textarea and its associated error elements.
+
+```html
+<form id="document-form">
+    <label for="form-document">Document</label>
+    <textarea
+        id="form-document"
+        name="document"
+        required>&lt;p&gt;Original document&lt;/p&gt;</textarea>
+    <button type="submit">Submit</button>
+    <button type="reset">Reset</button>
+</form>
+```
+
+```js
+import Editor from '@fr0st/ui-editor';
+
+Editor.init(document.querySelector('#form-document'));
+```
+
+### HTML and URL policy
+
+HTML is sanitized before initial rendering, insertion, paste, external value reloads, and source rendering/submission. The default policy preserves editor headings, inline formatting, legacy font presentation, lists, tables, selected presentation styles, raster data images, and supported YouTube embeds. It removes scripts, SVG, form controls, arbitrary embeds, event attributes, IDs, unsafe URLs, and layout/resource-loading CSS. Normalization also repairs unsupported nesting and merges equivalent inline nodes. Submitted HTML can differ from the original input.
+
+Links accept relative/HTTP(S) URLs, `mailto:`, and `tel:`. Images accept relative/HTTP(S) URLs and base64 PNG/JPEG/GIF/WebP/AVIF data. New-window links receive `rel="noopener noreferrer"`. The video dialog accepts HTTPS YouTube watch URLs and `youtu.be` links; resulting embeds use HTTPS `www.youtube.com/embed/…` or `www.youtube-nocookie.com/embed/…`, a sandbox, referrer policy, and accessible title.
+
+A synchronous `sanitize(html)` option replaces the HTML policy and returns trusted HTML. Toolbar/icon HTML, plugin renderers, direct DOM mutations, and `_insertNode()` also cross a trusted application boundary. Public image/link insertion still validates URL protocols. Validate and sanitize submitted content on the server for its eventual display context; the browser policy is not a substitute for that boundary.
+
+## Customization
+
+The public static `defaults`, `classes`, `icons`, `lang`, `buttons`, `plugins`, `popovers`, `fonts`, `fontSizes`, `colors`, and `styles` objects can be customized before initialization. Class overrides require matching CSS; icons and plugin HTML are trusted application content.
+
+### Toolbars and plugins
 
 Default toolbar:
 
@@ -140,24 +445,6 @@ Editor.buttons = [
 
 Available plugin keys are `alignCenter`, `alignJustify`, `alignLeft`, `alignRight`, `bold`, `color`, `font`, `fontSize`, `fullScreen`, `hr`, `image`, `indent`, `italic`, `link`, `orderedList`, `outdent`, `paragraph`, `redo`, `removeFormat`, `source`, `strikethrough`, `style`, `subscript`, `superscript`, `table`, `underline`, `undo`, `unlink`, `unorderedList`, and `video`. The `paragraph` dropdown groups alignment and indentation actions. Add `undo` and `redo` to a custom toolbar if you want visible history buttons; shortcuts also work.
 
-### Data attributes
-
-Use kebab-case option names; booleans, numbers, arrays, and objects are parsed by fQuery. Pass functions in JavaScript.
-
-```html
-<textarea id="configured"
-    data-ui-height="240px"
-    data-ui-resizable="false"
-    data-ui-history-limit="100"
-    data-ui-default-font="Georgia"
-    data-ui-fonts='["Georgia","Arial"]'
-    data-ui-buttons='[["bold","italic"],["source"]]'></textarea>
-```
-
-Call `Editor.init(document.querySelector('#configured'))` after this element exists. `disabled`, `readonly`, `required`, `name`, `dir`, and `lang` remain native textarea attributes.
-
-### Toolbars and plugins
-
 Register a plugin before initialization, then reference its key in the `buttons` option:
 
 ```js
@@ -175,10 +462,6 @@ Editor.init(document.querySelector('#custom'), {
 ```
 
 A plugin can supply `command` (an editor method) and `value` (its argument), or `action()`. Rendering accepts `content` (HTML), `icon` (an `Editor.icons` key), `title`, `setContent()`, and `setTitle()`. `dropdown` accepts nested button groups or a callback receiving the dropdown container. `disableCheck()` returns whether to disable the button. Callbacks run with the editor as `this`. Plugin HTML and DOM are trusted application code.
-
-`Editor.classes` maps structural and state class names. `Editor.icons` maps icon names to HTML. Set them before initialization and supply matching CSS for class overrides.
-
-Existing extensions can use `_insertNode(node)`, `_showEditor()`, `_showSource()`, `_refreshToolbar()`, and the focused dropdown/modal helpers. Use `listen(...)` for instance-owned event handlers, `_ownComponent(component)` for child Frost UI components, `_onDispose(callback)` for cleanup, and `_debounce(callback)` for deferred work that must stop after disposal. Use `_observe(enabled)` to control observation; lifecycle bookkeeping is private. Application code should prefer public methods and `node`/`options`. The [migration proposal](./MIGRATION_PROPOSAL.md) records retained extension seams.
 
 ### Popovers
 
@@ -215,218 +498,99 @@ Editor.lang.toolbar = 'Document formatting';
 
 The full default dictionaries are in [config.js](./src/js/config.js). Configure language before creating editors.
 
-### Image upload
+### CSS custom properties
 
-The default callback reads files through editor-owned FileReaders, inserts successful results, and cancels pending reads on disposal. A custom callback owns its asynchronous work, failure handling, and insertion:
+Parts expose runtime CSS custom properties backed by the [Sass defaults](./src/scss/_vars.scss). Set properties on the relevant part in a stylesheet loaded after the editor CSS:
 
-```js
-Editor.init(document.querySelector('#upload'), {
-    async imageUpload(files) {
-        const controller = new AbortController();
-        this._onDispose(() => controller.abort());
-        try {
-            const body = new FormData();
-            for (const file of files) body.append('images', file);
-            const response = await fetch('/api/images', {
-                method: 'POST', body, signal: controller.signal,
-            });
-            if (!response.ok) throw new Error('Image upload failed');
-            const { urls } = await response.json();
-            if (!this.node) return;
-            for (const url of urls) this.insertImage(url);
-        } catch (error) {
-            if (this.node) console.error(error);
-        }
-    },
-});
-```
-
-This example assumes an application endpoint returning `{ urls: string[] }`; validate files and permissions there. The callback receives `FileList` or `File[]`, and runs with the editor as `this`. The editor does not consume a returned URL, await completion at the dialog/drop call site, or catch custom rejections. Keep selection changes during uploads in mind: `insertImage()` uses the editor's current/saved selection at insertion time. The [demo callback](./demo/assets/demo.js) works locally without an upload service.
-
-### Keyboard callback
-
-To add a shortcut while preserving the defaults, save and call the default callback:
-
-```js
-const defaultKeyDown = Editor.defaults.keyDown;
-Editor.init(document.querySelector('#shortcuts'), {
-    keyDown(event) {
-        if (event.key === 'F2') {
-            event.preventDefault();
-            this.insertText('Reviewed');
-            return;
-        }
-        defaultKeyDown.call(this, event);
-    },
-});
-```
-
-Calling `preventDefault()` stops subsequent structural key handling for that event.
-
-## Methods and lifecycle
-
-`Editor.init(textarea, options)` returns an existing instance when present; new options do not reconfigure it. `new Editor(textarea, options)` constructs an instance directly; prefer `init()` to reuse one safely. `editor.node` is the original textarea and `editor.options` exposes resolved options; both become `null` after disposal.
-
-| Method | Behavior |
+| Part | Properties |
 | --- | --- |
-| `refresh()` | Reload the assigned textarea value, sanitize/normalize it, and update state without emitting a change event. |
-| `enable()`, `disable()` | Update native disabled state and the generated controls. An ancestor disabled fieldset still takes precedence. |
-| `dispose()` | Release observers, listeners, dialogs, popovers, pending owned work, and generated DOM; restore original textarea visibility/attributes. Repeated disposal is safe. |
-| `insertText(text)`, `insertHTML(html)` | Insert literal text or sanitized HTML at the selection. |
-| `insertImage(src)`, `insertLink(href, text, newWindow)` | Insert a protocol-checked image/link; `newWindow` defaults to false. |
-| `bold()`, `italic()`, `underline()`, `strikethrough()` | Toggle inline formatting. |
-| `subscript()`, `superscript()`, `removeFormat()` | Apply script formatting or remove selection formatting. |
-| `backColor(color)`, `foreColor(color)` | Set highlight/text color. |
-| `fontName(name)`, `fontSize(pixels)` | Set font or one of the configured pixel sizes. |
-| `formatBlock(tag)` | Set a block tag, such as `'h2'` or `'p'`. |
-| `justifyLeft()`, `justifyCenter()`, `justifyRight()`, `justifyFull()` | Align the selection. |
-| `insertOrderedList()`, `insertUnorderedList()` | Toggle list formatting. |
-| `indent()`, `outdent()` | Change block/list nesting while retaining selection. |
-| `insertHorizontalRule()`, `unlink()` | Insert a rule or remove link formatting. |
-| `undo()`, `redo()` | Restore content and selection through editor history. |
-
-Formatting commands operate on the rich editing selection and are disabled for readonly/disabled fields. Source/fullscreen/video/table dialogs are toolbar plugins rather than public methods with those names. History includes the initial snapshot; new edits clear redo, and native reset clears both stacks. `refresh()` records changed content without promising a new history baseline; use native reset to restore defaults and clear history.
-
-Disposal retains the current textarea value. To change options, dispose and call `Editor.init()` again. fQuery removal emits the component removal event and disposes it; when removing DOM through native APIs, call `dispose()` explicitly first.
-
-## Events
-
-Listen on the original textarea using fQuery. Register before `init()` to observe initialization:
-
-```js
-import $ from '@fr0st/query';
-
-$.addEvent(textarea, 'init.ui.editor change.ui.editor focus.ui.editor blur.ui.editor', (event) => {
-    console.log(event.type, textarea.value);
-});
-const editor = Editor.init(textarea);
-```
-
-| Event | Timing |
-| --- | --- |
-| `init.ui.editor` | Initialization completed. |
-| `change.ui.editor` | Changed HTML has been synchronized to the textarea, including undo/redo and source input. |
-| `focus.ui.editor`, `blur.ui.editor` | Focus enters/leaves an editing view; forwarded to the textarea. |
-
-Mutation delivery and browser editing events can affect counts; there is no one-event-per-keystroke guarantee. The editor does not synthesize a separate native input event for every command. Initialization can synchronize changed sanitized/normalized content before `init`; an unchanged initial value does not produce a change notification. `refresh()` and native reset do not emit an editor change event. Namespaces belong to fQuery's event API; `event.type` is the base name.
-
-## fQuery API
-
-Importing the editor registers `editor` on the shared fQuery instance:
-
-```js
-import $ from '@fr0st/query';
-import Editor from '@fr0st/ui-editor';
-
-const editor = $('#document').editor({ height: '260px' });
-$('#document').editor('insertText', 'Hello');
-$('#document').editor('undo');
-$('#document').editor('dispose');
-```
-
-The plugin initializes each matched element and returns the first result: an instance for initialization or the first method's return value for string dispatch. It is not chainable. String dispatch initializes an absent instance first, including when dispatching `dispose`.
-
-## Content and native forms
-
-The original named textarea remains the submitted form control. Rich editing, commands, undo/redo, and source input keep `textarea.value` current. Source input is sanitized immediately for submission; returning to rich mode normalizes HTML and records a history operation if it changed. Empty editing scaffolding serializes as `''` for native required validation.
-
-After assigning `textarea.value`, call `editor.refresh()` or dispatch `input`/`change` on the textarea to reload it. Native form reset waits for its default action, restores the default value, clears history, and emits no editor change event. Canceling reset leaves editing state intact. Disabled controls/fieldsets block editing and follow native submission rules, including the first-legend exception. Readonly controls remain selectable and submitted, and allow viewing source.
-
-Native required and custom validity checks use the textarea. Invalid events focus the visible editing view. Keep help/error text associated through `aria-describedby` and `aria-errormessage`; set application validation feedback on the textarea and its associated error elements.
-
-### HTML and URL policy
-
-HTML is sanitized before initial rendering, insertion, paste, external value reloads, and source rendering/submission. The default policy preserves editor headings, inline formatting, legacy font presentation, lists, tables, selected presentation styles, raster data images, and supported YouTube embeds. It removes scripts, SVG, form controls, arbitrary embeds, event attributes, IDs, unsafe URLs, and layout/resource-loading CSS. Normalization also repairs unsupported nesting and merges equivalent inline nodes. Submitted HTML can differ from the original input.
-
-Links accept relative/HTTP(S) URLs, `mailto:`, and `tel:`. Images accept relative/HTTP(S) URLs and base64 PNG/JPEG/GIF/WebP/AVIF data. New-window links receive `rel="noopener noreferrer"`. The video dialog accepts HTTPS YouTube watch URLs and `youtu.be` links; resulting embeds use HTTPS `www.youtube.com/embed/…` or `www.youtube-nocookie.com/embed/…`, a sandbox, referrer policy, and accessible title.
-
-A synchronous `sanitize(html)` option replaces the HTML policy and returns trusted HTML. Toolbar/icon HTML, plugin renderers, direct DOM mutations, and `_insertNode()` also cross a trusted application boundary. Public image/link insertion still validates URL protocols. Validate and sanitize submitted content on the server for its eventual display context; the browser policy is not a substitute for that boundary.
-
-## Accessibility and keyboard controls
-
-The complete editor panel uses the same focused border and translucent ring as Frost UI outline inputs whenever an editing view or toolbar control has focus. Textarea labels and `aria-label`, `aria-labelledby`, `aria-describedby`, `aria-errormessage`, `aria-invalid`, `required`, `dir`, and `lang` reach both editing views. Toolbar/dropdown/table choices use named native buttons. Focus remains visible; Escape closes dialogs/dropdowns and restores invoking focus, and dismisses context controls.
-
-| Keys | Action |
-| --- | --- |
-| Ctrl/Meta+B, I, U | Bold, italic, underline in rich mode. |
-| Ctrl/Meta+Z | Undo. |
-| Ctrl/Meta+Shift+Z or Ctrl/Meta+Y | Redo. |
-| Tab / Shift+Tab in rich mode | Indent/outdent selected blocks or list items. |
-| Tab / Shift+Tab in source mode | Insert a tab or indent/outdent selected HTML lines. |
-| Escape, then Tab / Shift+Tab | Leave the editing field without indenting. |
-| Up/Down on the editor resize handle | Change editor height. |
-| Left/Right on the image width handle | Change image width. |
-
-The editing engine still uses browser `contenteditable` and deprecated `document.execCommand()` APIs. Serialization, font handling, and native selection/editing details differ by browser; depend on semantic formatting rather than byte-identical HTML. Real operating-system IME behavior and assistive technology combinations need application testing; automated composition events do not replace those checks.
-
-## Themes, RTL, and Sass
-
-Load Frost UI 4 CSS before the editor stylesheet. It follows Frost UI tokens for system/light/dark themes, supports reduced motion and forced colors, and uses logical spacing. Set `data-ui-theme="light"` or `"dark"` on the document element to force a theme; remove it to use the system preference. Set `dir="rtl"` on the textarea or its writing container for right-to-left content. New indentation uses `margin-inline-start`; legacy `margin-left` still outdents correctly.
-
-Parts expose CSS custom properties. Set them on the relevant part after loading editor CSS:
+| `.editor-panel` | `--ui-editor-focus-color`, `--ui-editor-focus-width` |
+| `.editor-disabled` | `--ui-editor-disabled-opacity` |
+| `.editor-color` | `--ui-editor-color-height` |
+| `.editor-link-url` | `--ui-editor-link-url-max-width` |
+| `.editor-drop-target` | `--ui-editor-drop-target-bg` |
+| `.editor-img-cursor` | `--ui-editor-img-cursor-size` |
+| `.editor-img-highlight` | `--ui-editor-img-highlight-z-index`, `--ui-editor-img-highlight-bg`, `--ui-editor-img-highlight-border-width`, `--ui-editor-img-highlight-border-color` |
+| `.editor-img-size` | `--ui-editor-img-size-color`, `--ui-editor-img-size-bg` |
+| `.editor-img-resize` | `--ui-editor-img-resize-size`, `--ui-editor-img-resize-bg` |
 
 ```css
-.editor-panel {
-    --ui-editor-focus-color: var(--ui-primary);
+.article-editor .editor-panel {
+    --ui-editor-focus-color: var(--ui-info);
 }
-.editor-img-resize {
+
+.article-editor .editor-img-resize {
     --ui-editor-img-resize-size: 8px;
-}
-.editor-img-highlight {
-    --ui-editor-img-highlight-z-index: 1071;
 }
 ```
 
-Sass uses modules and forwards defaults. With Sass's Node package importer (`--pkg-importer=node`):
+Toolbar buttons also expose Frost UI's `--ui-btn-*` properties through the `$btn-editor-*` and `$btn-outline-editor-*` Sass defaults.
+
+### Custom Sass builds
+
+Install Sass and create an application stylesheet to customize the component:
+
+```bash
+npm i -D sass
+```
+
+`src/styles.scss`
 
 ```scss
-@use "pkg:@fr0st/ui-editor/src/scss/editor.scss" with (
-    $editor-img-resize-size: 8px
+@use "@fr0st/ui-editor/src/scss/editor" with (
+    $editor-img-resize-size: 8px,
+    $editor-focus-color: var(--ui-info)
 );
 ```
 
-Defaults live in [src/scss/_vars.scss](./src/scss/_vars.scss). The package export for the legacy `src/scss/vars.scss` path resolves to that partial.
+Compile the entry point with npm package resolution enabled:
 
-## Migrating from 2.x
+```bash
+npx sass --load-path=node_modules src/styles.scss dist/styles.css
+```
 
-This migration prepares a major release, **3.0.0**, because dependency, module, content, and keyboard contracts changed:
+The `editor` module forwards the [component variables](./src/scss/_vars.scss), all of which have `!default` values. Include Frost UI CSS separately. Build tools that already resolve Sass modules from npm packages do not need the explicit load path.
 
-1. Upgrade shared peers to `@fr0st/query` 5 and `@fr0st/ui` 4. Remove duplicate/older Frost UI or fQuery bundles and load Frost UI 4 CSS before the editor CSS.
-2. Switch package-root imports to the default ESM export. CommonJS `require()` is not supported. UMD consumers keep `UI.Editor` and load Frost UI's all-in-one bundle first. Browser ESM users need the import map shown above.
-3. Replace direct imports from the removed `src/js/prototype/*`, `src/js/static/*`, and `wrapper.js` paths with the package entry, `src/js/index.js`, or `src/js/browser.js` as appropriate. Prefer `instance.node` and `instance.options` to inherited `_node`/`_options`; do not mutate resolved options.
-4. Review stored HTML against the sanitization policy before rollout. Scripts, arbitrary embeds, SVG, form controls, IDs, unsafe attributes/URLs/styles, and unsupported structure may be removed or normalized. Provide a reviewed synchronous `sanitize` replacement only when your application requires another policy. Empty scaffolding now submits as an empty string; indentation uses logical margins. Browser-produced markup, including Firefox `font` elements, may differ.
-5. Reload programmatic textarea updates with `refresh()` or native input/change events. Source input synchronizes sanitized submitted HTML immediately; undo/redo emit changes and native reset clears history silently. Observe synchronized values rather than relying on exact event counts.
-6. Use Tab / Shift+Tab for indentation in rich and source modes. Press Escape, then Tab / Shift+Tab to move focus out of an editing field. Browser Ctrl+Tab shortcuts remain available. Review form validation, disabled/readonly state, and visible focus in your application.
-7. Convert Sass `@import` overrides to `@use ... with (...)`. Rename `$btn-border-color` to `$btn-editor-border-color`, `$btn-editor-focus-shadow-rgb` to `$btn-editor-focus-shadow-color`, and `$btn-outline-editor-focus-shadow-rgb` to `$btn-outline-editor-focus-shadow-color`. The legacy `src/scss/vars.scss` package path remains an alias; filesystem consumers should use `_vars.scss`.
-8. Use Node `^20.19.0 || ^22.13.0 || >=24` for development/builds; use Node 24 for coverage because reporter dependencies require a newer runtime. Rebuild and commit the tracked distribution files, then exercise your plugin/upload overrides and representative saved content in all supported browsers.
+The legacy `src/scss/vars.scss` package export resolves to `_vars.scss`. Existing extension hook contracts are recorded in the [migration proposal](./MIGRATION_PROPOSAL.md#supported-customization-and-existing-internal-dependencies).
 
-Existing static dictionaries and callable extension hooks are retained; observers, readers, timers, and lifecycle resources are now owned and cleaned up by the instance. The legacy editing engine is retained. See [MIGRATION_PROPOSAL.md](./MIGRATION_PROPOSAL.md) for implementation and verification records.
+## Themes and RTL
+
+Frost UI follows the user's preferred color scheme by default. Set `data-ui-theme="light"` or `data-ui-theme="dark"` on the document or an ancestor to select a theme explicitly.
+
+Load Frost UI 4 CSS before the editor stylesheet. Editor uses its color, focus, reduced-motion, and forced-colors tokens. The focus ring surrounds the complete panel while an editing view or toolbar control has focus.
+
+```html
+<section data-ui-theme="dark" dir="rtl">
+    <label for="rtl-document">Document</label>
+    <textarea
+        id="rtl-document"
+        name="document"
+        dir="rtl">&lt;p&gt;مرحبا&lt;/p&gt;</textarea>
+</section>
+```
+
+Normal document and ancestor direction is respected. A `dir` attribute on the textarea is copied to the editing views. Logical spacing and indentation follow the writing direction; left/right alignment commands retain their physical meaning. New indentation uses `margin-inline-start`, and legacy `margin-left` indentation still outdents correctly.
 
 ## Development
 
-```sh
-npm ci
-npx playwright install --with-deps
+Install dependencies with `npm ci`, then install Playwright browsers with `npx playwright install --with-deps`.
+
+```bash
+npm test
 npm run lint
-npm run lint:sass:unused
 npm run build
-npm run test:browser -- --workers=3
-npm run test:coverage -- --workers=3
-npm pack --dry-run
 ```
 
-`npm test` builds and runs all three browser projects. `test:browser` and `test:coverage` use the existing build. `npm run test:headed` opens browser windows, and `npm run test:ui` starts the Playwright UI. Coverage on Node 24 writes `coverage/index.html` and `coverage/lcov.info`. Automated tests serve installed peer assets locally; no public CDN is required.
+`npm test` rebuilds the bundles, then runs the Playwright suite in Chromium, Firefox, and WebKit. `npm run test:browser` runs the suite against the existing bundles, so rebuild after changing source files.
 
-Build commands are `build:js` (Vite ESM then UMD), `build:css`, `compile:css`, `autoprefix:css`, and `minify:css`. `lint:js` and `lint:css` are non-mutating checks. Build produces four JS variants, two CSS variants, and their maps; commit all 12 `dist/` artifacts with source changes. CI rejects stale or untracked distribution output.
+After building, `npm run test:coverage` runs Chromium tests on Node 24 and writes coverage reports to `coverage/`. Development/builds support Node `^20.19.0 || ^22.13.0 || >=24`.
 
-To view the public demo locally, run `python3 -m http.server 8080` from the repository root and open `http://localhost:8080/demo/`. It uses npm CDN Frost UI 4 assets and the local built editor; serve over HTTP rather than opening a file URL.
+`npm run test:headed` and `npm run test:ui` also use the existing bundles and open headed browsers or the Playwright UI.
 
-### Release preparation
+To view the demo, open `demo/index.html` in your browser after building.
 
-CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24, with coverage collected once. The release workflow requires a GitHub release tag of `v${version}` matching `package.json` (currently `v3.0.0`), installs dependencies, lints, builds, tests Chromium, verifies tracked artifacts, and checks package contents before running `npm publish --provenance`. The workflows follow the sibling `ui-tables` setup.
-
-CI uploads coverage from Node 24 Chromium using Codecov OIDC. Published GitHub releases trigger validation and npm publication, with no additional enable variables. Configure Codecov access and npm trusted publishing for the intended repository/package destination as described in the [proposal](./MIGRATION_PROPOSAL.md#external-service-activation). Local development commands do not create tags or releases, publish packages, or transfer the repository.
+Run `npm run lint:sass:unused` to check Sass defaults. Commit generated `dist/` artifacts with source changes; CI rejects stale or untracked bundles.
 
 ## License
 
-[MIT](./LICENSE).
+Frost UI Editor is released under the [MIT License](./LICENSE).
