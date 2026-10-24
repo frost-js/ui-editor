@@ -166,7 +166,7 @@ The default callback reads files through editor-owned FileReaders, inserts succe
 Editor.init(document.querySelector('#upload'), {
     async imageUpload(files) {
         const controller = new AbortController();
-        this._onDispose(() => controller.abort());
+        this.onDispose(() => controller.abort());
         try {
             const body = new FormData();
             for (const file of files) {
@@ -272,6 +272,7 @@ Data attributes configure options; they do not initialize Editor by themselves. 
 | `insertHTML(html)` | `void` | Insert sanitized HTML at the selection. |
 | `insertImage(src)` | `void` | Insert a protocol-checked image. |
 | `insertLink(href, text, newWindow?)` | `void` | Insert a protocol-checked link; newWindow defaults to false. |
+| `insertNode(node)` | `HTMLElement\|null` | Insert a trusted DOM element, recording history and synchronizing the textarea. |
 | `insertOrderedList()` | `void` | Toggle ordered-list formatting. |
 | `insertText(text)` | `void` | Insert literal text at the selection. |
 | `insertUnorderedList()` | `void` | Toggle unordered-list formatting. |
@@ -280,6 +281,7 @@ Data attributes configure options; they do not initialize Editor by themselves. 
 | `justifyFull()` | `void` | Justify the selection. |
 | `justifyLeft()` | `void` | Align the selection left. |
 | `justifyRight()` | `void` | Align the selection right. |
+| `onDispose(callback)` | `void` | Register extension cleanup; run it immediately if the editor is already disposed. |
 | `outdent()` | `void` | Outdent selected blocks or list items while retaining selection. |
 | `redo()` | `void` | Restore the next content and selection snapshot. |
 | `refresh()` | `void` | Reload the assigned textarea value, sanitize/normalize it, and update state without emitting a change event. |
@@ -313,6 +315,8 @@ Calling `Editor.init()` again for the same element returns its existing instance
 An instance exposes its original textarea as `instance.node` and its shallow-frozen resolved configuration as `instance.options`. Both become `null` after disposal.
 
 `dispose()` releases owned listeners, observers, dialogs, popovers, file reads, and deferred work. It restores original textarea visibility and managed attributes while retaining its current value. Repeated disposal is safe. Use a new instance before calling other methods after disposal.
+
+Use inherited `listen(...)` for extension listeners and `onDispose(callback)` for resources such as child components and pending requests. Cleanup callbacks run once, in reverse registration order; registering after disposal runs the callback immediately.
 
 If initialization fails, the component releases resources it created and removes its registered instance before rethrowing the error. The textarea can then be initialized again.
 
@@ -420,7 +424,7 @@ HTML is sanitized before initial rendering, insertion, paste, external value rel
 
 Links accept relative/HTTP(S) URLs, `mailto:`, and `tel:`. Images accept relative/HTTP(S) URLs and base64 PNG/JPEG/GIF/WebP/AVIF data. New-window links receive `rel="noopener noreferrer"`. The video dialog accepts HTTPS YouTube watch URLs and `youtu.be` links; resulting embeds use HTTPS `www.youtube.com/embed/…` or `www.youtube-nocookie.com/embed/…`, a sandbox, referrer policy, and accessible title.
 
-A synchronous `sanitize(html)` option replaces the HTML policy and returns trusted HTML. Toolbar/icon HTML, plugin renderers, direct DOM mutations, and `_insertNode()` also cross a trusted application boundary. Public image/link insertion still validates URL protocols. Validate and sanitize submitted content on the server for its eventual display context; the browser policy is not a substitute for that boundary.
+A synchronous `sanitize(html)` option replaces the HTML policy and returns trusted HTML. Toolbar/icon HTML, plugin renderers, direct DOM mutations, and `insertNode()` also cross a trusted application boundary. Public image/link insertion still validates URL protocols. Validate and sanitize submitted content on the server for its eventual display context; the browser policy is not a substitute for that boundary.
 
 ## Customization
 
@@ -551,7 +555,7 @@ npx sass --load-path=node_modules src/styles.scss dist/styles.css
 
 The `editor` module forwards the [component variables](./src/scss/_vars.scss), all of which have `!default` values. Include Frost UI CSS separately. Build tools that already resolve Sass modules from npm packages do not need the explicit load path.
 
-The legacy `src/scss/vars.scss` package export resolves to `_vars.scss`. Existing extension hook contracts are recorded in the [migration proposal](./MIGRATION_PROPOSAL.md#supported-customization-and-existing-internal-dependencies).
+The legacy `src/scss/vars.scss` package export resolves to `_vars.scss`. Extension migration guidance is recorded in the [migration proposal](./MIGRATION_PROPOSAL.md#supported-customization-and-existing-internal-dependencies).
 
 ## Themes and RTL
 

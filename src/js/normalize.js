@@ -1,14 +1,22 @@
 import $ from '@fr0st/query';
 
 const transparent = 'rgba(0, 0, 0, 0)';
+const phrasingSelector = [
+    'a', 'abbr', 'area', 'audio', 'b', 'bdi', 'bdo', 'br', 'button',
+    'cite', 'code', 'data', 'datalist', 'del', 'dfn', 'em', 'embed', 'i', 'iframe',
+    'img', 'input', 'ins', 'kbd', 'label', 'map', 'mark', 'math', 'meter',
+    'noscript', 'object', 'output', 'picture', 'progress', 'q', 'ruby', 's',
+    'samp', 'script', 'select', 'slot', 'small', 'span', 'strong', 'sub', 'sup',
+    'svg', 'template', 'textarea', 'time', 'u', 'var', 'video', 'wbr',
+].join(', ');
 
 /**
- * Determine if a node is phrasing content.
+ * Determines whether a node is phrasing content.
  * https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
  * @param {Node} node The input node.
  * @returns {boolean} TRUE if the node is phrasing content, otherwise FALSE.
  */
-export const isPhrasingContent = (node) => $._isText(node) || $.is(node, 'a, abbr, area, audio, b, bdi, bdo, br, button, cite, code, data, datalist, del, dfn, em, embed, i, iframe, img, input, ins, kbd, label, map, mark, math, meter, noscript, object, output, picture, progress, q, ruby, s, samp, script, select, slot, small, span, strong, sub, sup, svg, template, textarea, time, u, var, video, wbr');
+export const isPhrasingContent = (node) => $._isText(node) || $.is(node, phrasingSelector);
 
 /**
  * Determine if a node is a form element.
@@ -61,7 +69,7 @@ export function joinAdjacentNodes(container, markers) {
 }
 
 /**
- * Normalize phrasing containers.
+ * Normalizes phrasing containers.
  * @param {HTMLElement} container The container.
  */
 export function normalizePhrasing(container) {
@@ -106,7 +114,7 @@ export function normalizePhrasing(container) {
 }
 
 /**
- * Normalize span elements.
+ * Normalizes span elements.
  * @param {HTMLElement} container The container.
  */
 export function normalizeSpans(container) {
@@ -128,7 +136,7 @@ export function normalizeSpans(container) {
 }
 
 /**
- * Normalize style attributes.
+ * Normalizes style attributes.
  * @param {HTMLElement} container The container.
  */
 export function normalizeStyles(container) {

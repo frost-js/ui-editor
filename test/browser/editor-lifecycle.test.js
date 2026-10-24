@@ -290,7 +290,7 @@ test.describe('Editor lifecycle', () => {
             await createEditor(page);
             const result = await page.evaluate(() => {
                 const editor = window.editor;
-                editor._onDispose(() => {
+                editor.onDispose(() => {
                     throw new Error('Extension cleanup failed');
                 });
                 let message;

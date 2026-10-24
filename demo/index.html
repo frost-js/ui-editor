@@ -120,7 +120,7 @@ UI.Editor.init(textarea, {
                 <p id="upload-status" class="form-text" role="status">Waiting for an image.</p>
                 <details>
                     <summary>Callback contract</summary>
-                    <p><code>imageUpload(files)</code> receives a FileList or File array with the editor as <code>this</code>. Your callback handles failures and calls <code>this.insertImage(url)</code> for successful uploads. The editor does not consume a returned URL or catch custom callback rejections. Check <code>this.node</code> after awaiting work; register cancellation with <code>this._onDispose()</code> when needed. The working example is in <a href="assets/demo.js">demo.js</a>.</p>
+                    <p><code>imageUpload(files)</code> receives a FileList or File array with the editor as <code>this</code>. Your callback handles failures and calls <code>this.insertImage(url)</code> for successful uploads. The editor does not consume a returned URL or catch custom callback rejections. Check <code>this.node</code> after awaiting work; register cancellation with <code>this.onDispose()</code> when needed. The working example is in <a href="assets/demo.js">demo.js</a>.</p>
                 </details>
             </section>
             <section id="forms" class="mb-5">

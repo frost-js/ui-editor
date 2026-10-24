@@ -2,6 +2,35 @@ import { expect, test } from '#test';
 import { createEditor, selectContents } from '../setup/editor.js';
 
 test.describe('Editor editing', () => {
+    test.describe('#insertNode', () => {
+        test('inserts a trusted element with history and honors disabled state', async ({ page }) => {
+            await createEditor(page);
+            const inserted = await page.evaluate(() => {
+                const node = document.createElement('mark');
+                node.textContent = 'Custom content';
+                return window.editor.insertNode(node) === node;
+            });
+
+            expect(inserted).toBe(true);
+            await expect(page.locator('.editor mark')).toHaveText('Custom content');
+            await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+
+            await page.evaluate(() => window.editor.undo());
+            await expect(page.locator('.editor mark')).toHaveCount(0);
+
+            await page.evaluate(() => window.editor.redo());
+            await expect(page.locator('.editor mark')).toHaveText('Custom content');
+
+            const ignored = await page.evaluate(() => {
+                window.editor.disable();
+                return window.editor.insertNode(document.createElement('hr'));
+            });
+
+            expect(ignored).toBeNull();
+            await expect(page.locator('.editor hr')).toHaveCount(0);
+        });
+    });
+
     test.describe('inline formatting', () => {
         for (const [method, property, expected, value] of [
             ['underline', 'text-decoration-line', 'underline'],

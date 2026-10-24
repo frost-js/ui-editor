@@ -72,16 +72,15 @@ $.ready(() => {
                     if (!/^image\/(png|jpeg|gif|webp|avif)$/.test(file.type)) {
                         throw new Error('Choose a PNG, JPEG, GIF, WebP, or AVIF image.');
                     }
-                    // Simulate a service delay, then use the editor-owned, cancellable reader.
+                    // Simulate a service delay, then use the default cancellable uploader.
                     await new Promise((resolve) => setTimeout(resolve, 300));
                     if (!this.node) {
                         return;
                     }
-                    const url = await this._readImage(file);
+                    await Editor.defaults.imageUpload.call(this, [file]);
                     if (!this.node) {
                         return;
                     }
-                    this.insertImage(url);
                     inserted++;
                 }
                 status.textContent = `Inserted ${inserted} image(s). No files were sent to a server.`;

@@ -1,39 +1,48 @@
 /** @import Editor from './editor.js'; */
-/** @import { EventTargetInput, EventCallback, EventOptions } from '@fr0st/query/src/events/event-handlers.js'; */
-
 import $ from '@fr0st/query';
 import { getRange } from './selection.js';
 
-/** @type {Set<Editor>} */
-const editors = new Set();
+/**
+ * @typedef {object} EditorSharedEvents
+ * @property {() => void} showDropTarget Shows the active drop target.
+ * @property {() => void} resetDropTarget Resets and hides the drop target.
+ * @property {() => void} removePopover Dismisses the context toolbar.
+ * @property {(range: Range|null) => void} selectionChange Updates the owned selection.
+ * @property {() => void} resize Updates the component after a viewport resize.
+ */
+
+/** @type {Map<Editor, EditorSharedEvents>} */
+const editors = new Map();
 const cleanups = [];
 let dragCount = 0;
 let session = 0;
 
 /**
  * Registers a shared listener with its exact removal callback.
- * @param {EventTargetInput} target The target.
+ * @param {EventTarget} target The target.
  * @param {string} events The event names.
- * @param {EventCallback} callback The listener.
- * @param {EventOptions} [options] The listener options.
+ * @param {Function} callback The event callback.
  */
-function listenShared(target, events, callback, options = {}) {
-    $.addEvent(target, events, callback, options);
-    cleanups.push(() => $.removeEvent(target, events, callback, options));
+function listenShared(target, events, callback) {
+    $.addEvent(target, events, callback);
+    cleanups.push(() => $.removeEvent(target, events, callback));
 }
 
 /**
  * Starts shared listeners when the first editor becomes active.
  * @param {Editor} editor The editor to register.
+ * @param {EditorSharedEvents} callbacks The callbacks owned by the component.
  */
-export function addEditor(editor) {
+export function addEditor(editor, callbacks) {
     if (editors.has(editor)) {
         return;
     }
-    editors.add(editor);
+
+    editors.set(editor, callbacks);
     if (editors.size > 1) {
         return;
     }
+
     const generation = ++session;
     dragCount = 0;
     const deferred = (callback) => $.debounce(() => {
@@ -41,10 +50,11 @@ export function addEditor(editor) {
             callback();
         }
     });
+
     listenShared(document.body, 'dragenter.ui.editor', () => {
         if (dragCount++ === 0) {
-            for (const current of editors) {
-                current._showDropTarget();
+            for (const current of editors.values()) {
+                current.showDropTarget();
             }
         }
     });
@@ -57,27 +67,18 @@ export function addEditor(editor) {
     listenShared(document.body, 'dragend.ui.editor drop.ui.editor', resetDragCount);
     listenShared(document, 'selectionchange.ui.editor', deferred(() => {
         const range = getRange();
-        for (const current of editors) {
-            if (!range || !current._editor.contains(range.startContainer) || !current._editor.contains(range.endContainer)) {
-                current._removePopover();
-                continue;
-            }
-            current._lastRange = range.cloneRange();
-            current._refreshCursor();
-            current._refreshToolbar();
+        for (const current of editors.values()) {
+            current.selectionChange(range);
         }
     }));
     listenShared(window, 'click.ui.editor', () => {
-        for (const current of editors) {
-            current._removePopover();
+        for (const current of editors.values()) {
+            current.removePopover();
         }
     });
     listenShared(window, 'resize.ui.editor', deferred(() => {
-        for (const current of editors) {
-            if (current._currentNode?.matches('img')) {
-                current._highlightImage(current._currentNode);
-            }
-            current._refreshLineNumbers();
+        for (const current of editors.values()) {
+            current.resize();
         }
     }));
 }
@@ -90,6 +91,7 @@ export function removeEditor(editor) {
     if (!editors.delete(editor) || editors.size) {
         return;
     }
+
     session++;
     dragCount = 0;
     for (const cleanup of cleanups.splice(0)) {
@@ -102,8 +104,7 @@ export function removeEditor(editor) {
  */
 export function resetDragCount() {
     dragCount = 0;
-    for (const current of editors) {
-        current._resetDropText();
-        $.hide(current._dropTarget);
+    for (const current of editors.values()) {
+        current.resetDropTarget();
     }
 }

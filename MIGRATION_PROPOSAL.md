@@ -273,7 +273,7 @@ Frost UI resolves `data-ui-*` options on the textarea, such as `data-ui-height`,
 
 Keep `Editor.buttons`, `classes`, `lang`, `icons`, `plugins`, `popovers`, `colors`, `fonts`, `fontSizes`, and `styles` customizable. A toolbar plugin can provide `command`, `value`, `action`, `dropdown`, `setContent`, `setTitle`, `content`, `icon`, `title`, and `disableCheck`; callbacks execute in the editor context where currently bound. Popover definitions support actions and render callbacks, and toolbar/popover arrays control grouping.
 
-Existing built-in plugins depend on `_editor`, `_container`, `_source`, `_sourceContainer`, `_fullScreen`, `_buttons`, `_history`, `_redoHistory`, and `_currentNode`, together with `_showEditor`, `_showSource`, `_refreshToolbar`, `_addHistory`, dropdown renderers, modal helpers, `_insertNode`, `_updateTable`, `_observe`, `_updateValue`, and `_removePopover`. These remain callable class methods and accessible operational fields for existing plugins; lifecycle bookkeeping is private. Command dispatch also uses `_execCommand`; document replacements before making these seams inaccessible.
+The source cleanup following the original migration makes implementation fields and methods private. Custom plugins use the documented public editing methods, `node`, `options`, inherited `listen(...)`, `insertNode(node)` for trusted DOM insertion, and `onDispose(callback)` for owned resources. Built-in toolbar and popover callbacks are defined with the component so they can use private state without exposing it to extensions. Underscore-prefixed operational fields and hooks from the earlier checkpoints are no longer supported.
 
 The inherited node/options fields are implementation dependencies, not the preferred public API. In this stage, code uses the current base accessors and stores effective fonts and toolbar configuration separately so resolved options remain unchanged. Frost UI classes used by module code must be imported explicitly, rather than resolved through UMD globals.
 
@@ -427,7 +427,7 @@ This migration prepares a major release, **3.0.0**, because dependency, module, 
 7. Convert Sass `@import` overrides to `@use ... with (...)`. Rename `$btn-border-color` to `$btn-editor-border-color`, `$btn-editor-focus-shadow-rgb` to `$btn-editor-focus-shadow-color`, and `$btn-outline-editor-focus-shadow-rgb` to `$btn-outline-editor-focus-shadow-color`. The legacy `src/scss/vars.scss` package path remains an alias; filesystem consumers should use `_vars.scss`.
 8. Use Node `^20.19.0 || ^22.13.0 || >=24` for development/builds; use Node 24 for coverage because reporter dependencies require a newer runtime. Rebuild and commit the tracked distribution files, then exercise your plugin/upload overrides and representative saved content in all supported browsers.
 
-Existing static dictionaries and callable extension hooks are retained; observers, readers, timers, and lifecycle resources are now owned and cleaned up by the instance. The legacy editing engine is retained. Implementation and verification records appear above.
+Static dictionaries remain customizable. Replace underscore-based extensions with the public editing methods, inherited `listen(...)`, `insertNode(node)`, and `onDispose(callback)`; other implementation members are private. Observers, readers, timers, and lifecycle resources are owned by the instance. The legacy editing engine is retained. Implementation and verification records appear above.
 
 ## Release preparation
 
@@ -436,3 +436,16 @@ CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24, with coverage
 CI uploads coverage from Node 24 Chromium using Codecov OIDC. Published GitHub releases trigger validation and npm publication, with no additional enable variables. Configure Codecov access and npm trusted publishing for the intended repository/package destination as described under [External service activation](#external-service-activation). Local development commands do not create tags or releases, publish packages, or transfer the repository.
 
 To try the 3.0.0 checkout before publication, run `npm ci`, `npm run build`, and `npm pack`, then install the resulting tarball in a browser project. The README installation examples follow the sibling package/CDN format and describe the prepared release.
+
+## Source convention cleanup after the migration
+
+This cleanup supersedes the earlier implementation-hook compatibility notes. It follows `ui-selectmenu` and `ui-slider`: static configuration, declared private state, constructor, public methods, then private implementation methods. The shared ESLint class ordering applies without an editor-specific override.
+
+- Instance event handling, forms, rendering, positioning, dialogs, and toolbar actions live on the component. One-line forwarding hooks and dynamically assigned implementation fields are removed.
+- DOM selection, normalization, indentation algorithms, history selection paths, form serialization, sanitization, and modal factories remain helpers with explicit inputs. `shared-events.js` owns shared listener registration and invokes callbacks without accessing component state.
+- Static customization through buttons, classes, language, icons, plugins, popovers, fonts, colors, and styles remains available. Application callbacks use public editing methods. Replace `_insertNode(node)` with `insertNode(node)` and `_onDispose(callback)` with `onDispose(callback)`. Use `onDispose(() => child.dispose())` for a child component and inherited `listen(...)` for listeners.
+- `_editor`, `_history`, `_observe`, `_execCommand`, rendering hooks, and other implementation members are now private. Customizations using them need to use the public API; ordinary commands, history, readonly/disabled guards, source mode, and form synchronization remain component-owned.
+- The demo delegates local image reads to `Editor.defaults.imageUpload` and uses the public extension contract.
+- Deep imports into `content.js`, `events.js`, `helpers.js`, `positioning.js`, `plugins.js`, `popovers.js`, `render/*`, and the unused `nodes.js` are removed. Use the package entry for the component and its documented customization API. The supported Sass exports are unchanged.
+
+Verification: the build and shared JavaScript/SCSS lint checks pass. All 147 cases pass across Chromium, Firefox, and WebKit (441 checks). Chromium coverage passes with no skipped cases or browser errors: 97.96% lines, 97.29% statements, 89.51% branches, and 99.32% functions. The package dry run contains all 12 distribution assets and 15 JavaScript source modules, with development files excluded.

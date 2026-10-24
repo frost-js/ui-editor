@@ -2,283 +2,9 @@
 /** @import { EditorInputOptions, EditorInputElements, EditorModalOptions } from './types.js'; */
 import $ from '@fr0st/query';
 import { generateId, Modal } from '@fr0st/ui';
-import { isSafeURL } from './sanitize.js';
-import { getRange, selectNode, selectRange } from './selection.js';
 
 /**
- * Remove the modal.
- * @param {Editor} editor The editor instance.
- */
-export function removeModal(editor) {
-    if (!editor._modal) {
-        return;
-    }
-
-    Modal.init(editor._modal).dispose();
-    $.remove(editor._modal);
-    editor._modal = null;
-}
-
-/**
- * Show the image modal.
- * @param {Editor} editor The editor instance.
- */
-export function showImageModal(editor) {
-    editor._removeModal();
-    const returnFocus = document.activeElement;
-    const container = $.create('div');
-
-    const { group: fileGroup, input: fileInput } = editor.constructor._createFileInput({
-        id: generateId('editor-image-file'),
-        label: editor.constructor.lang.modals.imageFile,
-        attributes: {
-            accept: 'image/*',
-            multiple: true,
-        },
-    });
-
-    const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
-        id: generateId('editor-image-url'),
-        label: editor.constructor.lang.modals.imageUrl,
-    });
-
-    $.append(container, fileGroup);
-    $.append(container, urlGroup);
-
-    const originalRange = getRange()?.cloneRange();
-
-    editor._focusEditor();
-
-    const range = getRange();
-    range.collapse();
-
-    editor._modal = editor.constructor._createModal({
-        returnFocus,
-        title: editor.constructor.lang.modals.insertImage,
-        content: container,
-        cancelText: editor.constructor.lang.modals.cancel,
-        submitText: editor.constructor.lang.modals.insertImage,
-        onSubmit: (_) => {
-            selectRange(range);
-
-            const files = $.getProperty(fileInput, 'files');
-            const src = $.getValue(urlInput);
-
-            if (files.length) {
-                editor.options.imageUpload.bind(editor)(files);
-            } else if (src) {
-                if (!isSafeURL(src, 'image')) {
-                    urlInput.setAttribute('aria-invalid', 'true');
-                    $.addClass(urlGroup, editor.constructor.classes.formError);
-                    $.setText(urlInvalidFeedback, editor.constructor.lang.modals.urlInvalid);
-                    return false;
-                }
-                editor.insertImage(src);
-            }
-        },
-        onShown: (_) => {
-            $.focus(fileInput);
-        },
-        onHidden: (_) => {
-            editor._removeModal();
-            if (editor.node) {
-                selectRange(originalRange);
-                if (!returnFocus?.isConnected) {
-                    editor._focusEditor();
-                }
-            }
-        },
-    });
-    editor._ownComponent(Modal.init(editor._modal));
-}
-
-/**
- * Show the link modal.
- * @param {Editor} editor The editor instance.
- * @param {HTMLElement} [link] The current link.
- */
-export function showLinkModal(editor, link) {
-    editor._removeModal();
-    const returnFocus = document.activeElement;
-    const container = $.create('div');
-
-    const { group: textGroup, input: textInput } = editor.constructor._createInput({
-        id: generateId('editor-link-text'),
-        label: editor.constructor.lang.modals.linkText,
-    });
-
-    const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
-        id: generateId('editor-link-url'),
-        label: editor.constructor.lang.modals.linkUrl,
-    });
-
-    const { group: newWindowGroup, input: newWindowInput } = editor.constructor._createCheckbox({
-        id: generateId('editor-link-new-window'),
-        label: editor.constructor.lang.modals.linkNewWindow,
-    });
-
-    if (link) {
-        const text = $.getText(link);
-        const href = $.getAttribute(link, 'href');
-        const newWindow = $.getAttribute(link, 'target');
-
-        $.setValue(textInput, text);
-        $.setValue(urlInput, href);
-
-        if (newWindow === '_blank') {
-            $.setProperty(newWindowInput, { checked: true });
-        }
-    }
-
-    let hasText = false;
-
-    $.append(container, textGroup);
-    $.append(container, urlGroup);
-    $.append(container, newWindowGroup);
-
-    const originalRange = getRange()?.cloneRange();
-
-    let range;
-    if (link) {
-        range = selectNode(link);
-    } else {
-        editor._focusEditor();
-        range = getRange();
-    }
-
-    editor._modal = editor.constructor._createModal({
-        returnFocus,
-        title: editor.constructor.lang.modals.insertLink,
-        content: container,
-        cancelText: editor.constructor.lang.modals.cancel,
-        submitText: editor.constructor.lang.modals.insertLink,
-        onSubmit: (_) => {
-            selectRange(range);
-
-            const text = $.getValue(textInput);
-            const href = $.getValue(urlInput);
-            const newWindow = $.is(newWindowInput, ':checked');
-
-            if (!isSafeURL(href)) {
-                urlInput.setAttribute('aria-invalid', 'true');
-                $.addClass(urlGroup, editor.constructor.classes.formError);
-                $.setText(urlInvalidFeedback, editor.constructor.lang.modals.urlInvalid);
-                return false;
-            }
-            editor.insertLink(href, text, newWindow);
-        },
-        onShown: (_) => {
-            $.focus(urlInput);
-        },
-        onHidden: (_) => {
-            editor._removeModal();
-            if (editor.node) {
-                selectRange(originalRange);
-                if (!returnFocus?.isConnected) {
-                    editor._focusEditor();
-                }
-            }
-        },
-    });
-    const controller = editor._ownComponent(Modal.init(editor._modal));
-    controller.listen(textInput, 'input.ui.editor', (_) => {
-        hasText = !!$.getValue(textInput);
-    });
-
-    controller.listen(urlInput, 'input.ui.editor', (_) => {
-        if (hasText) {
-            return;
-        }
-
-        const url = $.getValue(urlInput);
-        $.setValue(textInput, url);
-    });
-}
-
-/**
- * Show the video modal.
- * @param {Editor} editor The editor instance.
- */
-export function showVideoModal(editor) {
-    editor._removeModal();
-    const returnFocus = document.activeElement;
-    const container = $.create('div');
-
-    const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = editor.constructor._createInput({
-        id: generateId('editor-video-url'),
-        label: editor.constructor.lang.modals.videoUrl,
-    });
-
-    $.append(container, urlGroup);
-
-    const originalRange = getRange()?.cloneRange();
-
-    editor._focusEditor();
-    const range = getRange();
-
-    editor._modal = editor.constructor._createModal({
-        returnFocus,
-        title: editor.constructor.lang.modals.insertVideo,
-        content: container,
-        cancelText: editor.constructor.lang.modals.cancel,
-        submitText: editor.constructor.lang.modals.insertVideo,
-        onSubmit: (_) => {
-            selectRange(range);
-
-            const url = $.getValue(urlInput);
-            let id;
-            try {
-                const parsed = new URL(url);
-                if (parsed.protocol === 'https:' && (parsed.hostname === 'youtu.be' || ['youtube.com', 'www.youtube.com'].includes(parsed.hostname) && parsed.pathname === '/watch')) {
-                    id = parsed.hostname === 'youtu.be' ? parsed.pathname.slice(1) : parsed.searchParams.get('v');
-                }
-            } catch {
-                // Invalid URLs use the same inline validation feedback.
-            }
-
-            if (!id || !/^[\w-]+$/.test(id)) {
-                urlInput.setAttribute('aria-invalid', 'true');
-                $.addClass(urlGroup, editor.constructor.classes.formError);
-                $.setText(urlInvalidFeedback, editor.constructor.lang.modals.videoUrlInvalid);
-                return false;
-            }
-
-            $.removeClass(urlGroup, editor.constructor.classes.formError);
-
-            urlInput.removeAttribute('aria-invalid');
-            const video = $.create('iframe', {
-                attributes: {
-                    width: 560,
-                    height: 315,
-                    src: `https://www.youtube.com/embed/${id}`,
-                    frameborder: 0,
-                    allowfullscreen: true,
-                },
-            });
-
-            const html = $.getProperty(video, 'outerHTML');
-
-            editor.insertHTML(html);
-        },
-        onShown: (_) => {
-            $.focus(urlInput);
-        },
-        onHidden: (_) => {
-            editor._removeModal();
-            if (editor.node) {
-                selectRange(originalRange);
-                if (!returnFocus?.isConnected) {
-                    editor._focusEditor();
-                }
-            }
-        },
-    });
-    editor._ownComponent(Modal.init(editor._modal));
-}
-
-
-/**
- * Create a form checkbox.
+ * Creates a form checkbox.
  * @param {typeof Editor} Component The component class.
  * @param {EditorInputOptions} options Options for the checkbox.
  * @returns {EditorInputElements} The form elements.
@@ -317,7 +43,7 @@ export function createCheckbox(Component, options) {
 }
 
 /**
- * Create a form file input.
+ * Creates a form file input.
  * @param {typeof Editor} Component The component class.
  * @param {EditorInputOptions} options Options for the file input.
  * @returns {EditorInputElements} The form elements.
@@ -355,7 +81,7 @@ export function createFileInput(Component, options) {
 }
 
 /**
- * Create a form text input.
+ * Creates a form text input.
  * @param {typeof Editor} Component The component class.
  * @param {EditorInputOptions} options Options for the text input.
  * @returns {EditorInputElements} The form elements.
@@ -400,7 +126,7 @@ export function createInput(Component, options) {
 }
 
 /**
- * Create a modal.
+ * Creates a modal.
  * @param {typeof Editor} Component The component class.
  * @param {EditorModalOptions} options Options for the modal.
  * @returns {HTMLElement} The modal element.

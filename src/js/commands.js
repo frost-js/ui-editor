@@ -1,8 +1,4 @@
-/** @import Editor from './editor.js'; */
-
-import $ from '@fr0st/query';
 import { isPhrasingContent } from './normalize.js';
-import { getRange, restoreSelection, saveSelection } from './selection.js';
 
 /**
  * Tests whether a range includes content inside a block rather than just its boundary.
@@ -45,7 +41,7 @@ function intersects(range, block) {
  * @param {Range} range The selected range.
  * @returns {HTMLElement[]} The selected blocks or sibling list items.
  */
-function selectedBlocks(root, range) {
+export function getSelectedBlocks(root, range) {
     const anchor = range.startContainer.nodeType === Node.ELEMENT_NODE ?
         range.startContainer : range.startContainer.parentElement;
     const item = anchor.closest('li');
@@ -86,7 +82,7 @@ function removeEmpty(node) {
  * Indents sibling blocks or list items.
  * @param {HTMLElement[]} blocks The consecutive selected blocks.
  */
-function indentBlocks(blocks) {
+export function indentBlocks(blocks) {
     const first = blocks[0];
     const parent = first.parentElement;
     if (first.matches('li')) {
@@ -151,7 +147,7 @@ function outdentItems(blocks) {
  * @param {HTMLElement[]} blocks The selected blocks.
  * @param {HTMLElement} root The editing boundary.
  */
-function outdentBlocks(blocks, root) {
+export function outdentBlocks(blocks, root) {
     if (blocks[0].matches('li')) {
         outdentItems(blocks);
         return;
@@ -181,68 +177,5 @@ function outdentBlocks(blocks, root) {
             removeEmpty(wrapper);
             removeEmpty(following);
         }
-    }
-}
-
-/**
- * Changes indentation as a single history operation with selection preservation.
- * @param {Editor} editor The editor.
- * @param {boolean} outdent Whether to remove one indentation level.
- */
-export function changeIndent(editor, outdent) {
-    if (!editor.node || ($.is(editor.node, ':disabled') || editor.node.readOnly)) {
-        return;
-    }
-    editor._focusEditor();
-    if (!editor.node) {
-        return;
-    }
-    const range = getRange(editor._editor);
-    if (!range) {
-        return;
-    }
-    let blocks = selectedBlocks(editor._editor, range);
-    if (outdent && !blocks.length) {
-        return;
-    }
-    editor._addHistory({ html: editor._editor.innerHTML, selectionData: editor._getSelectionData() });
-    editor._observe(false);
-    const markers = saveSelection(editor._editor);
-    try {
-        if (!blocks.length) {
-            const paragraph = document.createElement('p');
-            let first = markers.start;
-            while (first.parentNode !== editor._editor) {
-                first = first.parentNode;
-            }
-            while (first.previousSibling && isPhrasingContent(first.previousSibling)) {
-                first = first.previousSibling;
-            }
-            const inline = [];
-            for (let node = first; node && isPhrasingContent(node); node = node.nextSibling) {
-                inline.push(node);
-            }
-            if (inline.length) {
-                inline[0].before(paragraph);
-                paragraph.append(...inline);
-                blocks = [paragraph];
-            }
-        }
-        while (blocks.length) {
-            const group = [blocks.shift()];
-            while (blocks.length && group.at(-1).nextElementSibling === blocks[0]) {
-                group.push(blocks.shift());
-            }
-            if (outdent) {
-                outdentBlocks(group, editor._editor);
-            } else {
-                indentBlocks(group);
-            }
-        }
-    } finally {
-        restoreSelection(markers);
-        editor._normalize();
-        editor._updateValue();
-        editor._observe();
     }
 }

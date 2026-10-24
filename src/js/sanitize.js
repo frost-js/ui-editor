@@ -1,6 +1,13 @@
 import $ from '@fr0st/query';
 
-const tags = Object.fromEntries('a abbr b bdi bdo blockquote br caption cite code col colgroup dd del div dl dt em figcaption figure font h1 h2 h3 h4 h5 h6 hr i iframe img ins kbd li mark ol p pre q s samp small span strong sub sup table tbody td tfoot th thead time tr u ul var wbr'.split(' ').map((tag) => [tag, []]));
+const tags = Object.fromEntries([
+    'a', 'abbr', 'b', 'bdi', 'bdo', 'blockquote', 'br', 'caption', 'cite', 'code',
+    'col', 'colgroup', 'dd', 'del', 'div', 'dl', 'dt', 'em', 'figcaption', 'figure',
+    'font', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'iframe', 'img', 'ins',
+    'kbd', 'li', 'mark', 'ol', 'p', 'pre', 'q', 's', 'samp', 'small', 'span',
+    'strong', 'sub', 'sup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'time',
+    'tr', 'u', 'ul', 'var', 'wbr',
+].map((tag) => [tag, []]));
 Object.assign(tags, {
     '*': ['class', 'title', 'dir', 'lang', 'style'],
     'a': ['href', 'target', 'rel'],
@@ -14,7 +21,32 @@ Object.assign(tags, {
     'col': ['span'],
     'colgroup': ['span'],
 });
-const styles = new Set('color background-color font-family font-size font-weight font-style text-decoration text-decoration-line text-align vertical-align white-space margin-left margin-right margin-inline-start margin-inline-end width height max-width max-height inline-size block-size max-inline-size max-block-size float'.split(' '));
+const styles = new Set([
+    'color',
+    'background-color',
+    'font-family',
+    'font-size',
+    'font-weight',
+    'font-style',
+    'text-decoration',
+    'text-decoration-line',
+    'text-align',
+    'vertical-align',
+    'white-space',
+    'margin-left',
+    'margin-right',
+    'margin-inline-start',
+    'margin-inline-end',
+    'width',
+    'height',
+    'max-width',
+    'max-height',
+    'inline-size',
+    'block-size',
+    'max-inline-size',
+    'max-block-size',
+    'float',
+]);
 
 /**
  * Checks an editor URL, including relative links and raster image uploads.

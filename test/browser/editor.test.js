@@ -23,6 +23,7 @@ test.describe('Editor', () => {
 
                 expect(await instance.evaluate((value) => value instanceof UI.Editor)).toBe(true);
                 expect(await instance.evaluate((value) => value instanceof UI.BaseComponent)).toBe(true);
+                expect(await instance.evaluate((value) => Object.keys(value))).toEqual([]);
                 expect(await instance.evaluate((value) => $.getData('#editor', UI.Editor.DATA_KEY) === value)).toBe(true);
                 expect(await instance.evaluate((value) => $('#editor').editor() === value)).toBe(true);
                 expect(await instance.evaluate((value) => UI.Editor.init($.findOne('#editor')) === value)).toBe(true);
