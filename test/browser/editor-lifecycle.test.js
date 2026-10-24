@@ -250,7 +250,7 @@ test.describe('Editor lifecycle', () => {
                     document.querySelector('.editor p').textContent = 'Pending edit';
                     await Promise.resolve();
                     editor.dispose();
-                    editor.insertHTML('<p>Late HTML callback</p>');
+                    editor.insertHtml('<p>Late HTML callback</p>');
                     loaded();
                     await Promise.resolve();
                     return {

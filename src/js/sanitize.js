@@ -54,7 +54,7 @@ const styles = new Set([
  * @param {'link'|'image'|'video'} [kind='link'] The destination type.
  * @returns {boolean} Whether the URL is supported.
  */
-export function isSafeURL(value, kind = 'link') {
+export function isSafeUrl(value, kind = 'link') {
     try {
         const url = new URL(value, document.baseURI);
         if (kind === 'video') {
@@ -74,7 +74,7 @@ export function isSafeURL(value, kind = 'link') {
  * @param {string} html Untrusted HTML.
  * @returns {string} Supported HTML with safe URLs and presentation styles.
  */
-export function sanitizeHTML(html) {
+export function sanitizeHtml(html) {
     const template = document.createElement('template');
     template.innerHTML = $.sanitize(html, tags);
     for (const node of template.content.querySelectorAll('*')) {
@@ -88,7 +88,7 @@ export function sanitizeHTML(html) {
             node.removeAttribute('style');
         }
         for (const [attribute, kind] of [['href', 'link'], ['src', node.localName === 'iframe' ? 'video' : 'image']]) {
-            if (node.hasAttribute(attribute) && !isSafeURL(node.getAttribute(attribute), kind)) {
+            if (node.hasAttribute(attribute) && !isSafeUrl(node.getAttribute(attribute), kind)) {
                 node.removeAttribute(attribute);
             }
         }

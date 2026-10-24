@@ -251,7 +251,7 @@ test.describe('Editor forms', () => {
             await expect(page.locator('.editor-source')).toHaveJSProperty('readOnly', true);
             await page.evaluate(() => {
                 window.editor.insertText('ignored');
-                window.editor.insertHTML('<p>ignored</p>');
+                window.editor.insertHtml('<p>ignored</p>');
                 window.editor.indent();
                 window.editor.undo();
             });

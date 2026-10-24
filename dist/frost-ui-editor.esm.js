@@ -927,7 +927,7 @@ var styles$1 = /* @__PURE__ */ new Set([
 * @param {'link'|'image'|'video'} [kind='link'] The destination type.
 * @returns {boolean} Whether the URL is supported.
 */
-function isSafeURL(value, kind = "link") {
+function isSafeUrl(value, kind = "link") {
 	try {
 		const url = new URL(value, document.baseURI);
 		if (kind === "video") return url.protocol === "https:" && ["www.youtube.com", "www.youtube-nocookie.com"].includes(url.hostname) && /^\/embed\/[\w-]+$/.test(url.pathname);
@@ -942,7 +942,7 @@ function isSafeURL(value, kind = "link") {
 * @param {string} html Untrusted HTML.
 * @returns {string} Supported HTML with safe URLs and presentation styles.
 */
-function sanitizeHTML(html) {
+function sanitizeHtml(html) {
 	const template = document.createElement("template");
 	template.innerHTML = $.sanitize(html, tags);
 	for (const node of template.content.querySelectorAll("*")) {
@@ -951,7 +951,7 @@ function sanitizeHTML(html) {
 			if (!styles$1.has(property) || /url\s*\(|expression\s*\(|var\s*\(|[\\@]/i.test(value)) node.style.removeProperty(property);
 		}
 		if (!node.style.length) node.removeAttribute("style");
-		for (const [attribute, kind] of [["href", "link"], ["src", node.localName === "iframe" ? "video" : "image"]]) if (node.hasAttribute(attribute) && !isSafeURL(node.getAttribute(attribute), kind)) node.removeAttribute(attribute);
+		for (const [attribute, kind] of [["href", "link"], ["src", node.localName === "iframe" ? "video" : "image"]]) if (node.hasAttribute(attribute) && !isSafeUrl(node.getAttribute(attribute), kind)) node.removeAttribute(attribute);
 		if (node.localName === "iframe") {
 			if (!node.hasAttribute("src")) {
 				node.remove();
@@ -1294,7 +1294,7 @@ var Editor = class extends BaseComponent {
 	/** @type {EditorOptions} */
 	static defaults = {
 		buttons: null,
-		sanitize: sanitizeHTML,
+		sanitize: sanitizeHtml,
 		popovers: {
 			image: [
 				[
@@ -1927,7 +1927,7 @@ var Editor = class extends BaseComponent {
 	* Inserts a HTML string.
 	* @param {string} value The HTML string.
 	*/
-	insertHTML(value) {
+	insertHtml(value) {
 		if (!this.node || this.node.matches(":disabled") || this.node.readOnly) return;
 		this.#execCommand("insertHTML", this.options.sanitize(value));
 	}
@@ -1937,7 +1937,7 @@ var Editor = class extends BaseComponent {
 	*/
 	insertImage(src) {
 		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
-		if (!isSafeURL(src, "image")) return;
+		if (!isSafeUrl(src, "image")) return;
 		const img = $.create("img", { attributes: { src } });
 		const newImg = this.insertNode(img);
 		if (!newImg) return;
@@ -1965,7 +1965,7 @@ var Editor = class extends BaseComponent {
 	* @param {boolean} [newWindow] Whether to open the link in a new window.
 	*/
 	insertLink(href, text, newWindow) {
-		if (!isSafeURL(href)) return;
+		if (!isSafeUrl(href)) return;
 		const link = $.create("a", {
 			text,
 			attributes: { href }
@@ -2406,7 +2406,7 @@ var Editor = class extends BaseComponent {
 			event.preventDefault();
 			if (event.clipboardData) {
 				const html = event.clipboardData.getData("text/html");
-				if (html) this.insertHTML(html);
+				if (html) this.insertHtml(html);
 				else this.insertText(event.clipboardData.getData("text/plain"));
 			}
 		});
@@ -3604,7 +3604,7 @@ var Editor = class extends BaseComponent {
 				const src = $.getValue(urlInput);
 				if (files.length) this.options.imageUpload.call(this, files);
 				else if (src) {
-					if (!isSafeURL(src, "image")) {
+					if (!isSafeUrl(src, "image")) {
 						urlInput.setAttribute("aria-invalid", "true");
 						$.addClass(urlGroup, this.constructor.classes.formError);
 						$.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
@@ -3676,7 +3676,7 @@ var Editor = class extends BaseComponent {
 				const text = $.getValue(textInput);
 				const href = $.getValue(urlInput);
 				const newWindow = $.is(newWindowInput, ":checked");
-				if (!isSafeURL(href)) {
+				if (!isSafeUrl(href)) {
 					urlInput.setAttribute("aria-invalid", "true");
 					$.addClass(urlGroup, this.constructor.classes.formError);
 					$.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
@@ -3759,7 +3759,7 @@ var Editor = class extends BaseComponent {
 					allowfullscreen: true
 				} });
 				const html = $.getProperty(video, "outerHTML");
-				this.insertHTML(html);
+				this.insertHtml(html);
 			},
 			onShown: (_) => {
 				$.focus(urlInput);
@@ -3854,7 +3854,7 @@ var Editor = class extends BaseComponent {
 			const br = $.create("br");
 			$.append(container, br);
 			const html = $.getHtml(container);
-			this.insertHTML(html);
+			this.insertHtml(html);
 		}, { delegate: "button" });
 		this.listen(container, "mouseover.ui.editor focusin.ui.editor", (e) => {
 			const targetCol = $.getDataset(e.currentTarget, "uiColumn");

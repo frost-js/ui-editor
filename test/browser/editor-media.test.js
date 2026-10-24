@@ -4,7 +4,7 @@ import { createEditor } from '../setup/editor.js';
 
 const gif = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-const imageHTML = `<p><img src="data:image/gif;base64,${gif}" alt="Example" style="width: 120px;"></p>`;
+const imageHtml = `<p><img src="data:image/gif;base64,${gif}" alt="Example" style="width: 120px;"></p>`;
 
 test.describe('Editor media', () => {
     test.describe('images', () => {
@@ -18,7 +18,7 @@ test.describe('Editor media', () => {
             ['Remove Float', 'float', ''],
         ]) {
             test(`applies image action ${name} and synchronizes HTML`, async ({ page }) => {
-                await createEditor(page, imageHTML);
+                await createEditor(page, imageHtml);
                 const image = page.locator('.editor img');
                 await image.click();
                 await page.getByRole('button', { name, exact: true }).click();
@@ -38,7 +38,7 @@ test.describe('Editor media', () => {
         }
 
         test('removes an image and can undo its removal', async ({ page }) => {
-            await createEditor(page, imageHTML);
+            await createEditor(page, imageHtml);
             await page.locator('.editor img').click();
             await page.getByRole('button', { name: 'Remove Image', exact: true }).click();
 

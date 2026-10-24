@@ -269,7 +269,7 @@ Data attributes configure options; they do not initialize Editor by themselves. 
 | `formatBlock(tag)` | `void` | Set a block tag, such as `'h2'` or `'p'`. |
 | `indent()` | `void` | Indent selected blocks or list items while retaining selection. |
 | `insertHorizontalRule()` | `void` | Insert a horizontal rule. |
-| `insertHTML(html)` | `void` | Insert sanitized HTML at the selection. |
+| `insertHtml(html)` | `void` | Insert sanitized HTML at the selection. |
 | `insertImage(src)` | `void` | Insert a protocol-checked image. |
 | `insertLink(href, text, newWindow?)` | `void` | Insert a protocol-checked link; newWindow defaults to false. |
 | `insertNode(node)` | `HTMLElement\|null` | Insert a trusted DOM element, recording history and synchronizing the textarea. |

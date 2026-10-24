@@ -958,7 +958,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {'link'|'image'|'video'} [kind='link'] The destination type.
 	* @returns {boolean} Whether the URL is supported.
 	*/
-	function isSafeURL(value, kind = "link") {
+	function isSafeUrl(value, kind = "link") {
 		try {
 			const url = new URL(value, document.baseURI);
 			if (kind === "video") return url.protocol === "https:" && ["www.youtube.com", "www.youtube-nocookie.com"].includes(url.hostname) && /^\/embed\/[\w-]+$/.test(url.pathname);
@@ -973,7 +973,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {string} html Untrusted HTML.
 	* @returns {string} Supported HTML with safe URLs and presentation styles.
 	*/
-	function sanitizeHTML(html) {
+	function sanitizeHtml(html) {
 		const template = document.createElement("template");
 		template.innerHTML = _fr0st_query.default.sanitize(html, tags);
 		for (const node of template.content.querySelectorAll("*")) {
@@ -982,7 +982,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (!styles$1.has(property) || /url\s*\(|expression\s*\(|var\s*\(|[\\@]/i.test(value)) node.style.removeProperty(property);
 			}
 			if (!node.style.length) node.removeAttribute("style");
-			for (const [attribute, kind] of [["href", "link"], ["src", node.localName === "iframe" ? "video" : "image"]]) if (node.hasAttribute(attribute) && !isSafeURL(node.getAttribute(attribute), kind)) node.removeAttribute(attribute);
+			for (const [attribute, kind] of [["href", "link"], ["src", node.localName === "iframe" ? "video" : "image"]]) if (node.hasAttribute(attribute) && !isSafeUrl(node.getAttribute(attribute), kind)) node.removeAttribute(attribute);
 			if (node.localName === "iframe") {
 				if (!node.hasAttribute("src")) {
 					node.remove();
@@ -1325,7 +1325,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		/** @type {EditorOptions} */
 		static defaults = {
 			buttons: null,
-			sanitize: sanitizeHTML,
+			sanitize: sanitizeHtml,
 			popovers: {
 				image: [
 					[
@@ -1958,7 +1958,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Inserts a HTML string.
 		* @param {string} value The HTML string.
 		*/
-		insertHTML(value) {
+		insertHtml(value) {
 			if (!this.node || this.node.matches(":disabled") || this.node.readOnly) return;
 			this.#execCommand("insertHTML", this.options.sanitize(value));
 		}
@@ -1968,7 +1968,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		insertImage(src) {
 			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
-			if (!isSafeURL(src, "image")) return;
+			if (!isSafeUrl(src, "image")) return;
 			const img = _fr0st_query.default.create("img", { attributes: { src } });
 			const newImg = this.insertNode(img);
 			if (!newImg) return;
@@ -1996,7 +1996,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {boolean} [newWindow] Whether to open the link in a new window.
 		*/
 		insertLink(href, text, newWindow) {
-			if (!isSafeURL(href)) return;
+			if (!isSafeUrl(href)) return;
 			const link = _fr0st_query.default.create("a", {
 				text,
 				attributes: { href }
@@ -2437,7 +2437,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				event.preventDefault();
 				if (event.clipboardData) {
 					const html = event.clipboardData.getData("text/html");
-					if (html) this.insertHTML(html);
+					if (html) this.insertHtml(html);
 					else this.insertText(event.clipboardData.getData("text/plain"));
 				}
 			});
@@ -3635,7 +3635,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					const src = _fr0st_query.default.getValue(urlInput);
 					if (files.length) this.options.imageUpload.call(this, files);
 					else if (src) {
-						if (!isSafeURL(src, "image")) {
+						if (!isSafeUrl(src, "image")) {
 							urlInput.setAttribute("aria-invalid", "true");
 							_fr0st_query.default.addClass(urlGroup, this.constructor.classes.formError);
 							_fr0st_query.default.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
@@ -3707,7 +3707,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					const text = _fr0st_query.default.getValue(textInput);
 					const href = _fr0st_query.default.getValue(urlInput);
 					const newWindow = _fr0st_query.default.is(newWindowInput, ":checked");
-					if (!isSafeURL(href)) {
+					if (!isSafeUrl(href)) {
 						urlInput.setAttribute("aria-invalid", "true");
 						_fr0st_query.default.addClass(urlGroup, this.constructor.classes.formError);
 						_fr0st_query.default.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
@@ -3790,7 +3790,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						allowfullscreen: true
 					} });
 					const html = _fr0st_query.default.getProperty(video, "outerHTML");
-					this.insertHTML(html);
+					this.insertHtml(html);
 				},
 				onShown: (_) => {
 					_fr0st_query.default.focus(urlInput);
@@ -3885,7 +3885,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				const br = _fr0st_query.default.create("br");
 				_fr0st_query.default.append(container, br);
 				const html = _fr0st_query.default.getHtml(container);
-				this.insertHTML(html);
+				this.insertHtml(html);
 			}, { delegate: "button" });
 			this.listen(container, "mouseover.ui.editor focusin.ui.editor", (e) => {
 				const targetCol = _fr0st_query.default.getDataset(e.currentTarget, "uiColumn");

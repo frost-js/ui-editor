@@ -238,7 +238,7 @@ The checkpoint at `dc4c495` defines the starting API. The public contracts below
 - Package consumers import the default `Editor`; UMD consumers use `UI.Editor`.
 - `Editor.init(textarea, options)` reuses an existing instance. The registered fQuery method is `$(textarea).editor(options)`, with string dispatch such as `$(textarea).editor('bold')`.
 - Formatting methods: `backColor(value)`, `bold()`, `fontName(value)`, `fontSize(value)`, `formatBlock(value)`, `foreColor(value)`, `italic()`, `justifyCenter()`, `justifyFull()`, `justifyLeft()`, `justifyRight()`, `removeFormat()`, `strikethrough()`, `subscript()`, `superscript()`, and `underline()`.
-- Structure and insertion methods: `indent()`, `outdent()`, `insertHorizontalRule()`, `insertHTML(value)`, `insertImage(src)`, `insertLink(href, text, newWindow)`, `insertText(value)`, `insertOrderedList()`, `insertUnorderedList()`, and `unlink()`.
+- Structure and insertion methods: `indent()`, `outdent()`, `insertHorizontalRule()`, `insertHtml(value)`, `insertImage(src)`, `insertLink(href, text, newWindow)`, `insertText(value)`, `insertOrderedList()`, `insertUnorderedList()`, and `unlink()`.
 - State and lifecycle methods: `undo()`, `redo()`, `disable()`, `enable()`, `refresh()`, and `dispose()`. `refresh()` reloads programmatic textarea changes without emitting an editor change event.
 - Source and fullscreen views are toolbar plugin actions, not public class methods. Content is read from the original textarea; there is no existing editor `getValue()` or `setValue()` method to preserve.
 

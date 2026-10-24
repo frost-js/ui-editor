@@ -8,7 +8,7 @@ import { getSelectionData, restoreSelectionData } from './history.js';
 import icons from './icons.js';
 import { createCheckbox, createFileInput, createInput, createModal } from './modals.js';
 import { isPhrasingContent, joinAdjacentNodes, normalizePhrasing, normalizeSpans, normalizeStyles } from './normalize.js';
-import { isSafeURL, sanitizeHTML } from './sanitize.js';
+import { isSafeUrl, sanitizeHtml } from './sanitize.js';
 import { getRange, normalizeText, restoreSelection, saveSelection, selectNode, selectRange } from './selection.js';
 import { addEditor, removeEditor, resetDragCount } from './shared-events.js';
 import { buttons, colors, fonts, fontSizes, styles } from './values.js';
@@ -26,7 +26,7 @@ export default class Editor extends BaseComponent {
     /** @type {EditorOptions} */
     static defaults = {
         buttons: null,
-        sanitize: sanitizeHTML,
+        sanitize: sanitizeHtml,
         popovers: {
             image: [
                 ['imageFull', 'imageHalf', 'imageQuarter', 'imageOriginal'],
@@ -821,7 +821,7 @@ export default class Editor extends BaseComponent {
      * Inserts a HTML string.
      * @param {string} value The HTML string.
      */
-    insertHTML(value) {
+    insertHtml(value) {
         if (!this.node || this.node.matches(':disabled') || this.node.readOnly) {
             return;
         }
@@ -836,7 +836,7 @@ export default class Editor extends BaseComponent {
         if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly) {
             return;
         }
-        if (!isSafeURL(src, 'image')) {
+        if (!isSafeUrl(src, 'image')) {
             return;
         }
         const img = $.create('img', { attributes: { src } });
@@ -869,7 +869,7 @@ export default class Editor extends BaseComponent {
      * @param {boolean} [newWindow] Whether to open the link in a new window.
      */
     insertLink(href, text, newWindow) {
-        if (!isSafeURL(href)) {
+        if (!isSafeUrl(href)) {
             return;
         }
         const link = $.create('a', {
@@ -1441,7 +1441,7 @@ export default class Editor extends BaseComponent {
             if (event.clipboardData) {
                 const html = event.clipboardData.getData('text/html');
                 if (html) {
-                    this.insertHTML(html);
+                    this.insertHtml(html);
                 } else {
                     this.insertText(event.clipboardData.getData('text/plain'));
                 }
@@ -3098,7 +3098,7 @@ export default class Editor extends BaseComponent {
                 if (files.length) {
                     this.options.imageUpload.call(this, files);
                 } else if (src) {
-                    if (!isSafeURL(src, 'image')) {
+                    if (!isSafeUrl(src, 'image')) {
                         urlInput.setAttribute('aria-invalid', 'true');
                         $.addClass(urlGroup, this.constructor.classes.formError);
                         $.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
@@ -3189,7 +3189,7 @@ export default class Editor extends BaseComponent {
                 const href = $.getValue(urlInput);
                 const newWindow = $.is(newWindowInput, ':checked');
 
-                if (!isSafeURL(href)) {
+                if (!isSafeUrl(href)) {
                     urlInput.setAttribute('aria-invalid', 'true');
                     $.addClass(urlGroup, this.constructor.classes.formError);
                     $.setText(urlInvalidFeedback, this.constructor.lang.modals.urlInvalid);
@@ -3298,7 +3298,7 @@ export default class Editor extends BaseComponent {
 
                 const html = $.getProperty(video, 'outerHTML');
 
-                this.insertHTML(html);
+                this.insertHtml(html);
             },
             onShown: (_) => {
                 $.focus(urlInput);
@@ -3431,7 +3431,7 @@ export default class Editor extends BaseComponent {
 
             const html = $.getHtml(container);
 
-            this.insertHTML(html);
+            this.insertHtml(html);
         }, { delegate: 'button' });
 
         this.listen(container, 'mouseover.ui.editor focusin.ui.editor', (e) => {

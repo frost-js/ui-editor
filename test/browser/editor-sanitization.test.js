@@ -90,7 +90,7 @@ test.describe('Editor sanitization', () => {
     test.describe('clipboard', () => {
         test('sanitizes insertion and clipboard HTML with the same formatting policy', async ({ page }) => {
             await createEditor(page, '');
-            await page.evaluate((html) => window.editor.insertHTML(html), unsafe);
+            await page.evaluate((html) => window.editor.insertHtml(html), unsafe);
             await expectSafe(page);
             await page.evaluate((html) => {
                 getSelection().selectAllChildren(document.querySelector('.editor'));
@@ -186,7 +186,7 @@ test.describe('Editor sanitization', () => {
                         return html.replaceAll('secret', 'redacted');
                     },
                 });
-                window.editor.insertHTML('<p>secret</p>');
+                window.editor.insertHtml('<p>secret</p>');
             });
 
             await expect(page.locator('.editor')).toContainText('redacted');

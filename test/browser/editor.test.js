@@ -66,7 +66,7 @@ test.describe('Editor', () => {
         test('dispatches public editing, history, state, and disposal methods', async ({ page }) => {
             await page.evaluate(() => $('#editor').editor({ buttons: [['undo', 'redo']] }));
 
-            await page.evaluate(() => $('#editor').editor('insertText', '!'));
+            await page.evaluate(() => $('#editor').editor('insertHtml', '!'));
 
             await expect(page.locator('#editor')).toHaveValue('<p>Hello world!</p>');
 
