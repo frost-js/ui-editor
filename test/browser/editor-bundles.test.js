@@ -16,6 +16,7 @@ test.describe('Editor bundles', () => {
                 node.value = '<p>Bundle example</p>';
                 document.body.append(node);
                 const editor = UI.Editor.init(node);
+                window.bundleEditor = editor;
 
                 return editor instanceof UI.BaseComponent &&
                     $(node).editor() === editor &&
@@ -24,6 +25,20 @@ test.describe('Editor bundles', () => {
 
             expect(shared).toBe(true);
             await expect(page.getByRole('textbox').first()).toHaveText('Bundle example');
+            if (name.includes('ESM')) {
+                expect(await page.evaluate(() => ({ keys: Object.keys(window.editorModule), shared: window.editorModule.default === UI.Editor }))).toEqual({ keys: ['default'], shared: true });
+            }
+            await page.evaluate(() => $(window.bundleEditor.node).editor('insertText', '!'));
+            await expect(page.locator('textarea').first()).toHaveValue('<p>Bundle example!</p>');
+            await page.evaluate(() => window.bundleEditor.undo());
+            await expect(page.locator('textarea').first()).toHaveValue('<p>Bundle example</p>');
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+            await page.locator('.editor-source').fill('<h2>Source bundle</h2>');
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+            await expect(page.locator('.editor h2')).toHaveText('Source bundle');
+            await page.evaluate(() => window.bundleEditor.dispose());
+            await expect(page.locator('textarea')).toBeVisible();
+            await expect(page.locator('.editor')).toHaveCount(0);
         });
     }
 });

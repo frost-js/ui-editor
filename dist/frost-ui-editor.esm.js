@@ -395,7 +395,7 @@ function changeIndent(editor, outdent) {
 }
 
 // src/js/sanitize.js
-var tags = Object.fromEntries("a abbr b bdi bdo blockquote br caption cite code col colgroup dd del div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i iframe img ins kbd li mark ol p pre q s samp small span strong sub sup table tbody td tfoot th thead time tr u ul var wbr".split(" ").map((tag) => [tag, []]));
+var tags = Object.fromEntries("a abbr b bdi bdo blockquote br caption cite code col colgroup dd del div dl dt em figcaption figure font h1 h2 h3 h4 h5 h6 hr i iframe img ins kbd li mark ol p pre q s samp small span strong sub sup table tbody td tfoot th thead time tr u ul var wbr".split(" ").map((tag) => [tag, []]));
 Object.assign(tags, {
 	"*": [
 		"class",
@@ -408,6 +408,11 @@ Object.assign(tags, {
 		"href",
 		"target",
 		"rel"
+	],
+	"font": [
+		"face",
+		"size",
+		"color"
 	],
 	"img": [
 		"src",
@@ -1147,6 +1152,7 @@ function insertNode(editor, node) {
 */
 function normalize(editor) {
 	if (!editor.node) return;
+	const active = document.activeElement;
 	editor._observe(false);
 	normalizeText(editor._editor);
 	const markers = saveSelection(editor._editor);
@@ -1159,6 +1165,7 @@ function normalize(editor) {
 		restoreSelection(markers);
 		normalizeText(editor._editor);
 		editor._observe();
+		if (active instanceof HTMLElement && active !== document.body && active.isConnected && !editor._editor?.contains(active) && document.activeElement !== active) active.focus({ preventScroll: true });
 	}
 }
 /**
@@ -1365,7 +1372,7 @@ function eventsEditor(editor) {
 		if (e.defaultPrevented || !editor.node) return;
 		const selection = window.getSelection();
 		const isIndented = (node) => {
-			return $.is(node, "li") || $.getStyle(node, "marginInlineStart") || $.getStyle(node, "marginLeft");
+			return [node, ...$.parents(node, null, editor._editor)].some((ancestor) => $.is(ancestor, "li") || parseFloat($.getStyle(ancestor, "marginInlineStart") || $.getStyle(ancestor, "marginLeft")) > 0);
 		};
 		switch (e.code) {
 			case "Backspace":
@@ -1520,21 +1527,29 @@ function eventsSource(editor) {
 		const lines = value.split("\n");
 		const startLine = value.substring(0, start).split("\n").length - 1;
 		const endLine = value.substring(0, end).split("\n").length - 1;
+		const lineStarts = [];
+		let offset = 0;
+		for (const line of lines) {
+			lineStarts.push(offset);
+			offset += line.length + 1;
+		}
+		const lastLine = end > start && end === lineStarts[endLine] ? endLine - 1 : endLine;
 		const tab = "	";
 		let newStart = start;
 		let newEnd = end;
 		let newValue;
 		if (e.shiftKey) {
-			for (const [i, line] of lines.entries()) if (i >= startLine && i <= endLine && line.startsWith(tab)) {
+			for (const [i, line] of lines.entries()) if (i >= startLine && i <= lastLine && line.startsWith(tab)) {
 				lines[i] = line.substring(1);
-				if (i === startLine) newStart--;
-				if (i < endLine) newEnd--;
+				if (lineStarts[i] < start) newStart--;
+				if (lineStarts[i] < end) newEnd--;
 			}
 			newValue = lines.join("\n");
 		} else if (startLine !== endLine) {
-			for (const [i, line] of lines.entries()) if (i >= startLine && i <= endLine && (i < endLine || lines[i])) {
+			for (const [i, line] of lines.entries()) if (i >= startLine && i <= lastLine) {
 				lines[i] = tab + line;
-				if (i < endLine) newEnd++;
+				if (lineStarts[i] < start) newStart++;
+				newEnd++;
 			}
 			newValue = lines.join("\n");
 		} else {
@@ -2491,13 +2506,20 @@ function refreshPopover(editor, currentNode, event) {
 		});
 		reference = editor._imgCursor;
 	}
+	const originalPlacement = reference.getAttribute("data-ui-placement");
 	editor._popper = new Popper(editor._popover, {
 		reference,
 		arrow: editor._popoverArrow,
 		container: editor._editor,
 		placement: "bottom",
 		position: "start",
-		minContact: 0
+		minContact: 0,
+		afterUpdate(_, anchor) {
+			if (editor._editor?.contains(anchor)) {
+				if (originalPlacement === null) anchor.removeAttribute("data-ui-placement");
+				else anchor.setAttribute("data-ui-placement", originalPlacement);
+			}
+		}
 	});
 	$.show(editor._popover);
 	switch (tagName) {

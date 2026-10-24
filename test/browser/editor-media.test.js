@@ -1,0 +1,182 @@
+import { Buffer } from 'node:buffer';
+import { expect, test } from '#test';
+import { createEditor } from '../setup/editor.js';
+
+const gif = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+const imageHTML = `<p><img src="data:image/gif;base64,${gif}" alt="Example" style="width: 120px;"></p>`;
+
+for (const [name, property, expected] of [
+    ['Full Size', 'width', '100%'], ['Half Size', 'width', '50%'],
+    ['Quarter Size', 'width', '25%'], ['Original Size', 'width', ''],
+    ['Float Left', 'float', 'left'], ['Float Right', 'float', 'right'],
+    ['Remove Float', 'float', ''],
+]) {
+    test(`applies image action ${name} and synchronizes HTML`, async ({ page }) => {
+        await createEditor(page, imageHTML);
+        const image = page.locator('.editor img');
+        await image.click();
+        await page.getByRole('button', { name, exact: true }).click();
+        expect(await image.evaluate((node, property) => node.style[property], property)).toBe(expected);
+        await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+        await page.evaluate(() => window.editor.undo());
+        await expect(page.locator('.editor img')).toHaveAttribute('src', /^data:image\/gif/);
+    });
+}
+
+test('removes an image and can undo its removal', async ({ page }) => {
+    await createEditor(page, imageHTML);
+    await page.locator('.editor img').click();
+    await page.getByRole('button', { name: 'Remove Image', exact: true }).click();
+    await expect(page.locator('.editor img')).toHaveCount(0);
+    await expect(page.locator('#editor')).toHaveValue('');
+    await page.evaluate(() => window.editor.undo());
+    await expect(page.locator('.editor img')).toHaveCount(1);
+});
+
+for (const [name, rows, columns] of [
+    ['Add Row After', 3, 2], ['Add Row Before', 3, 2],
+    ['Add Column After', 2, 3], ['Add Column Before', 2, 3],
+    ['Remove Row', 1, 2], ['Remove Column', 2, 1],
+]) {
+    test(`runs table action ${name} and restores the original on undo`, async ({ page }) => {
+        const html = '<table class="table table-bordered"><tbody><tr><td>A</td><td>B</td></tr><tr><td>C</td><td>D</td></tr></tbody></table>';
+        await createEditor(page, html);
+        await page.locator('.editor td').first().click();
+        await page.getByRole('button', { name, exact: true }).click();
+        await expect(page.locator('.editor tr')).toHaveCount(rows);
+        await expect(page.locator('.editor tr').first().locator('td')).toHaveCount(columns);
+        await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+        await page.evaluate(() => window.editor.undo());
+        await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
+    });
+}
+
+test('removes a table through the context toolbar and restores it on undo', async ({ page }) => {
+    await createEditor(page, '<table><tbody><tr><td>Cell</td></tr></tbody></table>');
+    await page.locator('.editor td').click();
+    await page.getByRole('button', { name: 'Remove Table', exact: true }).click();
+    await expect(page.locator('.editor table')).toHaveCount(0);
+    await page.evaluate(() => window.editor.undo());
+    await expect(page.locator('.editor td')).toHaveText('Cell');
+});
+
+test('removes a link without losing its text or selection', async ({ page }) => {
+    await createEditor(page, '<p><a href="/example">Example</a> remains</p>');
+    await page.locator('.editor a').click();
+    await page.getByRole('button', { name: 'Remove Link', exact: true }).click();
+    await expect(page.locator('.editor a')).toHaveCount(0);
+    await expect(page.locator('.editor')).toHaveText('Example remains');
+    await page.evaluate(() => window.editor.undo());
+    await expect(page.locator('.editor a')).toHaveText('Example');
+});
+
+test('inserts an image by URL with validation feedback and dialog focus restoration', async ({ page }) => {
+    await createEditor(page, '<p>Image</p>', { buttons: [['image']] });
+    const button = page.getByRole('button', { name: 'Image', exact: true });
+    await button.click();
+    const dialog = page.getByRole('dialog', { name: 'Insert Image' });
+    await expect(dialog.getByLabel('Select Files')).toBeFocused();
+    await dialog.getByLabel('Image URL').fill('javascript:alert(1)');
+    await dialog.getByRole('button', { name: 'Insert Image', exact: true }).click();
+    await expect(dialog.getByText('Enter a supported URL.')).toBeVisible();
+    await dialog.getByLabel('Image URL').fill(`data:image/gif;base64,${gif}`);
+    await dialog.getByRole('button', { name: 'Insert Image', exact: true }).click();
+    await expect(page.locator('.editor img')).toHaveCount(1);
+    await expect(button).toBeFocused();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.locator('.editor img')).toHaveCSS('width', '1px');
+});
+
+test('uploads files from the image dialog and sizes a successful image', async ({ page }) => {
+    await createEditor(page, '<p>Upload</p>', { buttons: [['image']] });
+    await page.getByRole('button', { name: 'Image', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Insert Image' });
+    await dialog.getByLabel('Select Files').setInputFiles({ name: 'upload.gif', mimeType: 'image/gif', buffer: Buffer.from(gif, 'base64') });
+    await dialog.getByRole('button', { name: 'Insert Image', exact: true }).click();
+    await expect(page.locator('.editor img')).toHaveAttribute('src', /^data:image\/gif;base64,/);
+    await expect(page.locator('.editor img')).toHaveCSS('width', '1px');
+});
+
+test('settles failed uploads independently and inserts successful results in order', async ({ page }) => {
+    await createEditor(page);
+    await page.evaluate(async (gif) => {
+        const editor = window.editor;
+        const read = editor._readImage.bind(editor);
+        editor._readImage = (file) => file.name === 'failed.gif' ? Promise.reject(new Error('Read failed')) : read(file);
+        const bytes = Uint8Array.from(atob(gif), (char) => char.charCodeAt(0));
+        await editor.options.imageUpload.call(editor, [new File([bytes], 'failed.gif'), new File([bytes], 'valid.gif', { type: 'image/gif' })]);
+    }, gif);
+    await expect(page.locator('.editor img')).toHaveCount(1);
+    await expect(page.locator('.editor img')).toHaveCSS('width', '1px');
+});
+
+test('reports FileReader failures and cancels callbacks without leaking handlers', async ({ page }) => {
+    await createEditor(page);
+    expect(await page.evaluate(async () => {
+        const NativeReader = window.FileReader;
+        const readers = [];
+        window.FileReader = class {
+            constructor() {
+                readers.push(this);
+            }
+
+            readAsDataURL(file) {
+                if (file.name === 'throw') {
+                    throw new Error('Synchronous failure');
+                }
+                queueMicrotask(() => this.onerror());
+            }
+        };
+        try {
+            const errors = [];
+            for (const name of ['error', 'throw']) {
+                try {
+                    await window.editor._readImage(new File([], name));
+                } catch (error) {
+                    errors.push(error.message);
+                }
+            }
+            window.editor.dispose();
+            try {
+                await window.editor._readImage(new File([], 'disposed'));
+            } catch (error) {
+                errors.push(error.message);
+            }
+            return { errors, released: readers.every((reader) => reader.onload === null && reader.onerror === null && reader.onabort === null) };
+        } finally {
+            window.FileReader = NativeReader;
+        }
+    })).toEqual({ errors: ['Unable to read file.', 'Synchronous failure', 'Editor is disposed.'], released: true });
+});
+
+test('edits an existing new-window link and preserves its target protection', async ({ page }) => {
+    await createEditor(page, '<p><a href="https://example.com/" target="_blank">Old</a></p>');
+    await page.locator('.editor a').click();
+    await page.getByRole('button', { name: 'Edit Link', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Insert Link' });
+    await expect(dialog.getByLabel('Open in new window')).toBeChecked();
+    await dialog.getByLabel('Link Text').fill('Custom title');
+    await dialog.getByLabel('Link URL').fill('https://example.org/');
+    await expect(dialog.getByLabel('Link Text')).toHaveValue('Custom title');
+    await dialog.getByRole('button', { name: 'Insert Link', exact: true }).click();
+    await expect(page.locator('.editor a')).toHaveText('Custom title');
+    await expect(page.locator('.editor a')).toHaveAttribute('rel', 'noopener noreferrer');
+});
+
+test('runs a custom image uploader in the editor context', async ({ page }) => {
+    await createEditor(page);
+    await page.evaluate(() => {
+        const node = window.editor.node;
+        window.editor.dispose();
+        window.editor = UI.Editor.init(node, {
+            buttons: [['image']],
+            imageUpload(files) {
+                window.upload = { owned: this === window.editor, names: [...files].map((file) => file.name) };
+            },
+        });
+    });
+    await page.getByRole('button', { name: 'Image', exact: true }).click();
+    await page.getByLabel('Select Files').setInputFiles({ name: 'custom.gif', mimeType: 'image/gif', buffer: Buffer.from(gif, 'base64') });
+    await page.getByRole('dialog').getByRole('button', { name: 'Insert Image', exact: true }).click();
+    expect(await page.evaluate(() => window.upload)).toEqual({ owned: true, names: ['custom.gif'] });
+});

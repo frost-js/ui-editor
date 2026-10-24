@@ -10,6 +10,7 @@ const routes = new Map([
     ['/', { contentType: html, file: new URL('../app/index.html', import.meta.url) }],
     ['/esm.html', { contentType: html, file: new URL('../app/esm.html', import.meta.url) }],
     ['/umd-min.html', { contentType: html, file: new URL('../app/umd-min.html', import.meta.url) }],
+    ['/src/js/nodes.js', { contentType: javaScript, file: new URL('../../../src/js/nodes.js', import.meta.url) }],
     ['/src/js/selection.js', { contentType: javaScript, file: new URL('../../../src/js/selection.js', import.meta.url) }],
     ['/assets/frost-ui-editor.js', { contentType: javaScript, file: new URL('../../../dist/frost-ui-editor.js', import.meta.url) }],
     ['/assets/frost-ui-editor.css', { contentType: css, file: new URL('../../../dist/frost-ui-editor.css', import.meta.url) }],

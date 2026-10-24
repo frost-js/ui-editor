@@ -6,10 +6,6 @@
     min-block-size: 100%;
 }
 
-.editor-scroll {
-    z-index: 1;
-}
-
 .editor {
     font-size: inherit;
     font-weight: inherit;
@@ -32,10 +28,12 @@
 }
 
 .editor-img-highlight {
+    --ui-editor-img-highlight-z-index: #{vars.$editor-img-highlight-z-index};
     --ui-editor-img-highlight-bg: #{vars.$editor-img-highlight-bg};
     --ui-editor-img-highlight-border-width: #{vars.$editor-img-highlight-border-width};
     --ui-editor-img-highlight-border-color: #{vars.$editor-img-highlight-border-color};
 
+    z-index: var(--ui-editor-img-highlight-z-index);
     background-color: var(--ui-editor-img-highlight-bg);
     border: var(--ui-editor-img-highlight-border-width) dashed var(--ui-editor-img-highlight-border-color);
 }

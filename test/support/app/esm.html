@@ -25,7 +25,9 @@
         import * as UI from '@fr0st/ui';
 
         const minified = new URL(location.href).searchParams.has('minified');
-        const { default: Editor } = await import(minified ? '/assets/frost-ui-editor.esm.min.js' : '/assets/frost-ui-editor.esm.js');
+        const editorModule = await import(minified ? '/assets/frost-ui-editor.esm.min.js' : '/assets/frost-ui-editor.esm.js');
+        const { default: Editor } = editorModule;
+        window.editorModule = editorModule;
         window.fQuery = window.$ = $;
         window.UI = { ...UI, Editor };
         document.body.dataset.ready = 'true';

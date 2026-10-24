@@ -30,7 +30,12 @@ export default defineConfig({
                         'html',
                         'lcovonly',
                     ],
-                    entryFilter: (entry) => normalizePath(entry.url).endsWith('/assets/frost-ui-editor.js'),
+                    entryFilter: (entry) => ['/assets/frost-ui-editor.js', '/src/js/nodes.js'].some((path) => normalizePath(entry.url).endsWith(path)),
+                    sourcePath: (filePath) => {
+                        const normalized = normalizePath(filePath);
+                        const index = normalized.indexOf('src/js/');
+                        return index === -1 ? normalized : normalized.slice(index);
+                    },
                     sourceFilter: (sourcePath) => {
                         const normalizedPath = normalizePath(sourcePath);
 

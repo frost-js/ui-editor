@@ -142,7 +142,8 @@ export function eventsEditor(editor) {
         const selection = window.getSelection();
 
         const isIndented = (node) => {
-            return $.is(node, 'li') || ($.getStyle(node, 'marginInlineStart') || $.getStyle(node, 'marginLeft'));
+            return [node, ...$.parents(node, null, editor._editor)].some((ancestor) => $.is(ancestor, 'li') ||
+                parseFloat($.getStyle(ancestor, 'marginInlineStart') || $.getStyle(ancestor, 'marginLeft')) > 0);
         };
 
         switch (e.code) {
@@ -387,6 +388,13 @@ export function eventsSource(editor) {
         const startLine = value.substring(0, start).split('\n').length - 1;
         const endLine = value.substring(0, end).split('\n').length - 1;
 
+        const lineStarts = [];
+        let offset = 0;
+        for (const line of lines) {
+            lineStarts.push(offset);
+            offset += line.length + 1;
+        }
+        const lastLine = end > start && end === lineStarts[endLine] ? endLine - 1 : endLine;
         const tab = '\t';
 
         let newStart = start;
@@ -394,14 +402,14 @@ export function eventsSource(editor) {
         let newValue;
         if (e.shiftKey) {
             for (const [i, line] of lines.entries()) {
-                if (i >= startLine && i <= endLine && line.startsWith(tab)) {
+                if (i >= startLine && i <= lastLine && line.startsWith(tab)) {
                     lines[i] = line.substring(1);
 
-                    if (i === startLine) {
+                    if (lineStarts[i] < start) {
                         newStart--;
                     }
 
-                    if (i < endLine) {
+                    if (lineStarts[i] < end) {
                         newEnd--;
                     }
                 }
@@ -410,12 +418,13 @@ export function eventsSource(editor) {
             newValue = lines.join('\n');
         } else if (startLine !== endLine) {
             for (const [i, line] of lines.entries()) {
-                if (i >= startLine && i <= endLine && (i < endLine || lines[i])) {
+                if (i >= startLine && i <= lastLine) {
                     lines[i] = tab + line;
 
-                    if (i < endLine) {
-                        newEnd++;
+                    if (lineStarts[i] < start) {
+                        newStart++;
                     }
+                    newEnd++;
                 }
             }
 

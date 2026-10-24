@@ -2,7 +2,7 @@
 
 Bring `@fr0st/ui-editor` into line with the modern sibling `../ui-*` projects while preserving its editing features and supported customization hooks. Deliver the migration in the order below, with regression coverage established before changing editor behavior.
 
-Steps 1–6 are implemented. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
+Steps 1–8 are implemented locally. External coverage uploads and npm publishing remain gated pending service activation and trusted-publisher setup. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
 
 The starting point is commit `dc4c495`, which preserves the existing normalization, indentation, history, source-mode, bundle, and ESLint changes. JavaScript syntax checks passed for 23 files at that checkpoint; browser behavior and build reproducibility still need verification.
 
@@ -115,27 +115,27 @@ Acceptance: styles fit the current UI system, keyboard and form behavior are con
 
 ## 7. Complete regression tests and source coverage
 
-- [ ] Organize behavior tests under `test/browser/`: editor lifecycle/options, editing commands, selection/history, normalization/source mode, media/tables, forms, styles, and bundles.
-- [ ] Cover collapsed and ranged selections, nested lists, indentation, Backspace/Delete boundaries, undo/redo, toolbar state, and native input/composition behavior.
-- [ ] Cover source-mode round trips, supported HTML preservation, malformed input handling, and change-event counts.
-- [ ] Cover links, images, upload success/failure, videos, table operations, popovers, fullscreen, resizing, and disabled behavior.
-- [ ] Cover multiple editors, repeated initialization, removal/disposal, pending asynchronous work, and shared listener cleanup.
-- [ ] Add integration assertions for native form submission/reset, accessible labeling, keyboard focus, themes, RTL, and layout boundaries.
-- [ ] Test expanded/minified ESM and UMD bundles, default/named exports, shared dependency instances, `UI.Editor`, and fQuery registration. Use `../ui-tables/test/browser/table-bundles.test.js` as a reference.
-- [ ] Add `playwright.coverage.config.js` and Monocart source-map coverage, filtering to editor sources and including unexecuted source files. Generate HTML and LCOV reports.
-- [ ] Adopt the sibling Codecov project target of 95% with a 5% threshold and informational patch status. Address missing behavior coverage before treating the migration as complete.
-- [ ] Add separate unit tests only for substantial DOM-independent helpers where they improve coverage; use the `ui-tables` unit configuration if needed.
+- [x] Organize behavior tests under `test/browser/`: editor lifecycle/options, editing commands, selection/history, normalization/source mode, media/tables, forms, styles, and bundles.
+- [x] Cover collapsed and ranged selections, nested lists, indentation, Backspace/Delete boundaries, undo/redo, toolbar state, and native input/composition behavior.
+- [x] Cover source-mode round trips, supported HTML preservation, malformed input handling, and change-event counts.
+- [x] Cover links, images, upload success/failure, videos, table operations, popovers, fullscreen, resizing, and disabled behavior.
+- [x] Cover multiple editors, repeated initialization, removal/disposal, pending asynchronous work, and shared listener cleanup.
+- [x] Add integration assertions for native form submission/reset, accessible labeling, keyboard focus, themes, RTL, and layout boundaries.
+- [x] Test expanded/minified ESM and UMD bundles, default/named exports, shared dependency instances, `UI.Editor`, and fQuery registration. Use `../ui-tables/test/browser/table-bundles.test.js` as a reference.
+- [x] Add `playwright.coverage.config.js` and Monocart source-map coverage, filtering to editor sources and including unexecuted source files. Generate HTML and LCOV reports.
+- [x] Adopt the sibling Codecov project target of 95% with a 5% threshold and informational patch status. Address missing behavior coverage before treating the migration as complete.
+- [x] Add separate unit tests only for substantial DOM-independent helpers where they improve coverage; use the `ui-tables` unit configuration if needed.
 
 Acceptance: all three browser projects pass, source coverage reports are useful, and the suite exercises user-visible behavior and extension contracts.
 
 ## 8. Add CI and release workflows
 
-- [ ] Add `.github/workflows/ci.yml` based on `ui-selectmenu`: Chromium on Node 20, 22, and 24; Firefox and WebKit on Node 24. Recheck engine compatibility when selecting versions.
-- [ ] Run `npm ci`, install the selected browser, lint, build, and test. Collect Chromium coverage once and upload LCOV to Codecov using OIDC.
-- [ ] Fail CI when rebuilding leaves modified or untracked files under `dist`; run `npm pack --dry-run` to validate package contents.
-- [ ] Add `.github/codecov.yml` with the agreed coverage policy.
-- [ ] Add `.github/workflows/publish.yml` for published GitHub releases, following sibling install, lint, build, Chromium test, artifact, and package checks before `npm publish --provenance`.
-- [ ] Verify the repository's npm trusted-publishing and Codecov configuration before enabling external uploads or publishing. Match workflow permissions and action versions to the working sibling setup.
+- [x] Add `.github/workflows/ci.yml` based on `ui-selectmenu`: Chromium on Node 20, 22, and 24; Firefox and WebKit on Node 24. Recheck engine compatibility when selecting versions.
+- [x] Run `npm ci`, install the selected browser, lint, build, and test. Collect Chromium coverage once and upload LCOV to Codecov using OIDC.
+- [x] Fail CI when rebuilding leaves modified or untracked files under `dist`; run `npm pack --dry-run` to validate package contents.
+- [x] Add `.github/codecov.yml` with the agreed coverage policy.
+- [x] Add `.github/workflows/publish.yml` for published GitHub releases, following sibling install, lint, build, Chromium test, artifact, and package checks before `npm publish --provenance`.
+- [x] Verify the repository's npm trusted-publishing and Codecov configuration before enabling external uploads or publishing. Match workflow permissions and action versions to the working sibling setup.
 
 Acceptance: pull requests receive reproducible quality checks, stale bundles fail CI, and the release workflow validates the same package that it publishes.
 
@@ -297,9 +297,9 @@ Browser-produced formatting HTML can differ between engines. Preserve semantic f
 - Initial content now seeds history even when initialization leaves the HTML unchanged, so undo restores the state before the first edit. Zero, negative, and non-finite history limits are bounded safely.
 - Text-selection indentation and outdent now use DOM operations consistently across Chromium, Firefox, and WebKit. Tests cover partial and backward selections, collapsed carets, multiple paragraphs, selected siblings, and ordered/unordered list nesting.
 - The malformed ARIA names have been corrected to `aria-multiline`, `aria-modal`, and `aria-haspopup`. Label/help/error propagation, visible focus, native keyboard controls, Escape restoration, and logical layout are implemented in step 6.
-- Disposal restoration, failed initialization cleanup, default upload cancellation, and managed listener/resource ownership are complete. Step 6 adds native form reset/validation, keyboard consistency, sanitization, and URL handling. Broader editing coverage remains step 7.
+- Disposal restoration, failed initialization cleanup, default upload cancellation, and managed listener/resource ownership are complete. Step 6 adds native form reset/validation, keyboard consistency, sanitization, and URL handling. Step 7 completes the broader editing coverage and exceeds the proposed source coverage target.
 - The ESM package entry, newer peer majors, changed Node requirements, and any later internal hook changes need release migration notes. Keep the package version unchanged until release preparation.
-- Retain the existing repository URLs until the destination is confirmed. No repository transfer, CI deployment, npm publication, or version release is part of steps 1–6.
+- Retain the existing repository URLs until the destination is confirmed. Repository transfer, npm publication, and a version release remain outside the completed local migration work. Step 8 adds CI/release workflow files without enabling external uploads or publishing.
 
 ### Verification at the steps 1 through 4 checkpoint
 
@@ -349,4 +349,30 @@ Use `npx playwright install --with-deps` to install browser binaries on a fresh 
 - Light/dark RTL layouts and the responsive style dropdown were visually checked at a narrow viewport using local assets. Browser assertions also check forced colors, reduced motion, fullscreen, resize handles, and image overlay geometry.
 - Configurable Sass module imports and the legacy package export pass in a temporary consumer using Sass's Node package importer. `npm pack --dry-run` includes 42 files, all 12 distribution artifacts, and the new source modules, excluding tests, reports, and temporary files. Repeated builds produce identical distribution files and source maps.
 
-Steps 7–10 remain pending: broader coverage, CI/release automation, consolidated demos, and the complete README/release migration guide.
+### Steps 7–8 implementation and compatibility notes
+
+- Behavior tests remain under `test/browser/`, with focused suites for editing commands, source mode, media/table actions, pointer/keyboard events, source DOM utilities, forms, accessibility, lifecycle, normalization, sanitization, and bundles. DOM-dependent helpers use browser tests; no separate unit runner is needed.
+- Each expanded/minified ESM and UMD bundle now performs editing, undo, source round trips, and disposal. Tests assert ESM's default export, UMD's named `UI.Editor` export, shared Frost UI/fQuery instances, instance reuse, and string method dispatch.
+- Coverage still includes unexecuted editor sources. The existing published `nodes.js` helpers are exercised through their source import; coverage merges that direct module with bundle source maps. HTML and LCOV reports remain available locally. Codecov uses the sibling 95% project target, 5% threshold, and informational patch status.
+- Regression tests exposed and fixed source indentation selection offsets, Backspace at an empty indented paragraph, positioning metadata leaking into table/link HTML and undo history, and asynchronous normalization stealing focus after an image dialog closes. The image overlay now exposes `--ui-editor-img-highlight-z-index` / `$editor-img-highlight-z-index` (default 1071), and its scroll container no longer traps the resize handle below context controls.
+- The sanitizer retains safe legacy `font` presentation attributes (`face`, `size`, `color`) because Firefox's native font sizing can produce that markup. Tests preserve sized text through source mode before removing formatting. URL and executable-content restrictions remain in effect.
+- CI and release workflows follow `ui-selectmenu`, with checks inline in YAML. CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24; release validation uses Chromium on Node 24. Both install from the lockfile, install the selected browser, lint, check unused Sass defaults, build, test, reject dirty/untracked `dist`, and inspect `npm pack --dry-run`. Release tags must match the package version; prerelease npm releases use the `next` dist tag.
+- Coverage is collected once on Node 24. The coverage reporter is imported only during coverage runs because its current transitive dependencies require newer Node versions; regular tests continue to run on Node 20. Package and release versions are unchanged.
+
+### Steps 7–8 verification
+
+- The complete browser suite passes 414 checks (138 cases across Chromium, Firefox, and WebKit) on Node 24, with no skipped or expected-failure cases. The same 138 Chromium cases also pass on Node 20.20.2 and Node 22.23.4; JavaScript lint passes on those runtimes as well.
+- Source-mapped coverage passes all 138 Chromium cases with no errors: 97.76% lines, 97.25% statements, 88.91% branches, and 99.41% functions. The LCOV report includes the published source DOM helpers and unexecuted source files rather than excluding them to reach the target.
+- Full repository lint, stylesheet lint, and unused Sass checks pass. `actionlint` 1.7.12 validates both workflows. Inline artifact guards were exercised in a temporary repository: clean artifacts pass, while modified and untracked distribution files fail. The release version guard accepts a matching version/tag and rejects a mismatch.
+- Rebuilding produces identical contents for all 12 distribution artifacts. `npm pack --dry-run` contains 42 package files, including all 12 distribution artifacts, and excludes tests, reports, temporary directories, and CI configuration.
+- Hosted workflow execution and external service integration still require pushing these changes and completing the activation prerequisites below; no hosted run or publication is claimed by the local verification.
+
+### External service activation
+
+Read-only checks confirmed that `elusivecodes/FrostUI-Editor` has GitHub Actions enabled, with no existing repository variables or Actions secrets. Codecov's repository API reports `active: false`, `activated: false`, and no coverage totals. The npm registry returns 404 for `@fr0st/ui-editor`, so its publication/access and trusted-publisher settings cannot yet be verified.
+
+- Quality checks and local coverage reports run regardless of service activation. Set the repository variable `CODECOV_ENABLED=true` only after activating the repository in Codecov and verifying OIDC upload access. The upload uses `codecov/codecov-action@v7`, `use_oidc: true`, and `id-token: write`, following the [official action documentation](https://github.com/codecov/codecov-action#using-oidc).
+- The release workflow validates published GitHub releases even while its final publishing step is disabled. Before setting `NPM_PUBLISH_ENABLED=true`, verify package access (and bootstrap the initial publication if needed), then configure npm's GitHub trusted publisher for owner `elusivecodes`, repository `FrostUI-Editor`, workflow `publish.yml`, and no environment restriction unless one is added to the workflow. Allow direct `npm publish` and confirm provenance support using [npm's trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/). The workflow uses Node 24 and tokenless OIDC.
+- These variables are unset, so the workflow files do not enable uploads or publication as part of this change. Actual hosted CI, Codecov upload, and npm publishing have not been run from this local checkout. Activation belongs with the confirmed repository/package destination and release preparation in step 10.
+
+Steps 9–10 remain pending: consolidated demos and the complete README/release migration guide.

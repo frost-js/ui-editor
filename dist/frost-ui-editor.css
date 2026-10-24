@@ -2,10 +2,6 @@
   min-block-size: 100%;
 }
 
-.editor-scroll {
-  z-index: 1;
-}
-
 .editor {
   font-size: inherit;
   font-weight: inherit;
@@ -27,9 +23,11 @@
 }
 
 .editor-img-highlight {
+  --ui-editor-img-highlight-z-index: 1071;
   --ui-editor-img-highlight-bg: var(--ui-border-color-translucent);
   --ui-editor-img-highlight-border-width: var(--ui-border-width);
   --ui-editor-img-highlight-border-color: var(--ui-body-color);
+  z-index: var(--ui-editor-img-highlight-z-index);
   background-color: var(--ui-editor-img-highlight-bg);
   border: var(--ui-editor-img-highlight-border-width) dashed var(--ui-editor-img-highlight-border-color);
 }

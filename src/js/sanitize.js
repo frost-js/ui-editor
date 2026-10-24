@@ -1,9 +1,10 @@
 import $ from '@fr0st/query';
 
-const tags = Object.fromEntries('a abbr b bdi bdo blockquote br caption cite code col colgroup dd del div dl dt em figcaption figure h1 h2 h3 h4 h5 h6 hr i iframe img ins kbd li mark ol p pre q s samp small span strong sub sup table tbody td tfoot th thead time tr u ul var wbr'.split(' ').map((tag) => [tag, []]));
+const tags = Object.fromEntries('a abbr b bdi bdo blockquote br caption cite code col colgroup dd del div dl dt em figcaption figure font h1 h2 h3 h4 h5 h6 hr i iframe img ins kbd li mark ol p pre q s samp small span strong sub sup table tbody td tfoot th thead time tr u ul var wbr'.split(' ').map((tag) => [tag, []]));
 Object.assign(tags, {
     '*': ['class', 'title', 'dir', 'lang', 'style'],
     'a': ['href', 'target', 'rel'],
+    'font': ['face', 'size', 'color'],
     'img': ['src', 'alt', 'width', 'height'],
     'iframe': ['src', 'title', 'width', 'height', 'allowfullscreen', 'frameborder'],
     'ol': ['start', 'reversed', 'type'],

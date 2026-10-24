@@ -379,6 +379,7 @@ export function normalize(editor) {
     if (!editor.node) {
         return;
     }
+    const active = document.activeElement;
     editor._observe(false);
     normalizeText(editor._editor);
     const markers = saveSelection(editor._editor);
@@ -391,6 +392,9 @@ export function normalize(editor) {
         restoreSelection(markers);
         normalizeText(editor._editor);
         editor._observe();
+        if (active instanceof HTMLElement && active !== document.body && active.isConnected && !editor._editor?.contains(active) && document.activeElement !== active) {
+            active.focus({ preventScroll: true });
+        }
     }
 }
 

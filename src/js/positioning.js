@@ -76,6 +76,7 @@ export function refreshPopover(editor, currentNode, event) {
         reference = editor._imgCursor;
     }
 
+    const originalPlacement = reference.getAttribute('data-ui-placement');
     editor._popper = new Popper(
         editor._popover,
         {
@@ -85,6 +86,16 @@ export function refreshPopover(editor, currentNode, event) {
             placement: 'bottom',
             position: 'start',
             minContact: 0,
+            afterUpdate(_, anchor) {
+                // Positioning metadata belongs to the UI, not the submitted content.
+                if (editor._editor?.contains(anchor)) {
+                    if (originalPlacement === null) {
+                        anchor.removeAttribute('data-ui-placement');
+                    } else {
+                        anchor.setAttribute('data-ui-placement', originalPlacement);
+                    }
+                }
+            },
         },
     );
 
