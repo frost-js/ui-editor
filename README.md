@@ -423,9 +423,9 @@ To view the public demo locally, run `python3 -m http.server 8080` from the repo
 
 ### Release preparation
 
-CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24, with coverage collected once. The release workflow checks that the GitHub release tag matches `package.json`, installs dependencies, lints, builds, tests Chromium, verifies tracked artifacts, and checks package contents before tokenless npm publication with provenance. Prereleases use the `next` dist tag; stable releases use `latest`.
+CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24, with coverage collected once. The release workflow requires a GitHub release tag of `v${version}` matching `package.json` (currently `v3.0.0`), installs dependencies, lints, builds, tests Chromium, verifies tracked artifacts, and checks package contents before running `npm publish --provenance`. The workflows follow the sibling `ui-tables` setup.
 
-Local release preparation does not publish a package, create a tag/release, or transfer the repository. Codecov upload and npm publication remain gated by `CODECOV_ENABLED` and `NPM_PUBLISH_ENABLED`; their activation prerequisites are in the [proposal](./MIGRATION_PROPOSAL.md#external-service-activation). Confirm the existing repository/package destination, activate Codecov, and configure npm trusted publishing before enabling those variables and publishing a release.
+CI uploads coverage from Node 24 Chromium using Codecov OIDC. Published GitHub releases trigger validation and npm publication, with no additional enable variables. Configure Codecov access and npm trusted publishing for the intended repository/package destination as described in the [proposal](./MIGRATION_PROPOSAL.md#external-service-activation). Local development commands do not create tags or releases, publish packages, or transfer the repository.
 
 ## License
 

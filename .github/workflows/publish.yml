@@ -8,7 +8,6 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
@@ -29,10 +28,11 @@ jobs:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           node --input-type=module <<'JS'
-          import assert from 'node:assert/strict';
           import { readFileSync } from 'node:fs';
           const { version } = JSON.parse(readFileSync('package.json', 'utf8'));
-          assert.ok([version, `v${version}`].includes(process.env.RELEASE_TAG), 'Release tag must match package.json version');
+          if (process.env.RELEASE_TAG !== `v${version}`) {
+            throw new Error('Release tag must match the package version.');
+          }
           JS
 
       - name: Install dependencies
@@ -42,9 +42,10 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Lint
-        run: |
-          npm run lint
-          npm run lint:sass:unused
+        run: npm run lint
+
+      - name: Check Sass variables
+        run: npm run lint:sass:unused
 
       - name: Build
         run: npm run build
@@ -64,7 +65,4 @@ jobs:
         run: npm pack --dry-run
 
       - name: Publish to npm
-        if: vars.NPM_PUBLISH_ENABLED == 'true'
-        env:
-          NPM_DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
-        run: npm publish --provenance --tag "$NPM_DIST_TAG"
+        run: npm publish --provenance

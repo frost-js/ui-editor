@@ -2,7 +2,7 @@
 
 Bring `@fr0st/ui-editor` into line with the modern sibling `../ui-*` projects while preserving its editing features and supported customization hooks. Deliver the migration in the order below, with regression coverage established before changing editor behavior.
 
-Steps 1–10 are implemented locally, with package metadata prepared for 3.0.0. Tagging and publication remain separate release actions. External coverage uploads and npm publishing remain gated pending service activation and trusted-publisher setup. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
+Steps 1–10 are implemented locally, with package metadata prepared for 3.0.0. Tagging and publication remain separate release actions. The GitHub workflows match `ui-tables`; hosted coverage uploads and npm publishing depend on Codecov access and npm trusted-publisher setup. The compatibility contract and verification results below record the compatibility baseline, resolved defects, and remaining work.
 
 The starting point is commit `dc4c495`, which preserved the existing normalization, indentation, history, source-mode, bundle, and ESLint changes. JavaScript syntax checks passed for 23 files at that checkpoint; the later verification records below cover browser behavior and build reproducibility.
 
@@ -135,7 +135,7 @@ Acceptance: all three browser projects pass, source coverage reports are useful,
 - [x] Fail CI when rebuilding leaves modified or untracked files under `dist`; run `npm pack --dry-run` to validate package contents.
 - [x] Add `.github/codecov.yml` with the agreed coverage policy.
 - [x] Add `.github/workflows/publish.yml` for published GitHub releases, following sibling install, lint, build, Chromium test, artifact, and package checks before `npm publish --provenance`.
-- [x] Verify the repository's npm trusted-publishing and Codecov configuration before enabling external uploads or publishing. Match workflow permissions and action versions to the working sibling setup.
+- [x] Inspect the repository's npm trusted-publishing and Codecov configuration and record remaining service prerequisites. Match workflow permissions and action versions to the working sibling setup.
 
 Acceptance: pull requests receive reproducible quality checks, stale bundles fail CI, and the release workflow validates the same package that it publishes.
 
@@ -356,7 +356,7 @@ Use `npx playwright install --with-deps` to install browser binaries on a fresh 
 - Coverage still includes unexecuted editor sources. The existing published `nodes.js` helpers are exercised through their source import; coverage merges that direct module with bundle source maps. HTML and LCOV reports remain available locally. Codecov uses the sibling 95% project target, 5% threshold, and informational patch status.
 - Regression tests exposed and fixed source indentation selection offsets, Backspace at an empty indented paragraph, positioning metadata leaking into table/link HTML and undo history, and asynchronous normalization stealing focus after an image dialog closes. The image overlay now exposes `--ui-editor-img-highlight-z-index` / `$editor-img-highlight-z-index` (default 1071), and its scroll container no longer traps the resize handle below context controls.
 - The sanitizer retains safe legacy `font` presentation attributes (`face`, `size`, `color`) because Firefox's native font sizing can produce that markup. Tests preserve sized text through source mode before removing formatting. URL and executable-content restrictions remain in effect.
-- CI and release workflows follow `ui-selectmenu`, with checks inline in YAML. CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24; release validation uses Chromium on Node 24. Both install from the lockfile, install the selected browser, lint, check unused Sass defaults, build, test, reject dirty/untracked `dist`, and inspect `npm pack --dry-run`. Release tags must match the package version; prerelease npm releases use the `next` dist tag.
+- CI and release workflows match `ui-tables`, with checks inline in YAML. CI covers Chromium on Node 20/22/24 and Firefox/WebKit on Node 24; release validation uses Chromium on Node 24. Both install from the lockfile, install the selected browser, lint, check unused Sass defaults, build, test, reject dirty/untracked `dist`, and inspect `npm pack --dry-run`. Release tags must be `v${version}` matching the package version; publishing uses the sibling `npm publish --provenance` command without custom dist-tag selection.
 - Coverage is collected once on Node 24. The coverage reporter is imported only during coverage runs because its current transitive dependencies require newer Node versions; regular tests continue to run on Node 20. Package and release versions are unchanged.
 
 ### Steps 7–8 verification
@@ -369,11 +369,11 @@ Use `npx playwright install --with-deps` to install browser binaries on a fresh 
 
 ### External service activation
 
-Read-only checks confirmed that `elusivecodes/FrostUI-Editor` has GitHub Actions enabled, with no existing repository variables or Actions secrets. Codecov's repository API reports `active: false`, `activated: false`, and no coverage totals. The npm registry returns 404 for `@fr0st/ui-editor`, so its publication/access and trusted-publisher settings cannot yet be verified.
+At the step 8 checkpoint, read-only checks found GitHub Actions enabled for `elusivecodes/FrostUI-Editor`, with no repository variables or Actions secrets. Codecov reported `active: false`, `activated: false`, and no coverage totals. The npm registry returned 404 for `@fr0st/ui-editor`, leaving its publication/access and trusted-publisher settings unverified. These service observations have not been rechecked during local workflow alignment.
 
-- Quality checks and local coverage reports run regardless of service activation. Set the repository variable `CODECOV_ENABLED=true` only after activating the repository in Codecov and verifying OIDC upload access. The upload uses `codecov/codecov-action@v7`, `use_oidc: true`, and `id-token: write`, following the [official action documentation](https://github.com/codecov/codecov-action#using-oidc).
-- The release workflow validates published GitHub releases even while its final publishing step is disabled. Before setting `NPM_PUBLISH_ENABLED=true`, verify package access (and bootstrap the initial publication if needed), then configure npm's GitHub trusted publisher for owner `elusivecodes`, repository `FrostUI-Editor`, workflow `publish.yml`, and no environment restriction unless one is added to the workflow. Allow direct `npm publish` and confirm provenance support using [npm's trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/). The workflow uses Node 24 and tokenless OIDC.
-- These variables are unset, so the workflow files do not enable uploads or publication as part of this change. Actual hosted CI, Codecov upload, and npm publishing have not been run from this local checkout. Activation remains a release prerequisite after local step 10 preparation; it depends on the confirmed repository/package destination.
+- CI uploads Node 24 Chromium coverage through `codecov/codecov-action@v7`, `use_oidc: true`, and `id-token: write`, following the [official action documentation](https://github.com/codecov/codecov-action#using-oidc). Configure Codecov access for the repository; there is no separate workflow enable variable.
+- Published GitHub releases trigger validation and `npm publish --provenance`. Verify package access (and bootstrap the initial publication if needed), then configure npm's GitHub trusted publisher for owner `elusivecodes`, repository `FrostUI-Editor`, workflow `publish.yml`, and no environment restriction unless one is added to the workflow. Allow direct `npm publish` and confirm provenance support using [npm's trusted publishing documentation](https://docs.npmjs.com/trusted-publishers/). The workflow uses Node 24 and tokenless OIDC, with no separate publishing enable variable.
+- The workflow conditions and publish command now match `ui-tables`. Hosted CI, Codecov upload, and npm publishing have not been run from this local checkout. Service setup remains a release prerequisite for the confirmed repository/package destination.
 
 ### Steps 9–10 implementation and compatibility notes
 
@@ -400,3 +400,10 @@ Read-only checks confirmed that `elusivecodes/FrostUI-Editor` has GitHub Actions
 - Context toolbars now apply/remove Frost UI 4's `show` class as well as toggling display; the shared `.popover` rule otherwise leaves them transparent. Regression checks assert computed opacity for link, image, and table controls. Header cells now receive the same context actions as data cells.
 - The editor container uses a column flex layout and its editable surface grows to fill the body, including fixed-height and resized editors. Blank-area clicks now focus the editor across the editing body. The entire `.editor-panel` uses `:focus-within` to show the same focused border and translucent ring as Frost UI outline inputs, covering rich/source editing and toolbar focus. Inner editing surfaces no longer draw focus outlines. Focus CSS tokens are configured on the panel; forced colors supplies a visible outline.
 - Tab / Shift+Tab indent/outdent in rich and source editing. Ctrl/Meta/Alt+Tab are left to the browser. Escape followed by Tab / Shift+Tab permits ordinary focus navigation without indentation. This final contract supersedes the Ctrl+Tab source shortcut recorded at the earlier step 6 checkpoint; the README and demo help use the final keys. Source tests send actual keyboard input instead of synthetic Ctrl+Tab events.
+
+
+### GitHub workflow alignment
+
+- All three `.github` files match `../ui-tables/.github` byte for byte: the CI workflow, publishing workflow, and Codecov policy.
+- Removed editor-only enable conditions, job timeouts, matrix fail-fast override, and prerelease dist-tag selection. Sass validation is a separate step, and release tags must use the `v` prefix.
+- Documentation describes the sibling workflow behavior and external service prerequisites. This local alignment does not run hosted workflows or publish a package.
