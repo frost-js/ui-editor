@@ -407,3 +407,9 @@ At the step 8 checkpoint, read-only checks found GitHub Actions enabled for `elu
 - All three `.github` files match `../ui-tables/.github` byte for byte: the CI workflow, publishing workflow, and Codecov policy.
 - Removed editor-only enable conditions, job timeouts, matrix fail-fast override, and prerelease dist-tag selection. Sass validation is a separate step, and release tags must use the `v` prefix.
 - Documentation describes the sibling workflow behavior and external service prerequisites. This local alignment does not run hosted workflows or publish a package.
+
+### Package metadata alignment
+
+- `package.json` follows the `ui-selectmenu` field order, author format, and shared keywords, with editor-specific search terms. The repository URL uses the sibling `git+https` format.
+- Repository links continue to target `elusivecodes/FrostUI-Editor`, matching the current Git remote. Changing the repository destination remains separate from metadata normalization.
+- Dependency versions, scripts, engine/browser requirements, published files, and package entry points already match the sibling baseline. The legacy Sass export remains alongside the source wildcard, following `ui-autocomplete`; the package version remains 3.0.0.
