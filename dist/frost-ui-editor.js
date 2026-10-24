@@ -122,20 +122,19 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {object} markers The selection markers.
 	*/
 	function joinAdjacentNodes(container, markers) {
+		const elements = _fr0st_query.default.find("*", container);
 		const isMarker = (node) => node === markers.start || node === markers.end;
-		for (const element of [...container.querySelectorAll("*")]) {
+		for (const element of elements) {
 			if (!container.contains(element) || !isPhrasingContainer(element)) continue;
-			while (true) {
-				const between = [];
-				let next = element.nextSibling;
-				while (next && isMarker(next)) {
-					between.push(next);
-					next = next.nextSibling;
-				}
-				if (!next || !isPhrasingContainer(next) || !_fr0st_query.default.isEqual(element, next, { shallow: true })) break;
-				element.append(...between, ...next.childNodes);
-				next.remove();
+			const moveMarkers = [];
+			let next = element.nextSibling;
+			while (next && isMarker(next)) {
+				moveMarkers.push(next);
+				next = next.nextSibling;
 			}
+			if (!next || !isPhrasingContainer(next) || !_fr0st_query.default.isEqual(element, next, { shallow: true })) continue;
+			_fr0st_query.default.prepend(next, [..._fr0st_query.default.contents(element), ...moveMarkers]);
+			_fr0st_query.default.detach(element);
 		}
 	}
 	/**
@@ -143,31 +142,58 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @param {HTMLElement} container The container.
 	*/
 	function normalizePhrasing(container) {
-		const elements = [...container.querySelectorAll("*")].reverse();
+		const elements = _fr0st_query.default.find("h1, h2, h3, h4, h5, h6, p, pre", container);
 		for (const element of elements) {
-			if (!container.contains(element) || !element.matches("p, h1, h2, h3, h4, h5, h6, pre") && !isPhrasingContainer(element) || [...element.childNodes].every(isPhrasingContent)) continue;
-			const fragment = document.createDocumentFragment();
-			let group = [];
-			let first = true;
-			const flush = () => {
-				if (!group.length) return;
-				if (group.every((node) => node.nodeType === Node.TEXT_NODE && !node.textContent)) fragment.append(...group);
-				else {
-					const wrapper = element.cloneNode(false);
-					if (!first) wrapper.removeAttribute("id");
-					first = false;
-					wrapper.append(...group);
-					fragment.append(wrapper);
-				}
-				group = [];
-			};
-			for (const child of [...element.childNodes]) if (isPhrasingContent(child)) group.push(child);
-			else {
-				flush();
-				fragment.append(child);
+			if (!container.contains(element)) continue;
+			const contents = _fr0st_query.default.contents(element);
+			if (!contents.length) continue;
+			for (const [i, child] of contents.entries()) {
+				if (isPhrasingContent(child)) continue;
+				const nextSiblings = contents.splice(i);
+				_fr0st_query.default.after(element, nextSiblings);
+				const tagName = _fr0st_query.default.tagName(element);
+				const wrapContents = (parent, nodes) => {
+					const stack = [];
+					let lastNode;
+					for (const node of nodes) {
+						if (isPhrasingContent(node)) {
+							stack.push(node);
+							continue;
+						}
+						if (stack.length) {
+							const clone = _fr0st_query.default.clone(element, { deep: false });
+							const tempNodes = stack.splice(0);
+							_fr0st_query.default.append(clone, tempNodes);
+							_fr0st_query.default.before(node, clone);
+						}
+						lastNode = node;
+						if (_fr0st_query.default.is(element, "p") || _fr0st_query.default.is(node, tagName)) continue;
+						if (_fr0st_query.default.is(node, "h1, h2, h3, h4, h5, h6, p, pre")) {
+							const clone = _fr0st_query.default.clone(element, { deep: false });
+							const styles = {
+								..._fr0st_query.default.getStyle(node),
+								..._fr0st_query.default.getStyle(clone)
+							};
+							_fr0st_query.default.before(node, clone);
+							_fr0st_query.default.setStyle(clone, styles);
+							_fr0st_query.default.append(clone, _fr0st_query.default.contents(node));
+							_fr0st_query.default.detach(node);
+							lastNode = clone;
+							continue;
+						}
+						wrapContents(node, _fr0st_query.default.contents(node));
+					}
+					if (stack.length) {
+						const clone = _fr0st_query.default.clone(element, { deep: false });
+						_fr0st_query.default.append(clone, stack);
+						if (lastNode) _fr0st_query.default.after(lastNode, clone);
+						else _fr0st_query.default.append(parent, clone);
+					}
+				};
+				wrapContents(element, nextSiblings);
+				break;
 			}
-			flush();
-			element.replaceWith(fragment);
+			if (!contents.length) _fr0st_query.default.detach(element);
 		}
 	}
 	/**
@@ -507,24 +533,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			h6: "Header 6"
 		}
 	};
-
-// src/js/form.js
-/**
-	* Emits the existing change contract without reloading our own content.
-	* @param {HTMLTextAreaElement} node The native textarea.
-	*/
-	function notifyChange(node) {
-		_fr0st_query.default.triggerEvent(node, "change.ui.editor", { data: { skipUpdate: true } });
-	}
-	/**
-	* Serializes empty editing scaffolding as an empty native value.
-	* @param {HTMLElement|DocumentFragment} surface The surface.
-	* @param {string} [html] Its serialized HTML.
-	* @returns {string} The submitted HTML.
-	*/
-	function serialize(surface, html = surface.innerHTML) {
-		return !surface.textContent.trim() && !surface.querySelector("img, iframe, hr, table") ? "" : html;
-	}
 
 // src/js/history.js
 /** @import { EditorSelectionData } from './types.js'; */
@@ -2507,16 +2515,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.listen(this.#source, "input.ui.editor change.ui.editor", (_) => {
 				if (this.node.matches(":disabled") || this.node.readOnly) return;
 				refreshLineNumbersDebounced();
-				const template = document.createElement("template");
-				template.innerHTML = this.#source.value;
-				const html = serialize(template.content, template.innerHTML);
+				const html = this.#source.value;
 				if (this.node.value !== html) {
 					this.node.value = html;
 					if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
 						this.#source.removeAttribute("aria-invalid");
 						this.#editor.removeAttribute("aria-invalid");
 					}
-					notifyChange(this.node);
+					_fr0st_query.default.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 				}
 			});
 			this.listen(this.#source, "keydown.ui.editor", (e) => {
@@ -2753,7 +2759,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#editor.innerHTML = this.node.value;
 				this.#normalize();
 				this.#checkEmpty();
-				this.node.value = serialize(this.#editor);
+				this.node.value = this.#editor.innerHTML;
 				this.#source.value = this.node.value;
 				this.#lastRange = null;
 				if (reset) {
@@ -3368,9 +3374,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#observe(false);
 			try {
 				_fr0st_query.default.setHtml(this.#editor, html);
-				const value = serialize(this.#editor);
-				_fr0st_query.default.setValue(this.node, value);
-				_fr0st_query.default.setValue(this.#source, value);
+				_fr0st_query.default.setValue(this.node, html);
+				_fr0st_query.default.setValue(this.#source, html);
 				this.#focusEditor();
 				if (!this.node) return;
 				restoreSelectionData(this.#editor, selectionData);
@@ -3380,7 +3385,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			} finally {
 				this.#observe();
 			}
-			if (this.node && previous !== this.node.value) notifyChange(this.node);
+			if (this.node && previous !== this.node.value) _fr0st_query.default.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 		}
 		/**
 		* Sets data for a toolbar action.
@@ -3726,8 +3731,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#updateValue() {
 			if (!this.node) return;
 			const html = _fr0st_query.default.getHtml(this.#editor);
-			const value = serialize(this.#editor);
-			if (value === _fr0st_query.default.getValue(this.node)) {
+			if (html === _fr0st_query.default.getValue(this.node)) {
 				if (!this.#history.length) this.#addHistory({
 					html,
 					selectionData: getSelectionData(this.#editor)
@@ -3739,13 +3743,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				html,
 				selectionData: getSelectionData(this.#editor)
 			});
-			_fr0st_query.default.setValue(this.node, value);
-			_fr0st_query.default.setValue(this.#source, value);
+			_fr0st_query.default.setValue(this.node, html);
+			_fr0st_query.default.setValue(this.#source, html);
 			if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
 				this.#editor.removeAttribute("aria-invalid");
 				this.#source.removeAttribute("aria-invalid");
 			}
-			notifyChange(this.node);
+			_fr0st_query.default.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 		}
 		/**
 		* Starts observing content changes owned by this editor.

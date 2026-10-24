@@ -3,7 +3,6 @@ import $ from '@fr0st/query';
 import { BaseComponent, Dropdown, generateId, Modal, Popper, Tooltip } from '@fr0st/ui';
 import { getSelectedBlocks, indentBlocks, outdentBlocks } from './commands.js';
 import { classes, lang } from './config.js';
-import { notifyChange, serialize } from './form.js';
 import { getSelectionData, restoreSelectionData } from './history.js';
 import icons from './icons.js';
 import { createCheckbox, createFileInput, createInput, createModal } from './modals.js';
@@ -1818,16 +1817,14 @@ export default class Editor extends BaseComponent {
                 return;
             }
             refreshLineNumbersDebounced();
-            const template = document.createElement('template');
-            template.innerHTML = this.#source.value;
-            const html = serialize(template.content, template.innerHTML);
+            const html = this.#source.value;
             if (this.node.value !== html) {
                 this.node.value = html;
                 if (this.node.validity.valid && !this.node.hasAttribute('aria-invalid')) {
                     this.#source.removeAttribute('aria-invalid');
                     this.#editor.removeAttribute('aria-invalid');
                 }
-                notifyChange(this.node);
+                $.triggerEvent(this.node, 'change.ui.editor', { data: { skipUpdate: true } });
             }
         });
 
@@ -2140,7 +2137,7 @@ export default class Editor extends BaseComponent {
             this.#editor.innerHTML = this.node.value;
             this.#normalize();
             this.#checkEmpty();
-            this.node.value = serialize(this.#editor);
+            this.node.value = this.#editor.innerHTML;
             this.#source.value = this.node.value;
             this.#lastRange = null;
             if (reset) {
@@ -2986,9 +2983,8 @@ export default class Editor extends BaseComponent {
         this.#observe(false);
         try {
             $.setHtml(this.#editor, html);
-            const value = serialize(this.#editor);
-            $.setValue(this.node, value);
-            $.setValue(this.#source, value);
+            $.setValue(this.node, html);
+            $.setValue(this.#source, html);
             this.#focusEditor();
             if (!this.node) {
                 return;
@@ -3001,7 +2997,7 @@ export default class Editor extends BaseComponent {
             this.#observe();
         }
         if (this.node && previous !== this.node.value) {
-            notifyChange(this.node);
+            $.triggerEvent(this.node, 'change.ui.editor', { data: { skipUpdate: true } });
         }
     }
 
@@ -3477,8 +3473,7 @@ export default class Editor extends BaseComponent {
             return;
         }
         const html = $.getHtml(this.#editor);
-        const value = serialize(this.#editor);
-        if (value === $.getValue(this.node)) {
+        if (html === $.getValue(this.node)) {
             if (!this.#history.length) {
                 this.#addHistory({ html, selectionData: getSelectionData(this.#editor) });
             }
@@ -3486,13 +3481,13 @@ export default class Editor extends BaseComponent {
         }
         this.#redoHistory = [];
         this.#addHistory({ html, selectionData: getSelectionData(this.#editor) });
-        $.setValue(this.node, value);
-        $.setValue(this.#source, value);
+        $.setValue(this.node, html);
+        $.setValue(this.#source, html);
         if (this.node.validity.valid && !this.node.hasAttribute('aria-invalid')) {
             this.#editor.removeAttribute('aria-invalid');
             this.#source.removeAttribute('aria-invalid');
         }
-        notifyChange(this.node);
+        $.triggerEvent(this.node, 'change.ui.editor', { data: { skipUpdate: true } });
     }
 
     /**

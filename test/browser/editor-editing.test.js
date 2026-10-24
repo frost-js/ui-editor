@@ -204,7 +204,7 @@ test.describe('Editor editing', () => {
             await expect(page.locator('#editor')).toHaveValue('<p>日本語</p>');
             await page.evaluate(() => window.editor.undo());
 
-            await expect(page.locator('#editor')).toHaveValue('');
+            await expect(page.locator('#editor')).toHaveValue('<p><br></p>');
             await page.evaluate(() => window.editor.redo());
 
             await expect(page.locator('.editor')).toHaveText('日本語');

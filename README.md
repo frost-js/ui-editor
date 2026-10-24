@@ -392,7 +392,7 @@ The editing engine still uses browser `contenteditable` and deprecated `document
 
 ## Forms
 
-The original named textarea remains the submitted form control. Rich editing, commands, undo/redo, and source input keep `textarea.value` current. Source input synchronizes immediately for submission; returning to rich mode normalizes HTML and records a history operation if it changed. Empty editing scaffolding serializes as `''` for native required validation.
+The original named textarea remains the submitted form control. Rich editing, commands, undo/redo, and source input keep `textarea.value` current. Source input synchronizes exactly as entered; returning to rich mode normalizes HTML and records a history operation if it changed. Rich mode submits the editing surface's HTML, including empty paragraphs and media-only content.
 
 After assigning `textarea.value`, call `editor.refresh()` or dispatch `input`/`change` on the textarea to reload it. Native form reset waits for its default action, restores the default value, clears history, and emits no editor change event. Canceling reset leaves editing state intact. Disabled controls/fieldsets block editing and follow native submission rules, including the first-legend exception. Readonly controls remain selectable and submitted, and allow viewing source.
 
@@ -549,7 +549,7 @@ npx sass --load-path=node_modules src/styles.scss dist/styles.css
 
 The `editor` module forwards the [component variables](./src/scss/_vars.scss), all of which have `!default` values. Include Frost UI CSS separately. Build tools that already resolve Sass modules from npm packages do not need the explicit load path.
 
-The legacy `src/scss/vars.scss` package export resolves to `_vars.scss`. Extension migration guidance is recorded in the [migration proposal](./MIGRATION_PROPOSAL.md#supported-customization-and-existing-internal-dependencies).
+The legacy `src/scss/vars.scss` package export resolves to `_vars.scss`.
 
 ## Themes and RTL
 

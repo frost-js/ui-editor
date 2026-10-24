@@ -3,6 +3,14 @@ import { createEditor } from '../setup/editor.js';
 
 test.describe('Editor normalization', () => {
     test.describe('content structure', () => {
+        test('preserves existing empty blocks', async ({ page }) => {
+            const html = '<h2></h2><p></p><pre></pre>';
+            await createEditor(page, html);
+
+            await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
+            await expect(page.locator('#editor')).toHaveValue(html);
+        });
+
         test('removes unadorned spans and joins identical adjacent inline nodes', async ({ page }) => {
             await page.evaluate(() => {
                 const node = document.createElement('textarea');
@@ -56,23 +64,81 @@ test.describe('Editor normalization', () => {
             await expect(page.locator('#editor')).toHaveValue(html);
         });
 
-        test('lifts block descendants out of inline formatting and keeps both inline fragments', async ({ page }) => {
+        for (const tagName of ['h2', 'pre']) {
+            test(`retains ${tagName} formatting around nested blocks and trailing text`, async ({ page }) => {
+                await createEditor(page);
+                await page.evaluate((tagName) => {
+                    const element = document.createElement(tagName);
+                    element.className = 'lead';
+                    const block = document.createElement('div');
+                    block.textContent = 'Block';
+                    element.append('Before', block, 'After');
+                    document.querySelector('.editor').replaceChildren(element);
+                }, tagName);
+
+                const html = `<${tagName} class="lead">Before</${tagName}>` +
+                    `<div><${tagName} class="lead">Block</${tagName}></div>` +
+                    `<${tagName} class="lead">After</${tagName}>`;
+
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
+                await expect(page.locator('#editor')).toHaveValue(html);
+            });
+        }
+
+        for (const [name, html] of [
+            ['SVG', '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="10" cy="10" r="5"></circle></svg>'],
+            ['MathML', '<math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi><mo>+</mo><mn>1</mn></math>'],
+            ['video sources', '<video controls=""><source type="video/mp4"></video>'],
+            ['audio sources', '<audio controls=""><source type="audio/mpeg"></audio>'],
+            ['picture sources', '<picture><source media="(min-width: 1px)"><img alt="Example"></picture>'],
+            ['ruby annotations', '<ruby>漢<rt>kan</rt></ruby>'],
+        ]) {
+            test(`preserves ${name} without restructuring its children`, async ({ page }) => {
+                await createEditor(page, html);
+
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
+                await expect(page.locator('#editor')).toHaveValue(html);
+
+                await page.evaluate(() => window.editor.refresh());
+
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
+                await expect(page.locator('#editor')).toHaveValue(html);
+            });
+        }
+
+        test('retains the following element when joining adjacent inline nodes', async ({ page }) => {
             await createEditor(page);
             await page.evaluate(() => {
-                const paragraph = document.createElement('p');
-                const bold = document.createElement('b');
-                const block = document.createElement('div');
-                block.textContent = 'Block';
-                bold.append('Before', block, 'After');
-                paragraph.append(bold);
-                document.querySelector('.editor').replaceChildren(paragraph);
+                const surface = document.querySelector('.editor');
+                surface.innerHTML = '<p><b>One</b><b>Two</b><b>Three</b></p>';
+                window.survivingInline = surface.querySelector('b:last-child');
             });
 
-            await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', '<p><b>Before</b></p><div>Block</div><p><b>After</b></p>');
+            await expect(page.locator('.editor b')).toHaveCount(1);
+            await expect(page.locator('.editor b')).toHaveText('OneTwoThree');
+            expect(await page.locator('.editor b').evaluate((node) => node === window.survivingInline)).toBe(true);
         });
     });
 
     test.describe('selection preservation', () => {
+        test('preserves a backward range when splitting a paragraph around a block', async ({ page }) => {
+            await createEditor(page);
+            await page.locator('.editor').focus();
+            await page.evaluate(() => {
+                const paragraph = document.createElement('p');
+                const block = document.createElement('div');
+                block.textContent = 'Block';
+                const after = document.createTextNode('After');
+                paragraph.append('Before', block, after);
+                document.querySelector('.editor').replaceChildren(paragraph);
+                getSelection().setBaseAndExtent(after, 4, after, 1);
+            });
+
+            await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', '<p>Before</p><div>Block</div><p>After</p>');
+            expect(await page.evaluate(() => getSelection().toString())).toBe('fte');
+            expect(await page.evaluate(() => getSelection().anchorOffset > getSelection().focusOffset)).toBe(true);
+        });
+
         test('preserves a text range through indentation and removes selection markers', async ({ page }) => {
             await createEditor(page, '<p>Selected text</p>');
             await page.locator('.editor').focus();

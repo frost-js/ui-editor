@@ -105,17 +105,50 @@ test.describe('Editor forms', () => {
     });
 
     test.describe('submission', () => {
-        test('submits source edits immediately and emits one change per changed value', async ({ page }) => {
+        test('submits source edits exactly as entered and emits one change per changed value', async ({ page }) => {
             await createForm(page);
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
-            await page.locator('.editor-source').fill('<h2>Submitted source</h2>');
+            const html = '<h2 data-template="heading">Submitted source';
+            await page.locator('.editor-source').fill(html);
 
-            expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe('<h2>Submitted source</h2>');
-            await expect(page.locator('#editor')).toHaveValue('<h2>Submitted source</h2>');
+            expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe(html);
+            await expect(page.locator('#editor')).toHaveValue(html);
+            await expect(page.locator('.editor-source')).toHaveValue(html);
             await page.locator('.editor-source').blur();
 
             expect(await page.evaluate(() => window.changes)).toBe(1);
         });
+
+        for (const [name, html] of [
+            ['video', '<video controls=""></video>'],
+            ['audio', '<audio controls=""></audio>'],
+            ['whitespace', '<p> </p>'],
+        ]) {
+            test(`preserves ${name} content through submission, history, and refresh`, async ({ page }) => {
+                await createForm(page, html);
+
+                await expect(page.locator('#editor')).toHaveValue(html);
+                expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe(html);
+
+                await page.evaluate(() => {
+                    const paragraph = document.createElement('p');
+                    paragraph.textContent = 'Changed';
+                    window.editor.insertNode(paragraph);
+                });
+
+                await expect(page.locator('.editor')).toContainText('Changed');
+
+                await page.evaluate(() => window.editor.undo());
+
+                await expect(page.locator('#editor')).toHaveValue(html);
+
+                await page.evaluate(() => window.editor.refresh());
+
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
+                await expect(page.locator('#editor')).toHaveValue(html);
+                expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe(html);
+            });
+        }
     });
 
     test.describe('reset', () => {
@@ -175,44 +208,43 @@ test.describe('Editor forms', () => {
         });
     });
 
-    test.describe('validation', () => {
-        test('keeps empty scaffolding out of native required validation and redirects invalid focus', async ({ page }) => {
+    test.describe('content values', () => {
+        test('preserves rich HTML through clearing, undo, and redo', async ({ page }) => {
             await createForm(page, '');
 
             await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', '<p><br></p>');
-            await expect(page.locator('#editor')).toHaveValue('');
-            expect(await page.evaluate(() => document.querySelector('form').reportValidity())).toBe(false);
-            await expect(page.locator('.editor')).toBeFocused();
-            await expect(page.locator('.editor')).toHaveAttribute('aria-invalid', 'true');
+            await expect(page.locator('#editor')).toHaveValue('<p><br></p>');
             await page.locator('.editor').fill('Valid');
 
-            await expect(page.locator('#editor:valid')).toHaveCount(1);
-            await expect(page.locator('.editor')).not.toHaveAttribute('aria-invalid');
+            await expect(page.locator('.editor')).toHaveText('Valid');
+            await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+            const value = await page.locator('#editor').inputValue();
+
             await page.locator('.editor').fill('');
 
-            await expect(page.locator('#editor')).toHaveValue('');
-            expect(await page.evaluate(() => document.querySelector('form').reportValidity())).toBe(false);
-            await expect(page.locator('.editor')).toHaveAttribute('aria-invalid', 'true');
+            await expect(page.locator('.editor')).toHaveText('');
+            await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+            await expect(page.locator('#editor')).not.toHaveValue('');
+            const empty = await page.locator('#editor').inputValue();
+
             await page.evaluate(() => window.editor.undo());
 
-            await expect(page.locator('#editor')).not.toHaveValue('');
-            await expect(page.locator('.editor')).not.toHaveAttribute('aria-invalid');
+            await expect(page.locator('#editor')).toHaveValue(value);
             await page.evaluate(() => window.editor.redo());
 
-            await expect(page.locator('#editor')).toHaveValue('');
+            await expect(page.locator('#editor')).toHaveValue(empty);
         });
 
-        test('keeps source scaffolding empty for validation and allows readonly source viewing', async ({ page }) => {
+        test('preserves empty source markup and allows readonly source viewing', async ({ page }) => {
             await createForm(page, '');
             await page.getByRole('button', { name: 'View Source', exact: true }).click();
             await page.locator('.editor-source').fill('<p><br></p>');
 
-            await expect(page.locator('#editor')).toHaveValue('');
-            expect(await page.evaluate(() => document.querySelector('form').reportValidity())).toBe(false);
+            await expect(page.locator('#editor')).toHaveValue('<p><br></p>');
             await expect(page.locator('.editor-source')).toBeFocused();
             await page.locator('.editor-source').fill('<p>Valid source</p>');
 
-            await expect(page.locator('.editor-source')).not.toHaveAttribute('aria-invalid');
+            await expect(page.locator('#editor')).toHaveValue('<p>Valid source</p>');
             await page.evaluate(() => {
                 document.querySelector('#editor').readOnly = true;
             });

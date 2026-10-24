@@ -47,24 +47,27 @@ const isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node
  * @param {object} markers The selection markers.
  */
 export function joinAdjacentNodes(container, markers) {
+    const elements = $.find('*', container);
     const isMarker = (node) => node === markers.start || node === markers.end;
-    for (const element of [...container.querySelectorAll('*')]) {
+
+    for (const element of elements) {
         if (!container.contains(element) || !isPhrasingContainer(element)) {
             continue;
         }
-        while (true) {
-            const between = [];
-            let next = element.nextSibling;
-            while (next && isMarker(next)) {
-                between.push(next);
-                next = next.nextSibling;
-            }
-            if (!next || !isPhrasingContainer(next) || !$.isEqual(element, next, { shallow: true })) {
-                break;
-            }
-            element.append(...between, ...next.childNodes);
-            next.remove();
+
+        const moveMarkers = [];
+        let next = element.nextSibling;
+        while (next && isMarker(next)) {
+            moveMarkers.push(next);
+            next = next.nextSibling;
         }
+
+        if (!next || !isPhrasingContainer(next) || !$.isEqual(element, next, { shallow: true })) {
+            continue;
+        }
+
+        $.prepend(next, [...$.contents(element), ...moveMarkers]);
+        $.detach(element);
     }
 }
 
@@ -73,43 +76,84 @@ export function joinAdjacentNodes(container, markers) {
  * @param {HTMLElement} container The container.
  */
 export function normalizePhrasing(container) {
-    const elements = [...container.querySelectorAll('*')].reverse();
+    const elements = $.find('h1, h2, h3, h4, h5, h6, p, pre', container);
+
     for (const element of elements) {
-        if (!container.contains(element) ||
-            (!element.matches('p, h1, h2, h3, h4, h5, h6, pre') && !isPhrasingContainer(element)) ||
-            [...element.childNodes].every(isPhrasingContent)) {
+        if (!container.contains(element)) {
             continue;
         }
-        const fragment = document.createDocumentFragment();
-        let group = [];
-        let first = true;
-        const flush = () => {
-            if (!group.length) {
-                return;
-            }
-            if (group.every((node) => node.nodeType === Node.TEXT_NODE && !node.textContent)) {
-                fragment.append(...group);
-            } else {
-                const wrapper = element.cloneNode(false);
-                if (!first) {
-                    wrapper.removeAttribute('id');
-                }
-                first = false;
-                wrapper.append(...group);
-                fragment.append(wrapper);
-            }
-            group = [];
-        };
-        for (const child of [...element.childNodes]) {
-            if (isPhrasingContent(child)) {
-                group.push(child);
-            } else {
-                flush();
-                fragment.append(child);
-            }
+        const contents = $.contents(element);
+
+        if (!contents.length) {
+            continue;
         }
-        flush();
-        element.replaceWith(fragment);
+
+        for (const [i, child] of contents.entries()) {
+            if (isPhrasingContent(child)) {
+                continue;
+            }
+
+            const nextSiblings = contents.splice(i);
+            $.after(element, nextSiblings);
+
+            const tagName = $.tagName(element);
+
+            const wrapContents = (parent, nodes) => {
+                const stack = [];
+                let lastNode;
+
+                for (const node of nodes) {
+                    if (isPhrasingContent(node)) {
+                        stack.push(node);
+                        continue;
+                    }
+
+                    if (stack.length) {
+                        const clone = $.clone(element, { deep: false });
+                        const tempNodes = stack.splice(0);
+                        $.append(clone, tempNodes);
+                        $.before(node, clone);
+                    }
+
+                    lastNode = node;
+
+                    if ($.is(element, 'p') || $.is(node, tagName)) {
+                        continue;
+                    }
+
+                    if ($.is(node, 'h1, h2, h3, h4, h5, h6, p, pre')) {
+                        const clone = $.clone(element, { deep: false });
+                        const styles = { ...$.getStyle(node), ...$.getStyle(clone) };
+                        $.before(node, clone);
+                        $.setStyle(clone, styles);
+                        $.append(clone, $.contents(node));
+                        $.detach(node);
+                        lastNode = clone;
+                        continue;
+                    }
+
+                    wrapContents(node, $.contents(node));
+                }
+
+                if (stack.length) {
+                    const clone = $.clone(element, { deep: false });
+                    $.append(clone, stack);
+
+                    if (lastNode) {
+                        $.after(lastNode, clone);
+                    } else {
+                        $.append(parent, clone);
+                    }
+                }
+            };
+
+            wrapContents(element, nextSiblings);
+            break;
+        }
+
+        if (!contents.length) {
+            $.detach(element);
+        }
     }
 }
 

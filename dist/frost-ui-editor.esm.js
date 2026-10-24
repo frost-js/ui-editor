@@ -91,20 +91,19 @@ var isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node) 
 * @param {object} markers The selection markers.
 */
 function joinAdjacentNodes(container, markers) {
+	const elements = $.find("*", container);
 	const isMarker = (node) => node === markers.start || node === markers.end;
-	for (const element of [...container.querySelectorAll("*")]) {
+	for (const element of elements) {
 		if (!container.contains(element) || !isPhrasingContainer(element)) continue;
-		while (true) {
-			const between = [];
-			let next = element.nextSibling;
-			while (next && isMarker(next)) {
-				between.push(next);
-				next = next.nextSibling;
-			}
-			if (!next || !isPhrasingContainer(next) || !$.isEqual(element, next, { shallow: true })) break;
-			element.append(...between, ...next.childNodes);
-			next.remove();
+		const moveMarkers = [];
+		let next = element.nextSibling;
+		while (next && isMarker(next)) {
+			moveMarkers.push(next);
+			next = next.nextSibling;
 		}
+		if (!next || !isPhrasingContainer(next) || !$.isEqual(element, next, { shallow: true })) continue;
+		$.prepend(next, [...$.contents(element), ...moveMarkers]);
+		$.detach(element);
 	}
 }
 /**
@@ -112,31 +111,58 @@ function joinAdjacentNodes(container, markers) {
 * @param {HTMLElement} container The container.
 */
 function normalizePhrasing(container) {
-	const elements = [...container.querySelectorAll("*")].reverse();
+	const elements = $.find("h1, h2, h3, h4, h5, h6, p, pre", container);
 	for (const element of elements) {
-		if (!container.contains(element) || !element.matches("p, h1, h2, h3, h4, h5, h6, pre") && !isPhrasingContainer(element) || [...element.childNodes].every(isPhrasingContent)) continue;
-		const fragment = document.createDocumentFragment();
-		let group = [];
-		let first = true;
-		const flush = () => {
-			if (!group.length) return;
-			if (group.every((node) => node.nodeType === Node.TEXT_NODE && !node.textContent)) fragment.append(...group);
-			else {
-				const wrapper = element.cloneNode(false);
-				if (!first) wrapper.removeAttribute("id");
-				first = false;
-				wrapper.append(...group);
-				fragment.append(wrapper);
-			}
-			group = [];
-		};
-		for (const child of [...element.childNodes]) if (isPhrasingContent(child)) group.push(child);
-		else {
-			flush();
-			fragment.append(child);
+		if (!container.contains(element)) continue;
+		const contents = $.contents(element);
+		if (!contents.length) continue;
+		for (const [i, child] of contents.entries()) {
+			if (isPhrasingContent(child)) continue;
+			const nextSiblings = contents.splice(i);
+			$.after(element, nextSiblings);
+			const tagName = $.tagName(element);
+			const wrapContents = (parent, nodes) => {
+				const stack = [];
+				let lastNode;
+				for (const node of nodes) {
+					if (isPhrasingContent(node)) {
+						stack.push(node);
+						continue;
+					}
+					if (stack.length) {
+						const clone = $.clone(element, { deep: false });
+						const tempNodes = stack.splice(0);
+						$.append(clone, tempNodes);
+						$.before(node, clone);
+					}
+					lastNode = node;
+					if ($.is(element, "p") || $.is(node, tagName)) continue;
+					if ($.is(node, "h1, h2, h3, h4, h5, h6, p, pre")) {
+						const clone = $.clone(element, { deep: false });
+						const styles = {
+							...$.getStyle(node),
+							...$.getStyle(clone)
+						};
+						$.before(node, clone);
+						$.setStyle(clone, styles);
+						$.append(clone, $.contents(node));
+						$.detach(node);
+						lastNode = clone;
+						continue;
+					}
+					wrapContents(node, $.contents(node));
+				}
+				if (stack.length) {
+					const clone = $.clone(element, { deep: false });
+					$.append(clone, stack);
+					if (lastNode) $.after(lastNode, clone);
+					else $.append(parent, clone);
+				}
+			};
+			wrapContents(element, nextSiblings);
+			break;
 		}
-		flush();
-		element.replaceWith(fragment);
+		if (!contents.length) $.detach(element);
 	}
 }
 /**
@@ -476,24 +502,6 @@ var lang = {
 		h6: "Header 6"
 	}
 };
-
-// src/js/form.js
-/**
-* Emits the existing change contract without reloading our own content.
-* @param {HTMLTextAreaElement} node The native textarea.
-*/
-function notifyChange(node) {
-	$.triggerEvent(node, "change.ui.editor", { data: { skipUpdate: true } });
-}
-/**
-* Serializes empty editing scaffolding as an empty native value.
-* @param {HTMLElement|DocumentFragment} surface The surface.
-* @param {string} [html] Its serialized HTML.
-* @returns {string} The submitted HTML.
-*/
-function serialize(surface, html = surface.innerHTML) {
-	return !surface.textContent.trim() && !surface.querySelector("img, iframe, hr, table") ? "" : html;
-}
 
 // src/js/history.js
 /** @import { EditorSelectionData } from './types.js'; */
@@ -2476,16 +2484,14 @@ var Editor = class extends BaseComponent {
 		this.listen(this.#source, "input.ui.editor change.ui.editor", (_) => {
 			if (this.node.matches(":disabled") || this.node.readOnly) return;
 			refreshLineNumbersDebounced();
-			const template = document.createElement("template");
-			template.innerHTML = this.#source.value;
-			const html = serialize(template.content, template.innerHTML);
+			const html = this.#source.value;
 			if (this.node.value !== html) {
 				this.node.value = html;
 				if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
 					this.#source.removeAttribute("aria-invalid");
 					this.#editor.removeAttribute("aria-invalid");
 				}
-				notifyChange(this.node);
+				$.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 			}
 		});
 		this.listen(this.#source, "keydown.ui.editor", (e) => {
@@ -2722,7 +2728,7 @@ var Editor = class extends BaseComponent {
 			this.#editor.innerHTML = this.node.value;
 			this.#normalize();
 			this.#checkEmpty();
-			this.node.value = serialize(this.#editor);
+			this.node.value = this.#editor.innerHTML;
 			this.#source.value = this.node.value;
 			this.#lastRange = null;
 			if (reset) {
@@ -3337,9 +3343,8 @@ var Editor = class extends BaseComponent {
 		this.#observe(false);
 		try {
 			$.setHtml(this.#editor, html);
-			const value = serialize(this.#editor);
-			$.setValue(this.node, value);
-			$.setValue(this.#source, value);
+			$.setValue(this.node, html);
+			$.setValue(this.#source, html);
 			this.#focusEditor();
 			if (!this.node) return;
 			restoreSelectionData(this.#editor, selectionData);
@@ -3349,7 +3354,7 @@ var Editor = class extends BaseComponent {
 		} finally {
 			this.#observe();
 		}
-		if (this.node && previous !== this.node.value) notifyChange(this.node);
+		if (this.node && previous !== this.node.value) $.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 	}
 	/**
 	* Sets data for a toolbar action.
@@ -3695,8 +3700,7 @@ var Editor = class extends BaseComponent {
 	#updateValue() {
 		if (!this.node) return;
 		const html = $.getHtml(this.#editor);
-		const value = serialize(this.#editor);
-		if (value === $.getValue(this.node)) {
+		if (html === $.getValue(this.node)) {
 			if (!this.#history.length) this.#addHistory({
 				html,
 				selectionData: getSelectionData(this.#editor)
@@ -3708,13 +3712,13 @@ var Editor = class extends BaseComponent {
 			html,
 			selectionData: getSelectionData(this.#editor)
 		});
-		$.setValue(this.node, value);
-		$.setValue(this.#source, value);
+		$.setValue(this.node, html);
+		$.setValue(this.#source, html);
 		if (this.node.validity.valid && !this.node.hasAttribute("aria-invalid")) {
 			this.#editor.removeAttribute("aria-invalid");
 			this.#source.removeAttribute("aria-invalid");
 		}
-		notifyChange(this.node);
+		$.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
 	}
 	/**
 	* Starts observing content changes owned by this editor.

@@ -43,7 +43,7 @@ test.describe('Editor media', () => {
             await page.getByRole('button', { name: 'Remove Image', exact: true }).click();
 
             await expect(page.locator('.editor img')).toHaveCount(0);
-            await expect(page.locator('#editor')).toHaveValue('');
+            await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
             await page.evaluate(() => window.editor.undo());
 
             await expect(page.locator('.editor img')).toHaveCount(1);
