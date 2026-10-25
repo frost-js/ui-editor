@@ -28,6 +28,20 @@ export function getRange(container = null) {
 }
 
 /**
+ * Normalizes text nodes while preserving the live range and its direction.
+ * @param {HTMLElement} container The content boundary.
+ */
+export function normalizeText(container) {
+    const range = getRange(container)?.cloneRange();
+    const selection = window.getSelection();
+    const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+
+    $.normalize(container);
+
+    selectRange(range, backward);
+}
+
+/**
  * Restores a range from markers and removes the markers without losing direction.
  * @param {EditorSelectionMarkers} [markers={}] The selection markers.
  */
@@ -46,13 +60,7 @@ export function restoreSelection({ start, end, backward = false } = {}) {
     $.remove(start);
     $.remove(end);
 
-    const selection = window.getSelection();
-
-    if (backward) {
-        selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
-    } else {
-        selectRange(range);
-    }
+    selectRange(range, backward);
 }
 
 /**
@@ -113,21 +121,5 @@ export function selectRange(range, backward = false) {
     } else {
         selection.removeAllRanges();
         selection.addRange(range);
-    }
-}
-
-/**
- * Normalizes text nodes while preserving the live range and its direction.
- * @param {HTMLElement} container The content boundary.
- */
-export function normalizeText(container) {
-    const range = getRange(container)?.cloneRange();
-    const selection = window.getSelection();
-    const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
-
-    $.normalize(container);
-
-    if (range) {
-        selectRange(range, backward);
     }
 }

@@ -57,7 +57,7 @@ function intersects(range, block) {
  * @returns {HTMLElement[]} The selected blocks or sibling list items.
  */
 export function getSelectedBlocks(root, range) {
-    const anchor = range.startContainer.nodeType === window.Node.ELEMENT_NODE ?
+    const anchor = $._isElement(range.startContainer) ?
         range.startContainer : range.startContainer.parentElement;
     const item = $.is(anchor, 'li') ? anchor : $.closest(anchor, 'li')[0];
 
@@ -179,8 +179,8 @@ export function indentBlocks(blocks) {
 
         let list = previous.lastElementChild;
 
-        if (!list || list.tagName !== parent.tagName) {
-            list = $.create(parent.localName);
+        if (!list || $.tagName(list) !== $.tagName(parent)) {
+            list = $.create($.tagName(parent));
             $.append(previous, list);
         }
 

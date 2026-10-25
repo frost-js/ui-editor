@@ -327,6 +327,7 @@ export default class Editor extends BaseComponent {
             colorDefault: 'Use Default',
             colorForeground: 'Foreground Color',
             colorTransparent: 'Use Transparent',
+            tableSize: '{rows} × {columns} table',
         },
         modals: {
             cancel: 'Cancel',
@@ -902,7 +903,11 @@ export default class Editor extends BaseComponent {
         this.#originalStyle = $.hasAttribute(node, 'style');
         this.#originalAttributes = new Map(['tabindex', 'hidden', 'aria-hidden']
             .map((name) => [name, $.getAttribute(node, name)]));
-        this.#originalSelection = [node.selectionStart, node.selectionEnd, node.selectionDirection];
+        this.#originalSelection = [
+            $.getProperty(node, 'selectionStart'),
+            $.getProperty(node, 'selectionEnd'),
+            $.getProperty(node, 'selectionDirection'),
+        ];
 
         const active = document.activeElement;
         const originalRange = getRange()?.cloneRange();
@@ -916,7 +921,7 @@ export default class Editor extends BaseComponent {
 
             this.#render();
             $.setHtml(this.#editor, $.getValue(node));
-            this.#refreshDisabled();
+            this.#refreshState();
             this.#checkEmpty();
 
             this.#events();
@@ -974,7 +979,7 @@ export default class Editor extends BaseComponent {
      */
     disable() {
         $.setAttribute(this.node, { disabled: true });
-        this.#refreshDisabled();
+        this.#refreshState();
         this.#refreshToolbar();
     }
 
@@ -1103,7 +1108,7 @@ export default class Editor extends BaseComponent {
      */
     enable() {
         $.removeAttribute(this.node, 'disabled');
-        this.#refreshDisabled();
+        this.#refreshState();
         this.#refreshToolbar();
     }
 
@@ -1169,7 +1174,7 @@ export default class Editor extends BaseComponent {
      * @param {string} src The image src.
      */
     insertImage(src) {
-        if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly) {
+        if (!this.node || $.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) {
             return;
         }
 
@@ -1231,7 +1236,7 @@ export default class Editor extends BaseComponent {
      * @returns {HTMLElement|null} The inserted element, or null when editing is unavailable.
      */
     insertNode(node) {
-        if (!this.node || ($.is(this.node, ':disabled') || this.node.readOnly)) {
+        if (!this.node || ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly'))) {
             return null;
         }
 
@@ -1345,7 +1350,7 @@ export default class Editor extends BaseComponent {
      * Restores the next history snapshot.
      */
     redo() {
-        if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly || !this.#redoHistory.length) {
+        if (!this.node || $.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly') || !this.#redoHistory.length) {
             return;
         }
 
@@ -1403,7 +1408,7 @@ export default class Editor extends BaseComponent {
      * Restores the previous history snapshot.
      */
     undo() {
-        if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly || this.#history.length <= 1) {
+        if (!this.node || $.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly') || this.#history.length <= 1) {
             return;
         }
 
@@ -1458,7 +1463,7 @@ export default class Editor extends BaseComponent {
             pointer = null;
         });
         this.listen(handle, 'pointerdown.ui.editor', (event) => {
-            if (event.button !== 0 || pointer !== null || ($.is(this.node, ':disabled') || this.node.readOnly) || down(event) === false) {
+            if (event.button !== 0 || pointer !== null || ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) || down(event) === false) {
                 return;
             }
 
@@ -1490,7 +1495,7 @@ export default class Editor extends BaseComponent {
      * @param {boolean} outdent Whether to remove one indentation level.
      */
     #changeIndent(outdent) {
-        if (!this.node || ($.is(this.node, ':disabled') || this.node.readOnly)) {
+        if (!this.node || ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly'))) {
             return;
         }
 
@@ -1802,9 +1807,6 @@ export default class Editor extends BaseComponent {
 
             resetDragCount();
 
-            this.#resetDropText();
-            $.hide(this.#dropTarget);
-
             if (event.dataTransfer.files.length) {
                 this.options.imageUpload.call(this, event.dataTransfer.files);
             } else {
@@ -1947,7 +1949,7 @@ export default class Editor extends BaseComponent {
 
                     break;
                 case 'Tab':
-                    if (!event.ctrlKey && !event.metaKey && !event.altKey && !this.node.readOnly && !$.is(this.node, ':disabled')) {
+                    if (!event.ctrlKey && !event.metaKey && !event.altKey && !$.getProperty(this.node, 'readOnly') && !$.is(this.node, ':disabled')) {
                         event.preventDefault();
 
                         if (event.shiftKey) {
@@ -1969,7 +1971,7 @@ export default class Editor extends BaseComponent {
             event.preventDefault();
             event.stopPropagation();
 
-            if ($.is(this.node, ':disabled') || this.node.readOnly) {
+            if ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) {
                 return;
             }
 
@@ -2009,7 +2011,7 @@ export default class Editor extends BaseComponent {
             }
         };
 
-        const labels = [...this.node.labels];
+        const labels = [...$.getProperty(this.node, 'labels')];
         const generated = [];
 
         for (const label of labels) {
@@ -2028,8 +2030,8 @@ export default class Editor extends BaseComponent {
             });
         }
 
-        this.#labelledBy = labels.map((label) => label.id).join(' ');
-        this.#refreshDisabled();
+        this.#labelledBy = labels.map((label) => $.getAttribute(label, 'id')).join(' ');
+        this.#refreshState();
 
         this.listen(this.node, 'focus.ui.editor', (event) => {
             if (event.target === document.activeElement) {
@@ -2069,12 +2071,19 @@ export default class Editor extends BaseComponent {
 
         const observer = new window.MutationObserver(() => {
             if (this.node) {
-                this.#refreshDisabled();
+                this.#refreshState();
                 this.#refreshToolbar();
             }
         });
 
-        observer.observe(this.node, { attributes: true });
+        observer.observe(this.node, {
+            attributes: true,
+            attributeFilter: [
+                'disabled', 'readonly', 'required', 'tabindex', 'class',
+                'aria-label', 'aria-labelledby', 'aria-describedby', 'aria-errormessage', 'aria-invalid',
+                'dir', 'lang',
+            ],
+        });
 
         for (const fieldset of $.parents(this.node, 'fieldset')) {
             observer.observe(fieldset, { attributes: true, attributeFilter: ['disabled'] });
@@ -2088,7 +2097,7 @@ export default class Editor extends BaseComponent {
             }
 
             for (const [label, id] of generated) {
-                if (label.id === id) {
+                if ($.getAttribute(label, 'id') === id) {
                     $.removeAttribute(label, 'id');
                 }
             }
@@ -2100,7 +2109,7 @@ export default class Editor extends BaseComponent {
      */
     #eventsPopover() {
         this.listen(this.#popover, 'click.ui.editor', (event) => {
-            if ($.is(this.node, ':disabled') || this.node.readOnly) {
+            if ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) {
                 return;
             }
 
@@ -2156,7 +2165,7 @@ export default class Editor extends BaseComponent {
 
         this.#bindDrag(this.#imgResize, downEvent, moveEvent, upEvent);
         this.listen(this.#imgResize, 'keydown.ui.editor', (event) => {
-            if (!['ArrowLeft', 'ArrowRight'].includes(event.code) || !this.#currentNode || $.is(this.node, ':disabled') || this.node.readOnly) {
+            if (!['ArrowLeft', 'ArrowRight'].includes(event.code) || !this.#currentNode || $.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) {
                 return;
             }
 
@@ -2203,7 +2212,7 @@ export default class Editor extends BaseComponent {
 
         this.#bindDrag(this.#resizeBar, downEvent, moveEvent, upEvent);
         this.listen(this.#resizeBar, 'keydown.ui.editor', (event) => {
-            if (!['ArrowUp', 'ArrowDown'].includes(event.code) || $.is(this.node, ':disabled') || this.node.readOnly) {
+            if (!['ArrowUp', 'ArrowDown'].includes(event.code) || $.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) {
                 return;
             }
 
@@ -2260,7 +2269,7 @@ export default class Editor extends BaseComponent {
         });
 
         this.listen(this.#source, 'input.ui.editor change.ui.editor', () => {
-            if ($.is(this.node, ':disabled') || this.node.readOnly) {
+            if ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) {
                 return;
             }
 
@@ -2281,7 +2290,7 @@ export default class Editor extends BaseComponent {
         });
 
         this.listen(this.#source, 'keydown.ui.editor', (event) => {
-            if (event.code !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey || this.node.readOnly || $.is(this.node, ':disabled')) {
+            if (event.code !== 'Tab' || event.ctrlKey || event.metaKey || event.altKey || $.getProperty(this.node, 'readOnly') || $.is(this.node, ':disabled')) {
                 return;
             }
 
@@ -2378,22 +2387,19 @@ export default class Editor extends BaseComponent {
             event.preventDefault();
             event.stopPropagation();
 
-            if ($.is(this.node, ':disabled') || (this.node.readOnly && !['source', 'fullScreen'].includes(action)) || $.is(event.currentTarget, '[aria-disabled="true"]')) {
+            if ($.is(this.node, ':disabled') || ($.getProperty(this.node, 'readOnly') && !['source', 'fullScreen'].includes(action)) || $.is(event.currentTarget, '[aria-disabled="true"]')) {
                 return;
             }
 
             if (this.#lastRange && containsNode(this.#editor, this.#lastRange.startContainer) && containsNode(this.#editor, this.#lastRange.endContainer)) {
-                const selection = window.getSelection();
-
-                selection.removeAllRanges();
-                selection.addRange(this.#lastRange);
+                selectRange(this.#lastRange);
             }
 
             this.constructor.plugins[action].action.call(this);
         }, { delegate: '[data-ui-action]' });
 
         this.listen(this.#toolbar, 'click.ui.editor', (event) => {
-            if ($.is(this.node, ':disabled') || this.node.readOnly || $.is(event.currentTarget, '[aria-disabled="true"]')) {
+            if ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly') || $.is(event.currentTarget, '[aria-disabled="true"]')) {
                 return;
             }
 
@@ -2405,12 +2411,7 @@ export default class Editor extends BaseComponent {
 
             event.preventDefault();
 
-            if (this.#lastRange) {
-                const selection = window.getSelection();
-
-                selection.removeAllRanges();
-                selection.addRange(this.#lastRange);
-            }
+            selectRange(this.#lastRange);
 
             const value = $.getDataset(event.currentTarget, 'uiValue');
 
@@ -2426,7 +2427,7 @@ export default class Editor extends BaseComponent {
      * @param {boolean | string} [value] The command argument.
      */
     #execCommand(command, value) {
-        if (!this.node || ($.is(this.node, ':disabled') || this.node.readOnly)) {
+        if (!this.node || ($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly'))) {
             return;
         }
 
@@ -2626,7 +2627,7 @@ export default class Editor extends BaseComponent {
             }
 
             this.#addHistory({ html: $.getHtml(this.#editor) });
-            this.#refreshDisabled();
+            this.#refreshState();
             this.#refreshToolbar();
             this.#refreshLineNumbers();
         } finally {
@@ -2803,55 +2804,6 @@ export default class Editor extends BaseComponent {
     }
 
     /**
-     * Synchronizes disabled, readonly, and accessible state.
-     */
-    #refreshDisabled() {
-        const disabled = $.is(this.node, ':disabled');
-        const readOnly = this.node.readOnly;
-
-        if (disabled) {
-            $.addClass(this.#editor, this.constructor.classes.editorDisabled);
-        } else {
-            $.removeClass(this.#editor, this.constructor.classes.editorDisabled);
-        }
-
-        $.setAttribute(this.#editor, 'contenteditable', String(!disabled && !readOnly));
-        $.setAttribute(this.#editor, 'tabindex', disabled ? '-1' : ($.getAttribute(this.node, 'tabindex') || '0'));
-        $.setProperty(this.#source, { disabled, readOnly });
-
-        for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
-            $.setAttribute(handle, 'tabindex', disabled || readOnly ? '-1' : '0');
-            $.setAttribute(handle, 'aria-disabled', String(disabled || readOnly));
-        }
-
-        for (const surface of [this.#editor, this.#source]) {
-            $.setAttribute(surface, 'aria-disabled', String(disabled));
-            $.setAttribute(surface, 'aria-readonly', String(readOnly));
-            $.setAttribute(surface, 'aria-required', String(this.node.required));
-
-            for (const name of ['aria-label', 'aria-labelledby', 'aria-describedby', 'aria-errormessage', 'aria-invalid', 'dir', 'lang']) {
-                const value = $.getAttribute(this.node, name) || (name === 'aria-labelledby' && !$.hasAttribute(this.node, 'aria-label') ? this.#labelledBy : null);
-
-                if (value) {
-                    $.setAttribute(surface, name, value);
-                } else {
-                    $.removeAttribute(surface, name);
-                }
-            }
-        }
-
-        $[$.hasClass(this.node, 'form-error') ? 'addClass' : 'removeClass'](this.#container, 'form-error');
-
-        if (disabled || readOnly) {
-            this.#removePopover();
-
-            for (const toggle of $.find('[data-ui-toggle="dropdown"]', this.#toolbar)) {
-                Dropdown.init(toggle).hide();
-            }
-        }
-    }
-
-    /**
      * Refreshes the source line numbers.
      */
     #refreshLineNumbers() {
@@ -2864,11 +2816,10 @@ export default class Editor extends BaseComponent {
         }
 
         const lineNumbers = $.contents(this.#lineNumbers);
-
         const html = $.getValue(this.#source);
         const lines = html.split('\n');
 
-        const test = $.create('div', {
+        const measurement = $.create('div', {
             style: {
                 width: $.width(this.#source, { boxSize: $.CONTENT_BOX }),
                 padding: 0,
@@ -2882,7 +2833,7 @@ export default class Editor extends BaseComponent {
             },
         });
 
-        $.append(document.body, test);
+        $.append(document.body, measurement);
 
         for (const [i, line] of lines.entries()) {
             let lineNumber;
@@ -2896,16 +2847,16 @@ export default class Editor extends BaseComponent {
                 $.append(this.#lineNumbers, lineNumber);
             }
 
-            $.setText(test, line || ' ');
+            $.setText(measurement, line || ' ');
 
-            const { height } = $.rect(test);
+            const { height } = $.rect(measurement);
 
             $.setStyle(lineNumber, {
                 height: `${height}px`,
             });
         }
 
-        $.detach(test);
+        $.detach(measurement);
 
         if (lineNumbers.length > lines.length) {
             $.detach(lineNumbers.slice(lines.length));
@@ -3002,6 +2953,55 @@ export default class Editor extends BaseComponent {
     }
 
     /**
+     * Synchronizes disabled, readonly, and accessible state.
+     */
+    #refreshState() {
+        const disabled = $.is(this.node, ':disabled');
+        const readOnly = $.getProperty(this.node, 'readOnly');
+
+        if (disabled) {
+            $.addClass(this.#editor, this.constructor.classes.editorDisabled);
+        } else {
+            $.removeClass(this.#editor, this.constructor.classes.editorDisabled);
+        }
+
+        $.setAttribute(this.#editor, 'contenteditable', String(!disabled && !readOnly));
+        $.setAttribute(this.#editor, 'tabindex', disabled ? '-1' : ($.getAttribute(this.node, 'tabindex') || '0'));
+        $.setProperty(this.#source, { disabled, readOnly });
+
+        for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
+            $.setAttribute(handle, 'tabindex', disabled || readOnly ? '-1' : '0');
+            $.setAttribute(handle, 'aria-disabled', String(disabled || readOnly));
+        }
+
+        for (const surface of [this.#editor, this.#source]) {
+            $.setAttribute(surface, 'aria-disabled', String(disabled));
+            $.setAttribute(surface, 'aria-readonly', String(readOnly));
+            $.setAttribute(surface, 'aria-required', String($.getProperty(this.node, 'required')));
+
+            for (const name of ['aria-label', 'aria-labelledby', 'aria-describedby', 'aria-errormessage', 'aria-invalid', 'dir', 'lang']) {
+                const value = $.getAttribute(this.node, name) || (name === 'aria-labelledby' && !$.hasAttribute(this.node, 'aria-label') ? this.#labelledBy : null);
+
+                if (value) {
+                    $.setAttribute(surface, name, value);
+                } else {
+                    $.removeAttribute(surface, name);
+                }
+            }
+        }
+
+        $[$.hasClass(this.node, 'form-error') ? 'addClass' : 'removeClass'](this.#container, this.constructor.classes.formError);
+
+        if (disabled || readOnly) {
+            this.#removePopover();
+
+            for (const toggle of $.find('[data-ui-toggle="dropdown"]', this.#toolbar)) {
+                Dropdown.init(toggle).hide();
+            }
+        }
+    }
+
+    /**
      * Refreshes the toolbar.
      */
     #refreshToolbar() {
@@ -3037,7 +3037,7 @@ export default class Editor extends BaseComponent {
 
             if (
                 isDisabled ||
-                (this.node.readOnly && !['source', 'fullScreen'].includes(type)) ||
+                ($.getProperty(this.node, 'readOnly') && !['source', 'fullScreen'].includes(type)) ||
                 (isSource && !['source', 'fullScreen'].includes(type)) ||
                 ('disableCheck' in data && data.disableCheck.call(this))
             ) {
@@ -3521,7 +3521,7 @@ export default class Editor extends BaseComponent {
 
             restoreSelectionData(this.#editor, selectionData);
             this.#checkEmpty();
-            this.#refreshDisabled();
+            this.#refreshState();
             this.#refreshToolbar();
         } finally {
             this.#observe();
@@ -3554,7 +3554,7 @@ export default class Editor extends BaseComponent {
      * Shows the drop target.
      */
     #showDropTarget() {
-        if (($.is(this.node, ':disabled') || this.node.readOnly) || $.isVisible(this.#sourceContainer)) {
+        if (($.is(this.node, ':disabled') || $.getProperty(this.node, 'readOnly')) || $.isVisible(this.#sourceContainer)) {
             return;
         }
 
@@ -3904,7 +3904,9 @@ export default class Editor extends BaseComponent {
                     class: this.constructor.classes.tableLink,
                     attributes: {
                         'type': 'button',
-                        'aria-label': `${i + 1} × ${j + 1} table`,
+                        'aria-label': this.constructor.lang.dropdowns.tableSize
+                            .replace('{rows}', String(i + 1))
+                            .replace('{columns}', String(j + 1)),
                     },
                     dataset: {
                         uiColumn: j,

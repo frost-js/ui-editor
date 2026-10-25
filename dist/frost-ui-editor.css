@@ -49,7 +49,7 @@
 }
 
 .editor-disabled {
-  --ui-editor-disabled-opacity: 0.5;
+  --ui-editor-disabled-opacity: var(--ui-disabled-opacity);
   opacity: var(--ui-editor-disabled-opacity);
 }
 

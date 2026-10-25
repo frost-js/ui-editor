@@ -494,6 +494,7 @@ Language is configured through the static `Editor.lang` dictionary, rather than 
 Editor.lang.plugins.source = 'Edit HTML';
 Editor.lang.modals.cancel = 'Cancel editing';
 Editor.lang.toolbar = 'Document formatting';
+Editor.lang.dropdowns.tableSize = 'Table: {rows} rows, {columns} columns';
 ```
 
 The full default dictionaries are in [editor.js](./src/js/editor.js). Configure language before creating editors.

@@ -1,6 +1,6 @@
 $editor-focus-color: var(--ui-primary) !default;
 $editor-focus-width: var(--ui-focus-ring-width) !default;
-$editor-disabled-opacity: .5 !default;
+$editor-disabled-opacity: var(--ui-disabled-opacity) !default;
 
 $btn-editor-bg: transparent !default;
 $btn-editor-border-color: transparent !default;

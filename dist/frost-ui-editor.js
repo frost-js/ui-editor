@@ -89,7 +89,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	*/
 	function getSelectionData(container) {
 		const { anchorNode, anchorOffset, focusNode, focusOffset } = window$4.getSelection();
-		if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
+		if (!containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
 		return {
 			anchorPath: getPathToNode(anchorNode, container),
 			anchorOffset,
@@ -106,7 +106,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		const selection = window$4.getSelection();
 		const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
 		const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
-		const length = (node) => node.nodeType === window$4.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+		const length = (node) => _fr0st_query.default._isText(node) ? node.textContent.length : node.childNodes.length;
 		if (anchor && focus) selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)), focus, Math.min(selectionData.focusOffset, length(focus)));
 		else {
 			selection.selectAllChildren(container);
@@ -392,7 +392,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* @returns {HTMLElement[]} The selected blocks or sibling list items.
 	*/
 	function getSelectedBlocks(root, range) {
-		const anchor = range.startContainer.nodeType === window$3.Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+		const anchor = _fr0st_query.default._isElement(range.startContainer) ? range.startContainer : range.startContainer.parentElement;
 		const item = _fr0st_query.default.is(anchor, "li") ? anchor : _fr0st_query.default.closest(anchor, "li")[0];
 		if (item && containsNode(root, item) && containsNode(item.parentElement, range.endContainer)) return [...item.parentElement.children].filter((node) => _fr0st_query.default.is(node, "li") && intersects(range, node));
 		const blocks = [];
@@ -467,8 +467,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				_fr0st_query.default.before(first, previous);
 			}
 			let list = previous.lastElementChild;
-			if (!list || list.tagName !== parent.tagName) {
-				list = _fr0st_query.default.create(parent.localName);
+			if (!list || _fr0st_query.default.tagName(list) !== _fr0st_query.default.tagName(parent)) {
+				list = _fr0st_query.default.create(_fr0st_query.default.tagName(parent));
 				_fr0st_query.default.append(previous, list);
 			}
 			_fr0st_query.default.append(list, blocks);
@@ -826,6 +826,17 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		return !container || containsNode(container, range.startContainer) && containsNode(container, range.endContainer) ? range : null;
 	}
 	/**
+	* Normalizes text nodes while preserving the live range and its direction.
+	* @param {HTMLElement} container The content boundary.
+	*/
+	function normalizeText(container) {
+		const range = getRange(container)?.cloneRange();
+		const selection = window$2.getSelection();
+		const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+		_fr0st_query.default.normalize(container);
+		selectRange(range, backward);
+	}
+	/**
 	* Restores a range from markers and removes the markers without losing direction.
 	* @param {EditorSelectionMarkers} [markers={}] The selection markers.
 	*/
@@ -840,9 +851,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		range.setEndBefore(end);
 		_fr0st_query.default.remove(start);
 		_fr0st_query.default.remove(end);
-		const selection = window$2.getSelection();
-		if (backward) selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
-		else selectRange(range);
+		selectRange(range, backward);
 	}
 	/**
 	* Saves a range as empty text markers inside an optional editing boundary.
@@ -892,17 +901,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			selection.removeAllRanges();
 			selection.addRange(range);
 		}
-	}
-	/**
-	* Normalizes text nodes while preserving the live range and its direction.
-	* @param {HTMLElement} container The content boundary.
-	*/
-	function normalizeText(container) {
-		const range = getRange(container)?.cloneRange();
-		const selection = window$2.getSelection();
-		const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
-		_fr0st_query.default.normalize(container);
-		if (range) selectRange(range, backward);
 	}
 
 // src/js/shared-events.js
@@ -1422,7 +1420,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				colorBackground: "Background Color",
 				colorDefault: "Use Default",
 				colorForeground: "Foreground Color",
-				colorTransparent: "Use Transparent"
+				colorTransparent: "Use Transparent",
+				tableSize: "{rows} × {columns} table"
 			},
 			modals: {
 				cancel: "Cancel",
@@ -1863,9 +1862,9 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				"aria-hidden"
 			].map((name) => [name, _fr0st_query.default.getAttribute(node, name)]));
 			this.#originalSelection = [
-				node.selectionStart,
-				node.selectionEnd,
-				node.selectionDirection
+				_fr0st_query.default.getProperty(node, "selectionStart"),
+				_fr0st_query.default.getProperty(node, "selectionEnd"),
+				_fr0st_query.default.getProperty(node, "selectionDirection")
 			];
 			const active = document.activeElement;
 			const originalRange = getRange()?.cloneRange();
@@ -1875,7 +1874,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#defaultFont = this.#fonts.includes(this.options.defaultFont) ? this.options.defaultFont : this.#fonts[0] || "sans-serif";
 				this.#render();
 				_fr0st_query.default.setHtml(this.#editor, _fr0st_query.default.getValue(node));
-				this.#refreshDisabled();
+				this.#refreshState();
 				this.#checkEmpty();
 				this.#events();
 				this.#normalize();
@@ -1914,7 +1913,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		disable() {
 			_fr0st_query.default.setAttribute(this.node, { disabled: true });
-			this.#refreshDisabled();
+			this.#refreshState();
 			this.#refreshToolbar();
 		}
 		/** @inheritdoc */
@@ -1998,7 +1997,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		enable() {
 			_fr0st_query.default.removeAttribute(this.node, "disabled");
-			this.#refreshDisabled();
+			this.#refreshState();
 			this.#refreshToolbar();
 		}
 		/**
@@ -2054,7 +2053,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {string} src The image src.
 		*/
 		insertImage(src) {
-			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 			const img = _fr0st_query.default.create("img", { attributes: { src } });
 			const newImg = this.insertNode(img);
 			if (!newImg) return;
@@ -2095,7 +2094,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @returns {HTMLElement|null} The inserted element, or null when editing is unavailable.
 		*/
 		insertNode(node) {
-			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return null;
+			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return null;
 			this.#focusEditor();
 			if (!this.node) return null;
 			const range = getRange(this.#editor);
@@ -2185,7 +2184,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Restores the next history snapshot.
 		*/
 		redo() {
-			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly || !this.#redoHistory.length) return;
+			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly") || !this.#redoHistory.length) return;
 			const current = this.#redoHistory.pop();
 			this.#addHistory(current);
 			this.#restoreHistory(current);
@@ -2230,7 +2229,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Restores the previous history snapshot.
 		*/
 		undo() {
-			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly || this.#history.length <= 1) return;
+			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly") || this.#history.length <= 1) return;
 			const next = this.#history.pop();
 			this.#redoHistory.push(next);
 			const current = this.#history.at(-1);
@@ -2272,7 +2271,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				pointer = null;
 			});
 			this.listen(handle, "pointerdown.ui.editor", (event) => {
-				if (event.button !== 0 || pointer !== null || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly || down(event) === false) return;
+				if (event.button !== 0 || pointer !== null || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly") || down(event) === false) return;
 				event.preventDefault();
 				pointer = event.pointerId;
 			});
@@ -2300,7 +2299,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {boolean} outdent Whether to remove one indentation level.
 		*/
 		#changeIndent(outdent) {
-			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 			this.#focusEditor();
 			if (!this.node) return;
 			const range = getRange(this.#editor);
@@ -2502,8 +2501,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.listen(this.#dropTarget, "drop.ui.editor", (event) => {
 				event.preventDefault();
 				resetDragCount();
-				this.#resetDropText();
-				_fr0st_query.default.hide(this.#dropTarget);
 				if (event.dataTransfer.files.length) this.options.imageUpload.call(this, event.dataTransfer.files);
 				else {
 					const text = event.dataTransfer.getData("text");
@@ -2579,7 +2576,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 							}
 						}
 						break;
-					case "Tab": if (!event.ctrlKey && !event.metaKey && !event.altKey && !this.node.readOnly && !_fr0st_query.default.is(this.node, ":disabled")) {
+					case "Tab": if (!event.ctrlKey && !event.metaKey && !event.altKey && !_fr0st_query.default.getProperty(this.node, "readOnly") && !_fr0st_query.default.is(this.node, ":disabled")) {
 						event.preventDefault();
 						if (event.shiftKey) this.outdent();
 						else this.indent();
@@ -2592,7 +2589,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.listen(this.#editor, "click.ui.editor", (event) => {
 				event.preventDefault();
 				event.stopPropagation();
-				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+				if (_fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 				if (_fr0st_query.default.is(event.currentTarget, "img")) selectNode(event.currentTarget);
 				this.#refreshPopover(event.currentTarget, event);
 				this.#refreshToolbar();
@@ -2618,7 +2615,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const focus = () => {
 				if (this.node && !_fr0st_query.default.is(this.node, ":disabled")) _fr0st_query.default.focus(_fr0st_query.default.isVisible(this.#sourceContainer) ? this.#source : this.#editor);
 			};
-			const labels = [...this.node.labels];
+			const labels = [..._fr0st_query.default.getProperty(this.node, "labels")];
 			const generated = [];
 			for (const label of labels) {
 				if (!_fr0st_query.default.getAttribute(label, "id")) {
@@ -2633,8 +2630,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					}
 				});
 			}
-			this.#labelledBy = labels.map((label) => label.id).join(" ");
-			this.#refreshDisabled();
+			this.#labelledBy = labels.map((label) => _fr0st_query.default.getAttribute(label, "id")).join(" ");
+			this.#refreshState();
 			this.listen(this.node, "focus.ui.editor", (event) => {
 				if (event.target === document.activeElement) focus();
 			});
@@ -2661,11 +2658,27 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			});
 			const observer = new window.MutationObserver(() => {
 				if (this.node) {
-					this.#refreshDisabled();
+					this.#refreshState();
 					this.#refreshToolbar();
 				}
 			});
-			observer.observe(this.node, { attributes: true });
+			observer.observe(this.node, {
+				attributes: true,
+				attributeFilter: [
+					"disabled",
+					"readonly",
+					"required",
+					"tabindex",
+					"class",
+					"aria-label",
+					"aria-labelledby",
+					"aria-describedby",
+					"aria-errormessage",
+					"aria-invalid",
+					"dir",
+					"lang"
+				]
+			});
 			for (const fieldset of _fr0st_query.default.parents(this.node, "fieldset")) observer.observe(fieldset, {
 				attributes: true,
 				attributeFilter: ["disabled"]
@@ -2673,7 +2686,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.onDispose(() => {
 				observer.disconnect();
 				for (const timer of timers) window.clearTimeout(timer);
-				for (const [label, id] of generated) if (label.id === id) _fr0st_query.default.removeAttribute(label, "id");
+				for (const [label, id] of generated) if (_fr0st_query.default.getAttribute(label, "id") === id) _fr0st_query.default.removeAttribute(label, "id");
 			});
 		}
 		/**
@@ -2681,7 +2694,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#eventsPopover() {
 			this.listen(this.#popover, "click.ui.editor", (event) => {
-				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+				if (_fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 				const action = _fr0st_query.default.getDataset(event.currentTarget, "uiAction");
 				if (!(action in this.constructor.popovers)) throw new Error(`Unknown action ${action}`);
 				event.preventDefault();
@@ -2710,7 +2723,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			this.#bindDrag(this.#imgResize, downEvent, moveEvent, upEvent);
 			this.listen(this.#imgResize, "keydown.ui.editor", (event) => {
-				if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+				if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 				event.preventDefault();
 				const width = Math.max(1, _fr0st_query.default.rect(this.#currentNode).width + (event.code === "ArrowRight" ? 10 : -10));
 				_fr0st_query.default.setStyle(this.#currentNode, "width", `${width}px`);
@@ -2742,7 +2755,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			};
 			this.#bindDrag(this.#resizeBar, downEvent, moveEvent, upEvent);
 			this.listen(this.#resizeBar, "keydown.ui.editor", (event) => {
-				if (!["ArrowUp", "ArrowDown"].includes(event.code) || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+				if (!["ArrowUp", "ArrowDown"].includes(event.code) || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 				event.preventDefault();
 				const height = Math.max(40, _fr0st_query.default.rect(this.#editorBody).height + (event.code === "ArrowDown" ? 10 : -10));
 				_fr0st_query.default.setStyle(this.#editorBody, "height", `${height}px`);
@@ -2785,7 +2798,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#refreshLineNumbers();
 			});
 			this.listen(this.#source, "input.ui.editor change.ui.editor", () => {
-				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+				if (_fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 				refreshLineNumbersDebounced();
 				const html = _fr0st_query.default.getValue(this.#source);
 				if (_fr0st_query.default.getValue(this.node) !== html) {
@@ -2798,7 +2811,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				}
 			});
 			this.listen(this.#source, "keydown.ui.editor", (event) => {
-				if (event.code !== "Tab" || event.ctrlKey || event.metaKey || event.altKey || this.node.readOnly || _fr0st_query.default.is(this.node, ":disabled")) return;
+				if (event.code !== "Tab" || event.ctrlKey || event.metaKey || event.altKey || _fr0st_query.default.getProperty(this.node, "readOnly") || _fr0st_query.default.is(this.node, ":disabled")) return;
 				event.preventDefault();
 				const start = _fr0st_query.default.getProperty(this.#source, "selectionStart");
 				const end = _fr0st_query.default.getProperty(this.#source, "selectionEnd");
@@ -2855,24 +2868,16 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (!(action in this.constructor.plugins)) throw new Error(`Unknown action ${action}`);
 				event.preventDefault();
 				event.stopPropagation();
-				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly && !["source", "fullScreen"].includes(action) || _fr0st_query.default.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
-				if (this.#lastRange && containsNode(this.#editor, this.#lastRange.startContainer) && containsNode(this.#editor, this.#lastRange.endContainer)) {
-					const selection = window.getSelection();
-					selection.removeAllRanges();
-					selection.addRange(this.#lastRange);
-				}
+				if (_fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly") && !["source", "fullScreen"].includes(action) || _fr0st_query.default.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+				if (this.#lastRange && containsNode(this.#editor, this.#lastRange.startContainer) && containsNode(this.#editor, this.#lastRange.endContainer)) selectRange(this.#lastRange);
 				this.constructor.plugins[action].action.call(this);
 			}, { delegate: "[data-ui-action]" });
 			this.listen(this.#toolbar, "click.ui.editor", (event) => {
-				if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly || _fr0st_query.default.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+				if (_fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly") || _fr0st_query.default.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
 				const command = _fr0st_query.default.getDataset(event.currentTarget, "uiCommand");
 				if (!(command in this)) throw new Error(`Unknown command ${command}`);
 				event.preventDefault();
-				if (this.#lastRange) {
-					const selection = window.getSelection();
-					selection.removeAllRanges();
-					selection.addRange(this.#lastRange);
-				}
+				selectRange(this.#lastRange);
 				const value = _fr0st_query.default.getDataset(event.currentTarget, "uiValue");
 				this[command](value);
 				this.#refreshToolbar();
@@ -2884,7 +2889,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {boolean | string} [value] The command argument.
 		*/
 		#execCommand(command, value) {
-			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
+			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 			this.#focusEditor();
 			if (!this.node) return;
 			this.#addHistory({
@@ -3040,7 +3045,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				}
 				if (this.#history.at(-1)?.html !== _fr0st_query.default.getHtml(this.#editor)) this.#redoHistory = [];
 				this.#addHistory({ html: _fr0st_query.default.getHtml(this.#editor) });
-				this.#refreshDisabled();
+				this.#refreshState();
 				this.#refreshToolbar();
 				this.#refreshLineNumbers();
 			} finally {
@@ -3169,48 +3174,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#refreshPopover(currentNode);
 		}
 		/**
-		* Synchronizes disabled, readonly, and accessible state.
-		*/
-		#refreshDisabled() {
-			const disabled = _fr0st_query.default.is(this.node, ":disabled");
-			const readOnly = this.node.readOnly;
-			if (disabled) _fr0st_query.default.addClass(this.#editor, this.constructor.classes.editorDisabled);
-			else _fr0st_query.default.removeClass(this.#editor, this.constructor.classes.editorDisabled);
-			_fr0st_query.default.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
-			_fr0st_query.default.setAttribute(this.#editor, "tabindex", disabled ? "-1" : _fr0st_query.default.getAttribute(this.node, "tabindex") || "0");
-			_fr0st_query.default.setProperty(this.#source, {
-				disabled,
-				readOnly
-			});
-			for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
-				_fr0st_query.default.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
-				_fr0st_query.default.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
-			}
-			for (const surface of [this.#editor, this.#source]) {
-				_fr0st_query.default.setAttribute(surface, "aria-disabled", String(disabled));
-				_fr0st_query.default.setAttribute(surface, "aria-readonly", String(readOnly));
-				_fr0st_query.default.setAttribute(surface, "aria-required", String(this.node.required));
-				for (const name of [
-					"aria-label",
-					"aria-labelledby",
-					"aria-describedby",
-					"aria-errormessage",
-					"aria-invalid",
-					"dir",
-					"lang"
-				]) {
-					const value = _fr0st_query.default.getAttribute(this.node, name) || (name === "aria-labelledby" && !_fr0st_query.default.hasAttribute(this.node, "aria-label") ? this.#labelledBy : null);
-					if (value) _fr0st_query.default.setAttribute(surface, name, value);
-					else _fr0st_query.default.removeAttribute(surface, name);
-				}
-			}
-			_fr0st_query.default[_fr0st_query.default.hasClass(this.node, "form-error") ? "addClass" : "removeClass"](this.#container, "form-error");
-			if (disabled || readOnly) {
-				this.#removePopover();
-				for (const toggle of _fr0st_query.default.find("[data-ui-toggle=\"dropdown\"]", this.#toolbar)) _fr0st_ui.Dropdown.init(toggle).hide();
-			}
-		}
-		/**
 		* Refreshes the source line numbers.
 		*/
 		#refreshLineNumbers() {
@@ -3218,7 +3181,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!_fr0st_query.default.isVisible(this.#sourceContainer)) return;
 			const lineNumbers = _fr0st_query.default.contents(this.#lineNumbers);
 			const lines = _fr0st_query.default.getValue(this.#source).split("\n");
-			const test = _fr0st_query.default.create("div", { style: {
+			const measurement = _fr0st_query.default.create("div", { style: {
 				width: _fr0st_query.default.width(this.#source, { boxSize: _fr0st_query.default.CONTENT_BOX }),
 				padding: 0,
 				border: 0,
@@ -3229,7 +3192,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				wordSpacing: _fr0st_query.default.css(this.#source, "wordSpacing"),
 				wordWrap: _fr0st_query.default.css(this.#source, "wordWrap")
 			} });
-			_fr0st_query.default.append(document.body, test);
+			_fr0st_query.default.append(document.body, measurement);
 			for (const [i, line] of lines.entries()) {
 				let lineNumber;
 				if (i < lineNumbers.length) lineNumber = lineNumbers[i];
@@ -3237,11 +3200,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					lineNumber = _fr0st_query.default.create("div", { text: i + 1 });
 					_fr0st_query.default.append(this.#lineNumbers, lineNumber);
 				}
-				_fr0st_query.default.setText(test, line || " ");
-				const { height } = _fr0st_query.default.rect(test);
+				_fr0st_query.default.setText(measurement, line || " ");
+				const { height } = _fr0st_query.default.rect(measurement);
 				_fr0st_query.default.setStyle(lineNumber, { height: `${height}px` });
 			}
-			_fr0st_query.default.detach(test);
+			_fr0st_query.default.detach(measurement);
 			if (lineNumbers.length > lines.length) _fr0st_query.default.detach(lineNumbers.slice(lines.length));
 		}
 		/**
@@ -3303,6 +3266,48 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#popper.update();
 		}
 		/**
+		* Synchronizes disabled, readonly, and accessible state.
+		*/
+		#refreshState() {
+			const disabled = _fr0st_query.default.is(this.node, ":disabled");
+			const readOnly = _fr0st_query.default.getProperty(this.node, "readOnly");
+			if (disabled) _fr0st_query.default.addClass(this.#editor, this.constructor.classes.editorDisabled);
+			else _fr0st_query.default.removeClass(this.#editor, this.constructor.classes.editorDisabled);
+			_fr0st_query.default.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
+			_fr0st_query.default.setAttribute(this.#editor, "tabindex", disabled ? "-1" : _fr0st_query.default.getAttribute(this.node, "tabindex") || "0");
+			_fr0st_query.default.setProperty(this.#source, {
+				disabled,
+				readOnly
+			});
+			for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
+				_fr0st_query.default.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
+				_fr0st_query.default.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
+			}
+			for (const surface of [this.#editor, this.#source]) {
+				_fr0st_query.default.setAttribute(surface, "aria-disabled", String(disabled));
+				_fr0st_query.default.setAttribute(surface, "aria-readonly", String(readOnly));
+				_fr0st_query.default.setAttribute(surface, "aria-required", String(_fr0st_query.default.getProperty(this.node, "required")));
+				for (const name of [
+					"aria-label",
+					"aria-labelledby",
+					"aria-describedby",
+					"aria-errormessage",
+					"aria-invalid",
+					"dir",
+					"lang"
+				]) {
+					const value = _fr0st_query.default.getAttribute(this.node, name) || (name === "aria-labelledby" && !_fr0st_query.default.hasAttribute(this.node, "aria-label") ? this.#labelledBy : null);
+					if (value) _fr0st_query.default.setAttribute(surface, name, value);
+					else _fr0st_query.default.removeAttribute(surface, name);
+				}
+			}
+			_fr0st_query.default[_fr0st_query.default.hasClass(this.node, "form-error") ? "addClass" : "removeClass"](this.#container, this.constructor.classes.formError);
+			if (disabled || readOnly) {
+				this.#removePopover();
+				for (const toggle of _fr0st_query.default.find("[data-ui-toggle=\"dropdown\"]", this.#toolbar)) _fr0st_ui.Dropdown.init(toggle).hide();
+			}
+		}
+		/**
 		* Refreshes the toolbar.
 		*/
 		#refreshToolbar() {
@@ -3323,7 +3328,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.removeClass(button, "active");
 					_fr0st_query.default.removeAttribute(button, "aria-pressed");
 				}
-				if (isDisabled || this.node.readOnly && !["source", "fullScreen"].includes(type) || isSource && !["source", "fullScreen"].includes(type) || "disableCheck" in data && data.disableCheck.call(this)) {
+				if (isDisabled || _fr0st_query.default.getProperty(this.node, "readOnly") && !["source", "fullScreen"].includes(type) || isSource && !["source", "fullScreen"].includes(type) || "disableCheck" in data && data.disableCheck.call(this)) {
 					_fr0st_query.default.addClass(button, "disabled");
 					_fr0st_query.default.setAttribute(button, {
 						"aria-disabled": true,
@@ -3653,7 +3658,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (!this.node) return;
 				restoreSelectionData(this.#editor, selectionData);
 				this.#checkEmpty();
-				this.#refreshDisabled();
+				this.#refreshState();
 				this.#refreshToolbar();
 			} finally {
 				this.#observe();
@@ -3676,7 +3681,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Shows the drop target.
 		*/
 		#showDropTarget() {
-			if (_fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly || _fr0st_query.default.isVisible(this.#sourceContainer)) return;
+			if (_fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly") || _fr0st_query.default.isVisible(this.#sourceContainer)) return;
 			_fr0st_query.default.show(this.#dropTarget);
 		}
 		/**
@@ -3927,7 +3932,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 						class: this.constructor.classes.tableLink,
 						attributes: {
 							"type": "button",
-							"aria-label": `${i + 1} × ${j + 1} table`
+							"aria-label": this.constructor.lang.dropdowns.tableSize.replace("{rows}", String(i + 1)).replace("{columns}", String(j + 1))
 						},
 						dataset: {
 							uiColumn: j,

@@ -58,7 +58,7 @@ function getPathToNode(node, container) {
 */
 function getSelectionData(container) {
 	const { anchorNode, anchorOffset, focusNode, focusOffset } = window$4.getSelection();
-	if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
+	if (!containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
 	return {
 		anchorPath: getPathToNode(anchorNode, container),
 		anchorOffset,
@@ -75,7 +75,7 @@ function restoreSelectionData(container, selectionData) {
 	const selection = window$4.getSelection();
 	const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
 	const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
-	const length = (node) => node.nodeType === window$4.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+	const length = (node) => $._isText(node) ? node.textContent.length : node.childNodes.length;
 	if (anchor && focus) selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)), focus, Math.min(selectionData.focusOffset, length(focus)));
 	else {
 		selection.selectAllChildren(container);
@@ -361,7 +361,7 @@ function intersects(range, block) {
 * @returns {HTMLElement[]} The selected blocks or sibling list items.
 */
 function getSelectedBlocks(root, range) {
-	const anchor = range.startContainer.nodeType === window$3.Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+	const anchor = $._isElement(range.startContainer) ? range.startContainer : range.startContainer.parentElement;
 	const item = $.is(anchor, "li") ? anchor : $.closest(anchor, "li")[0];
 	if (item && containsNode(root, item) && containsNode(item.parentElement, range.endContainer)) return [...item.parentElement.children].filter((node) => $.is(node, "li") && intersects(range, node));
 	const blocks = [];
@@ -436,8 +436,8 @@ function indentBlocks(blocks) {
 			$.before(first, previous);
 		}
 		let list = previous.lastElementChild;
-		if (!list || list.tagName !== parent.tagName) {
-			list = $.create(parent.localName);
+		if (!list || $.tagName(list) !== $.tagName(parent)) {
+			list = $.create($.tagName(parent));
 			$.append(previous, list);
 		}
 		$.append(list, blocks);
@@ -795,6 +795,17 @@ function getRange(container = null) {
 	return !container || containsNode(container, range.startContainer) && containsNode(container, range.endContainer) ? range : null;
 }
 /**
+* Normalizes text nodes while preserving the live range and its direction.
+* @param {HTMLElement} container The content boundary.
+*/
+function normalizeText(container) {
+	const range = getRange(container)?.cloneRange();
+	const selection = window$2.getSelection();
+	const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
+	$.normalize(container);
+	selectRange(range, backward);
+}
+/**
 * Restores a range from markers and removes the markers without losing direction.
 * @param {EditorSelectionMarkers} [markers={}] The selection markers.
 */
@@ -809,9 +820,7 @@ function restoreSelection({ start, end, backward = false } = {}) {
 	range.setEndBefore(end);
 	$.remove(start);
 	$.remove(end);
-	const selection = window$2.getSelection();
-	if (backward) selection.setBaseAndExtent(range.endContainer, range.endOffset, range.startContainer, range.startOffset);
-	else selectRange(range);
+	selectRange(range, backward);
 }
 /**
 * Saves a range as empty text markers inside an optional editing boundary.
@@ -861,17 +870,6 @@ function selectRange(range, backward = false) {
 		selection.removeAllRanges();
 		selection.addRange(range);
 	}
-}
-/**
-* Normalizes text nodes while preserving the live range and its direction.
-* @param {HTMLElement} container The content boundary.
-*/
-function normalizeText(container) {
-	const range = getRange(container)?.cloneRange();
-	const selection = window$2.getSelection();
-	const backward = range && !range.collapsed && selection.anchorNode === range.endContainer && selection.anchorOffset === range.endOffset;
-	$.normalize(container);
-	if (range) selectRange(range, backward);
 }
 
 // src/js/shared-events.js
@@ -1391,7 +1389,8 @@ var Editor = class extends BaseComponent {
 			colorBackground: "Background Color",
 			colorDefault: "Use Default",
 			colorForeground: "Foreground Color",
-			colorTransparent: "Use Transparent"
+			colorTransparent: "Use Transparent",
+			tableSize: "{rows} × {columns} table"
 		},
 		modals: {
 			cancel: "Cancel",
@@ -1832,9 +1831,9 @@ var Editor = class extends BaseComponent {
 			"aria-hidden"
 		].map((name) => [name, $.getAttribute(node, name)]));
 		this.#originalSelection = [
-			node.selectionStart,
-			node.selectionEnd,
-			node.selectionDirection
+			$.getProperty(node, "selectionStart"),
+			$.getProperty(node, "selectionEnd"),
+			$.getProperty(node, "selectionDirection")
 		];
 		const active = document.activeElement;
 		const originalRange = getRange()?.cloneRange();
@@ -1844,7 +1843,7 @@ var Editor = class extends BaseComponent {
 			this.#defaultFont = this.#fonts.includes(this.options.defaultFont) ? this.options.defaultFont : this.#fonts[0] || "sans-serif";
 			this.#render();
 			$.setHtml(this.#editor, $.getValue(node));
-			this.#refreshDisabled();
+			this.#refreshState();
 			this.#checkEmpty();
 			this.#events();
 			this.#normalize();
@@ -1883,7 +1882,7 @@ var Editor = class extends BaseComponent {
 	*/
 	disable() {
 		$.setAttribute(this.node, { disabled: true });
-		this.#refreshDisabled();
+		this.#refreshState();
 		this.#refreshToolbar();
 	}
 	/** @inheritdoc */
@@ -1967,7 +1966,7 @@ var Editor = class extends BaseComponent {
 	*/
 	enable() {
 		$.removeAttribute(this.node, "disabled");
-		this.#refreshDisabled();
+		this.#refreshState();
 		this.#refreshToolbar();
 	}
 	/**
@@ -2023,7 +2022,7 @@ var Editor = class extends BaseComponent {
 	* @param {string} src The image src.
 	*/
 	insertImage(src) {
-		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
+		if (!this.node || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 		const img = $.create("img", { attributes: { src } });
 		const newImg = this.insertNode(img);
 		if (!newImg) return;
@@ -2064,7 +2063,7 @@ var Editor = class extends BaseComponent {
 	* @returns {HTMLElement|null} The inserted element, or null when editing is unavailable.
 	*/
 	insertNode(node) {
-		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return null;
+		if (!this.node || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return null;
 		this.#focusEditor();
 		if (!this.node) return null;
 		const range = getRange(this.#editor);
@@ -2154,7 +2153,7 @@ var Editor = class extends BaseComponent {
 	* Restores the next history snapshot.
 	*/
 	redo() {
-		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly || !this.#redoHistory.length) return;
+		if (!this.node || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly") || !this.#redoHistory.length) return;
 		const current = this.#redoHistory.pop();
 		this.#addHistory(current);
 		this.#restoreHistory(current);
@@ -2199,7 +2198,7 @@ var Editor = class extends BaseComponent {
 	* Restores the previous history snapshot.
 	*/
 	undo() {
-		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly || this.#history.length <= 1) return;
+		if (!this.node || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly") || this.#history.length <= 1) return;
 		const next = this.#history.pop();
 		this.#redoHistory.push(next);
 		const current = this.#history.at(-1);
@@ -2241,7 +2240,7 @@ var Editor = class extends BaseComponent {
 			pointer = null;
 		});
 		this.listen(handle, "pointerdown.ui.editor", (event) => {
-			if (event.button !== 0 || pointer !== null || $.is(this.node, ":disabled") || this.node.readOnly || down(event) === false) return;
+			if (event.button !== 0 || pointer !== null || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly") || down(event) === false) return;
 			event.preventDefault();
 			pointer = event.pointerId;
 		});
@@ -2269,7 +2268,7 @@ var Editor = class extends BaseComponent {
 	* @param {boolean} outdent Whether to remove one indentation level.
 	*/
 	#changeIndent(outdent) {
-		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
+		if (!this.node || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 		this.#focusEditor();
 		if (!this.node) return;
 		const range = getRange(this.#editor);
@@ -2471,8 +2470,6 @@ var Editor = class extends BaseComponent {
 		this.listen(this.#dropTarget, "drop.ui.editor", (event) => {
 			event.preventDefault();
 			resetDragCount();
-			this.#resetDropText();
-			$.hide(this.#dropTarget);
 			if (event.dataTransfer.files.length) this.options.imageUpload.call(this, event.dataTransfer.files);
 			else {
 				const text = event.dataTransfer.getData("text");
@@ -2548,7 +2545,7 @@ var Editor = class extends BaseComponent {
 						}
 					}
 					break;
-				case "Tab": if (!event.ctrlKey && !event.metaKey && !event.altKey && !this.node.readOnly && !$.is(this.node, ":disabled")) {
+				case "Tab": if (!event.ctrlKey && !event.metaKey && !event.altKey && !$.getProperty(this.node, "readOnly") && !$.is(this.node, ":disabled")) {
 					event.preventDefault();
 					if (event.shiftKey) this.outdent();
 					else this.indent();
@@ -2561,7 +2558,7 @@ var Editor = class extends BaseComponent {
 		this.listen(this.#editor, "click.ui.editor", (event) => {
 			event.preventDefault();
 			event.stopPropagation();
-			if ($.is(this.node, ":disabled") || this.node.readOnly) return;
+			if ($.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 			if ($.is(event.currentTarget, "img")) selectNode(event.currentTarget);
 			this.#refreshPopover(event.currentTarget, event);
 			this.#refreshToolbar();
@@ -2587,7 +2584,7 @@ var Editor = class extends BaseComponent {
 		const focus = () => {
 			if (this.node && !$.is(this.node, ":disabled")) $.focus($.isVisible(this.#sourceContainer) ? this.#source : this.#editor);
 		};
-		const labels = [...this.node.labels];
+		const labels = [...$.getProperty(this.node, "labels")];
 		const generated = [];
 		for (const label of labels) {
 			if (!$.getAttribute(label, "id")) {
@@ -2602,8 +2599,8 @@ var Editor = class extends BaseComponent {
 				}
 			});
 		}
-		this.#labelledBy = labels.map((label) => label.id).join(" ");
-		this.#refreshDisabled();
+		this.#labelledBy = labels.map((label) => $.getAttribute(label, "id")).join(" ");
+		this.#refreshState();
 		this.listen(this.node, "focus.ui.editor", (event) => {
 			if (event.target === document.activeElement) focus();
 		});
@@ -2630,11 +2627,27 @@ var Editor = class extends BaseComponent {
 		});
 		const observer = new window.MutationObserver(() => {
 			if (this.node) {
-				this.#refreshDisabled();
+				this.#refreshState();
 				this.#refreshToolbar();
 			}
 		});
-		observer.observe(this.node, { attributes: true });
+		observer.observe(this.node, {
+			attributes: true,
+			attributeFilter: [
+				"disabled",
+				"readonly",
+				"required",
+				"tabindex",
+				"class",
+				"aria-label",
+				"aria-labelledby",
+				"aria-describedby",
+				"aria-errormessage",
+				"aria-invalid",
+				"dir",
+				"lang"
+			]
+		});
 		for (const fieldset of $.parents(this.node, "fieldset")) observer.observe(fieldset, {
 			attributes: true,
 			attributeFilter: ["disabled"]
@@ -2642,7 +2655,7 @@ var Editor = class extends BaseComponent {
 		this.onDispose(() => {
 			observer.disconnect();
 			for (const timer of timers) window.clearTimeout(timer);
-			for (const [label, id] of generated) if (label.id === id) $.removeAttribute(label, "id");
+			for (const [label, id] of generated) if ($.getAttribute(label, "id") === id) $.removeAttribute(label, "id");
 		});
 	}
 	/**
@@ -2650,7 +2663,7 @@ var Editor = class extends BaseComponent {
 	*/
 	#eventsPopover() {
 		this.listen(this.#popover, "click.ui.editor", (event) => {
-			if ($.is(this.node, ":disabled") || this.node.readOnly) return;
+			if ($.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 			const action = $.getDataset(event.currentTarget, "uiAction");
 			if (!(action in this.constructor.popovers)) throw new Error(`Unknown action ${action}`);
 			event.preventDefault();
@@ -2679,7 +2692,7 @@ var Editor = class extends BaseComponent {
 		};
 		this.#bindDrag(this.#imgResize, downEvent, moveEvent, upEvent);
 		this.listen(this.#imgResize, "keydown.ui.editor", (event) => {
-			if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || $.is(this.node, ":disabled") || this.node.readOnly) return;
+			if (!["ArrowLeft", "ArrowRight"].includes(event.code) || !this.#currentNode || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 			event.preventDefault();
 			const width = Math.max(1, $.rect(this.#currentNode).width + (event.code === "ArrowRight" ? 10 : -10));
 			$.setStyle(this.#currentNode, "width", `${width}px`);
@@ -2711,7 +2724,7 @@ var Editor = class extends BaseComponent {
 		};
 		this.#bindDrag(this.#resizeBar, downEvent, moveEvent, upEvent);
 		this.listen(this.#resizeBar, "keydown.ui.editor", (event) => {
-			if (!["ArrowUp", "ArrowDown"].includes(event.code) || $.is(this.node, ":disabled") || this.node.readOnly) return;
+			if (!["ArrowUp", "ArrowDown"].includes(event.code) || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 			event.preventDefault();
 			const height = Math.max(40, $.rect(this.#editorBody).height + (event.code === "ArrowDown" ? 10 : -10));
 			$.setStyle(this.#editorBody, "height", `${height}px`);
@@ -2754,7 +2767,7 @@ var Editor = class extends BaseComponent {
 			this.#refreshLineNumbers();
 		});
 		this.listen(this.#source, "input.ui.editor change.ui.editor", () => {
-			if ($.is(this.node, ":disabled") || this.node.readOnly) return;
+			if ($.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 			refreshLineNumbersDebounced();
 			const html = $.getValue(this.#source);
 			if ($.getValue(this.node) !== html) {
@@ -2767,7 +2780,7 @@ var Editor = class extends BaseComponent {
 			}
 		});
 		this.listen(this.#source, "keydown.ui.editor", (event) => {
-			if (event.code !== "Tab" || event.ctrlKey || event.metaKey || event.altKey || this.node.readOnly || $.is(this.node, ":disabled")) return;
+			if (event.code !== "Tab" || event.ctrlKey || event.metaKey || event.altKey || $.getProperty(this.node, "readOnly") || $.is(this.node, ":disabled")) return;
 			event.preventDefault();
 			const start = $.getProperty(this.#source, "selectionStart");
 			const end = $.getProperty(this.#source, "selectionEnd");
@@ -2824,24 +2837,16 @@ var Editor = class extends BaseComponent {
 			if (!(action in this.constructor.plugins)) throw new Error(`Unknown action ${action}`);
 			event.preventDefault();
 			event.stopPropagation();
-			if ($.is(this.node, ":disabled") || this.node.readOnly && !["source", "fullScreen"].includes(action) || $.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
-			if (this.#lastRange && containsNode(this.#editor, this.#lastRange.startContainer) && containsNode(this.#editor, this.#lastRange.endContainer)) {
-				const selection = window.getSelection();
-				selection.removeAllRanges();
-				selection.addRange(this.#lastRange);
-			}
+			if ($.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly") && !["source", "fullScreen"].includes(action) || $.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+			if (this.#lastRange && containsNode(this.#editor, this.#lastRange.startContainer) && containsNode(this.#editor, this.#lastRange.endContainer)) selectRange(this.#lastRange);
 			this.constructor.plugins[action].action.call(this);
 		}, { delegate: "[data-ui-action]" });
 		this.listen(this.#toolbar, "click.ui.editor", (event) => {
-			if ($.is(this.node, ":disabled") || this.node.readOnly || $.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
+			if ($.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly") || $.is(event.currentTarget, "[aria-disabled=\"true\"]")) return;
 			const command = $.getDataset(event.currentTarget, "uiCommand");
 			if (!(command in this)) throw new Error(`Unknown command ${command}`);
 			event.preventDefault();
-			if (this.#lastRange) {
-				const selection = window.getSelection();
-				selection.removeAllRanges();
-				selection.addRange(this.#lastRange);
-			}
+			selectRange(this.#lastRange);
 			const value = $.getDataset(event.currentTarget, "uiValue");
 			this[command](value);
 			this.#refreshToolbar();
@@ -2853,7 +2858,7 @@ var Editor = class extends BaseComponent {
 	* @param {boolean | string} [value] The command argument.
 	*/
 	#execCommand(command, value) {
-		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
+		if (!this.node || $.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly")) return;
 		this.#focusEditor();
 		if (!this.node) return;
 		this.#addHistory({
@@ -3009,7 +3014,7 @@ var Editor = class extends BaseComponent {
 			}
 			if (this.#history.at(-1)?.html !== $.getHtml(this.#editor)) this.#redoHistory = [];
 			this.#addHistory({ html: $.getHtml(this.#editor) });
-			this.#refreshDisabled();
+			this.#refreshState();
 			this.#refreshToolbar();
 			this.#refreshLineNumbers();
 		} finally {
@@ -3138,48 +3143,6 @@ var Editor = class extends BaseComponent {
 		this.#refreshPopover(currentNode);
 	}
 	/**
-	* Synchronizes disabled, readonly, and accessible state.
-	*/
-	#refreshDisabled() {
-		const disabled = $.is(this.node, ":disabled");
-		const readOnly = this.node.readOnly;
-		if (disabled) $.addClass(this.#editor, this.constructor.classes.editorDisabled);
-		else $.removeClass(this.#editor, this.constructor.classes.editorDisabled);
-		$.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
-		$.setAttribute(this.#editor, "tabindex", disabled ? "-1" : $.getAttribute(this.node, "tabindex") || "0");
-		$.setProperty(this.#source, {
-			disabled,
-			readOnly
-		});
-		for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
-			$.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
-			$.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
-		}
-		for (const surface of [this.#editor, this.#source]) {
-			$.setAttribute(surface, "aria-disabled", String(disabled));
-			$.setAttribute(surface, "aria-readonly", String(readOnly));
-			$.setAttribute(surface, "aria-required", String(this.node.required));
-			for (const name of [
-				"aria-label",
-				"aria-labelledby",
-				"aria-describedby",
-				"aria-errormessage",
-				"aria-invalid",
-				"dir",
-				"lang"
-			]) {
-				const value = $.getAttribute(this.node, name) || (name === "aria-labelledby" && !$.hasAttribute(this.node, "aria-label") ? this.#labelledBy : null);
-				if (value) $.setAttribute(surface, name, value);
-				else $.removeAttribute(surface, name);
-			}
-		}
-		$[$.hasClass(this.node, "form-error") ? "addClass" : "removeClass"](this.#container, "form-error");
-		if (disabled || readOnly) {
-			this.#removePopover();
-			for (const toggle of $.find("[data-ui-toggle=\"dropdown\"]", this.#toolbar)) Dropdown.init(toggle).hide();
-		}
-	}
-	/**
 	* Refreshes the source line numbers.
 	*/
 	#refreshLineNumbers() {
@@ -3187,7 +3150,7 @@ var Editor = class extends BaseComponent {
 		if (!$.isVisible(this.#sourceContainer)) return;
 		const lineNumbers = $.contents(this.#lineNumbers);
 		const lines = $.getValue(this.#source).split("\n");
-		const test = $.create("div", { style: {
+		const measurement = $.create("div", { style: {
 			width: $.width(this.#source, { boxSize: $.CONTENT_BOX }),
 			padding: 0,
 			border: 0,
@@ -3198,7 +3161,7 @@ var Editor = class extends BaseComponent {
 			wordSpacing: $.css(this.#source, "wordSpacing"),
 			wordWrap: $.css(this.#source, "wordWrap")
 		} });
-		$.append(document.body, test);
+		$.append(document.body, measurement);
 		for (const [i, line] of lines.entries()) {
 			let lineNumber;
 			if (i < lineNumbers.length) lineNumber = lineNumbers[i];
@@ -3206,11 +3169,11 @@ var Editor = class extends BaseComponent {
 				lineNumber = $.create("div", { text: i + 1 });
 				$.append(this.#lineNumbers, lineNumber);
 			}
-			$.setText(test, line || " ");
-			const { height } = $.rect(test);
+			$.setText(measurement, line || " ");
+			const { height } = $.rect(measurement);
 			$.setStyle(lineNumber, { height: `${height}px` });
 		}
-		$.detach(test);
+		$.detach(measurement);
 		if (lineNumbers.length > lines.length) $.detach(lineNumbers.slice(lines.length));
 	}
 	/**
@@ -3272,6 +3235,48 @@ var Editor = class extends BaseComponent {
 		this.#popper.update();
 	}
 	/**
+	* Synchronizes disabled, readonly, and accessible state.
+	*/
+	#refreshState() {
+		const disabled = $.is(this.node, ":disabled");
+		const readOnly = $.getProperty(this.node, "readOnly");
+		if (disabled) $.addClass(this.#editor, this.constructor.classes.editorDisabled);
+		else $.removeClass(this.#editor, this.constructor.classes.editorDisabled);
+		$.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
+		$.setAttribute(this.#editor, "tabindex", disabled ? "-1" : $.getAttribute(this.node, "tabindex") || "0");
+		$.setProperty(this.#source, {
+			disabled,
+			readOnly
+		});
+		for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
+			$.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
+			$.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
+		}
+		for (const surface of [this.#editor, this.#source]) {
+			$.setAttribute(surface, "aria-disabled", String(disabled));
+			$.setAttribute(surface, "aria-readonly", String(readOnly));
+			$.setAttribute(surface, "aria-required", String($.getProperty(this.node, "required")));
+			for (const name of [
+				"aria-label",
+				"aria-labelledby",
+				"aria-describedby",
+				"aria-errormessage",
+				"aria-invalid",
+				"dir",
+				"lang"
+			]) {
+				const value = $.getAttribute(this.node, name) || (name === "aria-labelledby" && !$.hasAttribute(this.node, "aria-label") ? this.#labelledBy : null);
+				if (value) $.setAttribute(surface, name, value);
+				else $.removeAttribute(surface, name);
+			}
+		}
+		$[$.hasClass(this.node, "form-error") ? "addClass" : "removeClass"](this.#container, this.constructor.classes.formError);
+		if (disabled || readOnly) {
+			this.#removePopover();
+			for (const toggle of $.find("[data-ui-toggle=\"dropdown\"]", this.#toolbar)) Dropdown.init(toggle).hide();
+		}
+	}
+	/**
 	* Refreshes the toolbar.
 	*/
 	#refreshToolbar() {
@@ -3292,7 +3297,7 @@ var Editor = class extends BaseComponent {
 				$.removeClass(button, "active");
 				$.removeAttribute(button, "aria-pressed");
 			}
-			if (isDisabled || this.node.readOnly && !["source", "fullScreen"].includes(type) || isSource && !["source", "fullScreen"].includes(type) || "disableCheck" in data && data.disableCheck.call(this)) {
+			if (isDisabled || $.getProperty(this.node, "readOnly") && !["source", "fullScreen"].includes(type) || isSource && !["source", "fullScreen"].includes(type) || "disableCheck" in data && data.disableCheck.call(this)) {
 				$.addClass(button, "disabled");
 				$.setAttribute(button, {
 					"aria-disabled": true,
@@ -3622,7 +3627,7 @@ var Editor = class extends BaseComponent {
 			if (!this.node) return;
 			restoreSelectionData(this.#editor, selectionData);
 			this.#checkEmpty();
-			this.#refreshDisabled();
+			this.#refreshState();
 			this.#refreshToolbar();
 		} finally {
 			this.#observe();
@@ -3645,7 +3650,7 @@ var Editor = class extends BaseComponent {
 	* Shows the drop target.
 	*/
 	#showDropTarget() {
-		if ($.is(this.node, ":disabled") || this.node.readOnly || $.isVisible(this.#sourceContainer)) return;
+		if ($.is(this.node, ":disabled") || $.getProperty(this.node, "readOnly") || $.isVisible(this.#sourceContainer)) return;
 		$.show(this.#dropTarget);
 	}
 	/**
@@ -3896,7 +3901,7 @@ var Editor = class extends BaseComponent {
 					class: this.constructor.classes.tableLink,
 					attributes: {
 						"type": "button",
-						"aria-label": `${i + 1} × ${j + 1} table`
+						"aria-label": this.constructor.lang.dropdowns.tableSize.replace("{rows}", String(i + 1)).replace("{columns}", String(j + 1))
 					},
 					dataset: {
 						uiColumn: j,

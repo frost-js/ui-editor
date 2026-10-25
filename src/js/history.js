@@ -58,7 +58,7 @@ function getPathToNode(node, container) {
 export function getSelectionData(container) {
     const { anchorNode, anchorOffset, focusNode, focusOffset } = window.getSelection();
 
-    if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) {
+    if (!containsNode(container, anchorNode) || !containsNode(container, focusNode)) {
         return null;
     }
 
@@ -79,7 +79,7 @@ export function restoreSelectionData(container, selectionData) {
     const selection = window.getSelection();
     const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
     const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
-    const length = (node) => node.nodeType === window.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+    const length = (node) => $._isText(node) ? node.textContent.length : node.childNodes.length;
 
     if (anchor && focus) {
         selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)),
