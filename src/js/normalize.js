@@ -181,12 +181,7 @@ export function normalizeStyles(container) {
     for (const element of elements) {
         const styles = $.getStyle(element);
 
-        for (const [style, value] of Object.entries(styles)) {
-            if (value === 'inherit') {
-                $.removeStyle(element, style);
-                continue;
-            }
-
+        for (const style of Object.keys(styles)) {
             const clone = $.clone(element, { deep: false });
 
             $.after(element, clone);

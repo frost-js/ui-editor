@@ -346,11 +346,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		const elements = _fr0st_query.default.find("[style]", container);
 		for (const element of elements) {
 			const styles = _fr0st_query.default.getStyle(element);
-			for (const [style, value] of Object.entries(styles)) {
-				if (value === "inherit") {
-					_fr0st_query.default.removeStyle(element, style);
-					continue;
-				}
+			for (const style of Object.keys(styles)) {
 				const clone = _fr0st_query.default.clone(element, { deep: false });
 				_fr0st_query.default.after(element, clone);
 				_fr0st_query.default.removeAttribute(clone, "style");
@@ -1693,7 +1689,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			tableColumnAfter: { action(node) {
 				this.#updateTable(node, (td, _, table) => {
 					const index = _fr0st_query.default.index(td);
-					const rows = _fr0st_query.default.find(":scope > thead > tr, :scope > tbody > tr", table);
+					const rows = _fr0st_query.default.getProperty(table, "rows");
 					for (const row of rows) {
 						const newTd = _fr0st_query.default.create("td", { html: "<br>" });
 						const cells = _fr0st_query.default.children(row, "th, td");
@@ -1704,7 +1700,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			tableColumnBefore: { action(node) {
 				this.#updateTable(node, (td, _, table) => {
 					const index = _fr0st_query.default.index(td);
-					const rows = _fr0st_query.default.find(":scope > thead > tr, :scope > tbody > tr", table);
+					const rows = _fr0st_query.default.getProperty(table, "rows");
 					for (const row of rows) {
 						const newTd = _fr0st_query.default.create("td", { html: "<br>" });
 						const cells = _fr0st_query.default.children(row, "th, td");
@@ -1715,7 +1711,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			tableColumnRemove: { action(node) {
 				this.#updateTable(node, (td, _, table) => {
 					const index = _fr0st_query.default.index(td);
-					const rows = _fr0st_query.default.find(":scope > thead > tr, :scope > tbody > tr", table);
+					const rows = _fr0st_query.default.getProperty(table, "rows");
 					for (const row of rows) {
 						const cells = _fr0st_query.default.children(row, "th, td");
 						_fr0st_query.default.remove(cells[index]);
@@ -4003,8 +3999,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#observe(false);
 			try {
 				callback(td, _fr0st_query.default.closest(td, "tr")[0], table);
+				if (!_fr0st_query.default.find("th, td", table).length) _fr0st_query.default.remove(table);
 				if (containsNode(this.#editor, td)) selectNode(td).collapse(true);
 				this.#normalize();
+				this.#checkEmpty();
 				this.#updateValue();
 			} finally {
 				this.#observe();

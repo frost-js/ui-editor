@@ -315,11 +315,7 @@ function normalizeStyles(container) {
 	const elements = $.find("[style]", container);
 	for (const element of elements) {
 		const styles = $.getStyle(element);
-		for (const [style, value] of Object.entries(styles)) {
-			if (value === "inherit") {
-				$.removeStyle(element, style);
-				continue;
-			}
+		for (const style of Object.keys(styles)) {
 			const clone = $.clone(element, { deep: false });
 			$.after(element, clone);
 			$.removeAttribute(clone, "style");
@@ -1662,7 +1658,7 @@ var Editor = class extends BaseComponent {
 		tableColumnAfter: { action(node) {
 			this.#updateTable(node, (td, _, table) => {
 				const index = $.index(td);
-				const rows = $.find(":scope > thead > tr, :scope > tbody > tr", table);
+				const rows = $.getProperty(table, "rows");
 				for (const row of rows) {
 					const newTd = $.create("td", { html: "<br>" });
 					const cells = $.children(row, "th, td");
@@ -1673,7 +1669,7 @@ var Editor = class extends BaseComponent {
 		tableColumnBefore: { action(node) {
 			this.#updateTable(node, (td, _, table) => {
 				const index = $.index(td);
-				const rows = $.find(":scope > thead > tr, :scope > tbody > tr", table);
+				const rows = $.getProperty(table, "rows");
 				for (const row of rows) {
 					const newTd = $.create("td", { html: "<br>" });
 					const cells = $.children(row, "th, td");
@@ -1684,7 +1680,7 @@ var Editor = class extends BaseComponent {
 		tableColumnRemove: { action(node) {
 			this.#updateTable(node, (td, _, table) => {
 				const index = $.index(td);
-				const rows = $.find(":scope > thead > tr, :scope > tbody > tr", table);
+				const rows = $.getProperty(table, "rows");
 				for (const row of rows) {
 					const cells = $.children(row, "th, td");
 					$.remove(cells[index]);
@@ -3972,8 +3968,10 @@ var Editor = class extends BaseComponent {
 		this.#observe(false);
 		try {
 			callback(td, $.closest(td, "tr")[0], table);
+			if (!$.find("th, td", table).length) $.remove(table);
 			if (containsNode(this.#editor, td)) selectNode(td).collapse(true);
 			this.#normalize();
+			this.#checkEmpty();
 			this.#updateValue();
 		} finally {
 			this.#observe();

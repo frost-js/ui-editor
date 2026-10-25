@@ -687,7 +687,7 @@ export default class Editor extends BaseComponent {
             action(node) {
                 this.#updateTable(node, (td, _, table) => {
                     const index = $.index(td);
-                    const rows = $.find(':scope > thead > tr, :scope > tbody > tr', table);
+                    const rows = $.getProperty(table, 'rows');
 
                     for (const row of rows) {
                         const newTd = $.create('td', {
@@ -704,7 +704,7 @@ export default class Editor extends BaseComponent {
             action(node) {
                 this.#updateTable(node, (td, _, table) => {
                     const index = $.index(td);
-                    const rows = $.find(':scope > thead > tr, :scope > tbody > tr', table);
+                    const rows = $.getProperty(table, 'rows');
 
                     for (const row of rows) {
                         const newTd = $.create('td', {
@@ -721,7 +721,7 @@ export default class Editor extends BaseComponent {
             action(node) {
                 this.#updateTable(node, (td, _, table) => {
                     const index = $.index(td);
-                    const rows = $.find(':scope > thead > tr, :scope > tbody > tr', table);
+                    const rows = $.getProperty(table, 'rows');
 
                     for (const row of rows) {
                         const cells = $.children(row, 'th, td');
@@ -4012,6 +4012,10 @@ export default class Editor extends BaseComponent {
         try {
             callback(td, $.closest(td, 'tr')[0], table);
 
+            if (!$.find('th, td', table).length) {
+                $.remove(table);
+            }
+
             if (containsNode(this.#editor, td)) {
                 const range = selectNode(td);
 
@@ -4019,6 +4023,7 @@ export default class Editor extends BaseComponent {
             }
 
             this.#normalize();
+            this.#checkEmpty();
             this.#updateValue();
         } finally {
             this.#observe();
