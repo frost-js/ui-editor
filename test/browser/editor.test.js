@@ -144,8 +144,6 @@ test.describe('Editor', () => {
                 node.setAttribute('tabindex', '7');
                 document.body.append(node);
 
-                const original = node.outerHTML;
-
                 UI.Editor.plugins.broken = {
                     content: 'Broken',
                     dropdown() {
@@ -172,14 +170,20 @@ test.describe('Editor', () => {
 
                 return {
                     message,
-                    original,
                     unregistered,
                     retry: editor.node === null,
                 };
             });
 
+            const textarea = page.locator('textarea');
+
             expect(result.message).toBe('Rendering failed');
-            await expect(page.locator('textarea')).toHaveJSProperty('outerHTML', result.original);
+            await expect(textarea).toHaveCSS('display', 'inline-block');
+            await expect(textarea).toHaveCSS('width', '123px');
+            await expect(textarea).toHaveAttribute('tabindex', '7');
+            await expect(textarea).not.toHaveAttribute('hidden');
+            await expect(textarea).not.toHaveAttribute('aria-hidden');
+            expect(await textarea.evaluate((node) => node.style.getPropertyPriority('display'))).toBe('important');
             expect(result.unregistered).toBe(true);
             expect(result.retry).toBe(true);
         });
