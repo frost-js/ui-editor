@@ -108,6 +108,42 @@ test.describe('Editor media', () => {
             });
         }
 
+        for (const [name, cell, html] of [
+            ['colspan', 'td', '<table><tbody><tr><td colspan="2">Merged</td></tr><tr><td>A</td><td>B</td></tr></tbody></table>'],
+            ['rowspan', 'th', '<table><tbody><tr><th rowspan="2">Merged</th><td>A</td></tr><tr><td>B</td></tr></tbody></table>'],
+            ['rowspan="0"', 'td', '<table><tbody><tr><td rowspan="0">Merged</td><td>A</td></tr><tr><td>B</td></tr></tbody></table>'],
+        ]) {
+            test(`prevents row and column changes for ${name} but allows editing and removing the table`, async ({ page }) => {
+                await createEditor(page, html);
+                await page.locator(`.editor ${cell}`).first().click();
+
+                for (const action of ['Add Row After', 'Add Row Before', 'Add Column After', 'Add Column Before', 'Remove Row', 'Remove Column']) {
+                    const button = page.getByRole('button', { name: action, exact: true });
+
+                    await expect(button).toBeDisabled();
+                    await expect(button).toHaveAttribute('aria-disabled', 'true');
+                }
+
+                await expect(page.getByText('Row and column changes are unavailable for tables with merged cells.', { exact: true })).toBeVisible();
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
+                await page.locator(`.editor ${cell}`).first().fill('Edited');
+
+                const edited = html.replace('Merged', 'Edited');
+
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', edited);
+                await expect(page.locator('#editor')).toHaveValue(edited);
+                await page.locator(`.editor ${cell}`).first().click();
+                await page.getByRole('button', { name: 'Remove Table', exact: true }).click();
+
+                await expect(page.locator('.editor table')).toHaveCount(0);
+                await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
+                await page.evaluate(() => window.editor.undo());
+
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', edited);
+                await expect(page.locator('#editor')).toHaveValue(edited);
+            });
+        }
+
         test('removes a table through the context toolbar and restores it on undo', async ({ page }) => {
             await createEditor(page, '<table><tbody><tr><td>Cell</td></tr></tbody></table>');
             await page.locator('.editor td').click();
@@ -268,6 +304,55 @@ test.describe('Editor media', () => {
 
             await expect(page.locator('.editor img')).toHaveAttribute('src', /^data:image\/gif;base64,/);
             await expect(page.locator('.editor img')).toHaveCSS('width', '1px');
+        });
+
+        test('preserves source edits when a pending upload finishes and supports undo and redo', async ({ page }) => {
+            await createEditor(page);
+            await page.evaluate((gif) => {
+                const NativeReader = window.FileReader;
+
+                // Hold the read until the user has switched modes and edited the source.
+                window.FileReader = class extends NativeReader {
+                    readAsDataURL(file) {
+                        window.finishUpload = () => super.readAsDataURL(file);
+                    }
+                };
+
+                const bytes = Uint8Array.from(atob(gif), (char) => char.charCodeAt(0));
+
+                try {
+                    window.upload = window.editor.options.imageUpload.call(window.editor, [new File([bytes], 'upload.gif', { type: 'image/gif' })]);
+                } finally {
+                    window.FileReader = NativeReader;
+                }
+            }, gif);
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
+            const source = page.locator('.editor-source');
+            const draft = '<p>Draft</p><p>Keep me</p>';
+            const expected = `<p>Draft<img src="data:image/gif;base64,${gif}"></p><p>Keep me</p>`;
+
+            await source.fill(draft);
+            await source.evaluate((node) => node.setSelectionRange(8, 8));
+            await page.evaluate(async () => {
+                window.finishUpload();
+                await window.upload;
+            });
+
+            await expect(source).toHaveValue(expected);
+            await expect(page.locator('#editor')).toHaveValue(expected);
+            await source.press('ControlOrMeta+z');
+
+            await expect(source).toHaveValue(draft);
+            await expect(page.locator('#editor')).toHaveValue(draft);
+            await source.press('ControlOrMeta+Shift+z');
+
+            await expect(source).toHaveValue(expected);
+            await expect(page.locator('#editor')).toHaveValue(expected);
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
+            await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', expected);
+            await expect(page.locator('#editor')).toHaveValue(expected);
         });
 
         test('settles failed uploads independently and inserts successful results in order', async ({ page }) => {
