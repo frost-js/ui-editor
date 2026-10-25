@@ -129,6 +129,29 @@ var icons_default = {
 // src/js/normalize.js
 /** @import { EditorSelectionMarkers } from './selection.js'; */
 var transparent = "rgba(0, 0, 0, 0)";
+var mergeSelector = [
+	"a",
+	"b",
+	"bdi",
+	"bdo",
+	"cite",
+	"code",
+	"del",
+	"em",
+	"i",
+	"ins",
+	"kbd",
+	"mark",
+	"s",
+	"samp",
+	"small",
+	"span",
+	"strong",
+	"sub",
+	"sup",
+	"u",
+	"var"
+].join(", ");
 var phrasingSelector = [
 	"a",
 	"abbr",
@@ -192,42 +215,22 @@ var phrasingSelector = [
 */
 var isPhrasingContent = (node) => $._isText(node) || $.is(node, phrasingSelector);
 /**
-* Determines whether a node is a form element.
-* https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
-* @param {Node} node The input node.
-* @returns {boolean} Whether the node is a form element.
-*/
-var isFormElement = (node) => $.is(node, "button, fieldset, input, object, output, select, textarea");
-/**
-* Determines whether a node is a void element.
-* https://developer.mozilla.org/en-US/docs/Glossary/Void_element
-* @param {Node} node The input node.
-* @returns {boolean} Whether the node is a void element.
-*/
-var isVoidElement = (node) => $.is(node, "area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr");
-/**
-* Determines whether a node is a phrasing container.
-* @param {Node} node The input node.
-* @returns {boolean} Whether the node is a phrasing container.
-*/
-var isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node) && !isVoidElement(node) && !isFormElement(node);
-/**
-* Joins adjacent inline elements.
+* Joins adjacent inline formatting elements without merging media or other structured content.
 * @param {HTMLElement} container The container.
 * @param {EditorSelectionMarkers} markers The selection markers.
 */
 function joinAdjacentNodes(container, markers) {
-	const elements = $.find("*", container);
+	const elements = $.find(mergeSelector, container);
 	const isMarker = (node) => node === markers.start || node === markers.end;
 	for (const element of elements) {
-		if (!containsNode(container, element) || !isPhrasingContainer(element)) continue;
+		if (!containsNode(container, element)) continue;
 		const moveMarkers = [];
 		let next = element.nextSibling;
 		while (next && isMarker(next)) {
 			moveMarkers.push(next);
 			next = next.nextSibling;
 		}
-		if (!next || !isPhrasingContainer(next) || !$.isEqual(element, next, { shallow: true })) continue;
+		if (!next || !$.isEqual(element, next, { shallow: true })) continue;
 		$.prepend(next, [...$.contents(element), ...moveMarkers]);
 		$.detach(element);
 	}
@@ -2523,16 +2526,20 @@ var Editor = class extends BaseComponent {
 			if (this.options.keyDown) this.options.keyDown.call(this, event);
 			if (event.defaultPrevented || !this.node) return;
 			const selection = window.getSelection();
-			const isIndented = (node) => {
-				return [node, ...$.parents(node, null, this.#editor)].some((ancestor) => $.is(ancestor, "li") || parseFloat($.getStyle(ancestor, "marginInlineStart") || $.getStyle(ancestor, "marginLeft")) > 0);
-			};
 			switch (event.code) {
-				case "Backspace":
-					if (selection.isCollapsed && $.isSame(selection.anchorNode, selection.focusNode) && ($._isElement(selection.anchorNode) && $.getText(selection.anchorNode) === "" && isIndented(selection.anchorNode) || $._isText(selection.anchorNode) && selection.anchorOffset === 0 && isIndented($.parent(selection.anchorNode)))) {
+				case "Backspace": {
+					const range = getRange(this.#editor);
+					if (!range?.collapsed) break;
+					const block = getSelectedBlocks(this.#editor, range)[0];
+					let atStart = !!block && range.startOffset === 0;
+					for (let node = range.startContainer; atStart && node !== block; node = node.parentNode) atStart = !node.previousSibling;
+					const isIndented = block && [block, ...$.parents(block, null, this.#editor)].some((ancestor) => $.is(ancestor, "li") || parseFloat($.getStyle(ancestor, "marginInlineStart") || $.getStyle(ancestor, "marginLeft")) > 0);
+					if (atStart && isIndented) {
 						event.preventDefault();
 						this.outdent();
-					} else if ($.contents(this.#editor).length <= 1 && $.getText(this.#editor) === "") event.preventDefault();
+					} else if ($.getHtml(this.#editor) === "<p><br></p>") event.preventDefault();
 					break;
+				}
 				case "Delete":
 					if (selection.isCollapsed && $.isSame(selection.anchorNode, selection.focusNode) && $.getText(selection.anchorNode) === "") {
 						const nodes = [selection.anchorNode, ...$.parents(selection.anchorNode, null, this.#editor)];
@@ -3739,7 +3746,7 @@ var Editor = class extends BaseComponent {
 			$.setValue(urlInput, href);
 			if (newWindow === "_blank") $.setProperty(newWindowInput, { checked: true });
 		}
-		let hasText = false;
+		let hasText = !!$.getValue(textInput);
 		$.append(container, textGroup);
 		$.append(container, urlGroup);
 		$.append(container, newWindowGroup);

@@ -160,6 +160,29 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 // src/js/normalize.js
 /** @import { EditorSelectionMarkers } from './selection.js'; */
 	var transparent = "rgba(0, 0, 0, 0)";
+	var mergeSelector = [
+		"a",
+		"b",
+		"bdi",
+		"bdo",
+		"cite",
+		"code",
+		"del",
+		"em",
+		"i",
+		"ins",
+		"kbd",
+		"mark",
+		"s",
+		"samp",
+		"small",
+		"span",
+		"strong",
+		"sub",
+		"sup",
+		"u",
+		"var"
+	].join(", ");
 	var phrasingSelector = [
 		"a",
 		"abbr",
@@ -223,42 +246,22 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	*/
 	var isPhrasingContent = (node) => _fr0st_query.default._isText(node) || _fr0st_query.default.is(node, phrasingSelector);
 	/**
-	* Determines whether a node is a form element.
-	* https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
-	* @param {Node} node The input node.
-	* @returns {boolean} Whether the node is a form element.
-	*/
-	var isFormElement = (node) => _fr0st_query.default.is(node, "button, fieldset, input, object, output, select, textarea");
-	/**
-	* Determines whether a node is a void element.
-	* https://developer.mozilla.org/en-US/docs/Glossary/Void_element
-	* @param {Node} node The input node.
-	* @returns {boolean} Whether the node is a void element.
-	*/
-	var isVoidElement = (node) => _fr0st_query.default.is(node, "area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr");
-	/**
-	* Determines whether a node is a phrasing container.
-	* @param {Node} node The input node.
-	* @returns {boolean} Whether the node is a phrasing container.
-	*/
-	var isPhrasingContainer = (node) => !_fr0st_query.default._isText(node) && isPhrasingContent(node) && !isVoidElement(node) && !isFormElement(node);
-	/**
-	* Joins adjacent inline elements.
+	* Joins adjacent inline formatting elements without merging media or other structured content.
 	* @param {HTMLElement} container The container.
 	* @param {EditorSelectionMarkers} markers The selection markers.
 	*/
 	function joinAdjacentNodes(container, markers) {
-		const elements = _fr0st_query.default.find("*", container);
+		const elements = _fr0st_query.default.find(mergeSelector, container);
 		const isMarker = (node) => node === markers.start || node === markers.end;
 		for (const element of elements) {
-			if (!containsNode(container, element) || !isPhrasingContainer(element)) continue;
+			if (!containsNode(container, element)) continue;
 			const moveMarkers = [];
 			let next = element.nextSibling;
 			while (next && isMarker(next)) {
 				moveMarkers.push(next);
 				next = next.nextSibling;
 			}
-			if (!next || !isPhrasingContainer(next) || !_fr0st_query.default.isEqual(element, next, { shallow: true })) continue;
+			if (!next || !_fr0st_query.default.isEqual(element, next, { shallow: true })) continue;
 			_fr0st_query.default.prepend(next, [..._fr0st_query.default.contents(element), ...moveMarkers]);
 			_fr0st_query.default.detach(element);
 		}
@@ -2554,16 +2557,20 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				if (this.options.keyDown) this.options.keyDown.call(this, event);
 				if (event.defaultPrevented || !this.node) return;
 				const selection = window.getSelection();
-				const isIndented = (node) => {
-					return [node, ..._fr0st_query.default.parents(node, null, this.#editor)].some((ancestor) => _fr0st_query.default.is(ancestor, "li") || parseFloat(_fr0st_query.default.getStyle(ancestor, "marginInlineStart") || _fr0st_query.default.getStyle(ancestor, "marginLeft")) > 0);
-				};
 				switch (event.code) {
-					case "Backspace":
-						if (selection.isCollapsed && _fr0st_query.default.isSame(selection.anchorNode, selection.focusNode) && (_fr0st_query.default._isElement(selection.anchorNode) && _fr0st_query.default.getText(selection.anchorNode) === "" && isIndented(selection.anchorNode) || _fr0st_query.default._isText(selection.anchorNode) && selection.anchorOffset === 0 && isIndented(_fr0st_query.default.parent(selection.anchorNode)))) {
+					case "Backspace": {
+						const range = getRange(this.#editor);
+						if (!range?.collapsed) break;
+						const block = getSelectedBlocks(this.#editor, range)[0];
+						let atStart = !!block && range.startOffset === 0;
+						for (let node = range.startContainer; atStart && node !== block; node = node.parentNode) atStart = !node.previousSibling;
+						const isIndented = block && [block, ..._fr0st_query.default.parents(block, null, this.#editor)].some((ancestor) => _fr0st_query.default.is(ancestor, "li") || parseFloat(_fr0st_query.default.getStyle(ancestor, "marginInlineStart") || _fr0st_query.default.getStyle(ancestor, "marginLeft")) > 0);
+						if (atStart && isIndented) {
 							event.preventDefault();
 							this.outdent();
-						} else if (_fr0st_query.default.contents(this.#editor).length <= 1 && _fr0st_query.default.getText(this.#editor) === "") event.preventDefault();
+						} else if (_fr0st_query.default.getHtml(this.#editor) === "<p><br></p>") event.preventDefault();
 						break;
+					}
 					case "Delete":
 						if (selection.isCollapsed && _fr0st_query.default.isSame(selection.anchorNode, selection.focusNode) && _fr0st_query.default.getText(selection.anchorNode) === "") {
 							const nodes = [selection.anchorNode, ..._fr0st_query.default.parents(selection.anchorNode, null, this.#editor)];
@@ -3770,7 +3777,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				_fr0st_query.default.setValue(urlInput, href);
 				if (newWindow === "_blank") _fr0st_query.default.setProperty(newWindowInput, { checked: true });
 			}
-			let hasText = false;
+			let hasText = !!_fr0st_query.default.getValue(textInput);
 			_fr0st_query.default.append(container, textGroup);
 			_fr0st_query.default.append(container, urlGroup);
 			_fr0st_query.default.append(container, newWindowGroup);

@@ -1894,37 +1894,35 @@ export default class Editor extends BaseComponent {
 
             const selection = window.getSelection();
 
-            const isIndented = (node) => {
-                return [node, ...$.parents(node, null, this.#editor)].some((ancestor) => $.is(ancestor, 'li') ||
-                    parseFloat($.getStyle(ancestor, 'marginInlineStart') || $.getStyle(ancestor, 'marginLeft')) > 0);
-            };
-
             switch (event.code) {
-                case 'Backspace':
-                    if (
-                        selection.isCollapsed &&
-                        $.isSame(selection.anchorNode, selection.focusNode) &&
-                        (
-                            (
-                                $._isElement(selection.anchorNode) &&
-                                $.getText(selection.anchorNode) === '' &&
-                                isIndented(selection.anchorNode)
-                            ) ||
-                            (
-                                $._isText(selection.anchorNode) &&
-                                selection.anchorOffset === 0 &&
-                                isIndented($.parent(selection.anchorNode))
-                            )
-                        )
-                    ) {
+                case 'Backspace': {
+                    const range = getRange(this.#editor);
+
+                    if (!range?.collapsed) {
+                        break;
+                    }
+
+                    const block = getSelectedBlocks(this.#editor, range)[0];
+                    let atStart = !!block && range.startOffset === 0;
+
+                    // An inline text boundary is only a block boundary when nothing precedes it.
+                    for (let node = range.startContainer; atStart && node !== block; node = node.parentNode) {
+                        atStart = !node.previousSibling;
+                    }
+
+                    const isIndented = block && [block, ...$.parents(block, null, this.#editor)].some((ancestor) => $.is(ancestor, 'li') ||
+                        parseFloat($.getStyle(ancestor, 'marginInlineStart') || $.getStyle(ancestor, 'marginLeft')) > 0);
+
+                    if (atStart && isIndented) {
                         event.preventDefault();
 
                         this.outdent();
-                    } else if ($.contents(this.#editor).length <= 1 && $.getText(this.#editor) === '') {
+                    } else if ($.getHtml(this.#editor) === '<p><br></p>') {
                         event.preventDefault();
                     }
 
                     break;
+                }
                 case 'Delete':
                     if (
                         selection.isCollapsed &&
@@ -3677,7 +3675,7 @@ export default class Editor extends BaseComponent {
             }
         }
 
-        let hasText = false;
+        let hasText = !!$.getValue(textInput);
 
         $.append(container, textGroup);
         $.append(container, urlGroup);

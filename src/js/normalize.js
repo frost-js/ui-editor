@@ -4,6 +4,10 @@ import $ from '@fr0st/query';
 import { containsNode } from './helpers.js';
 
 const transparent = 'rgba(0, 0, 0, 0)';
+const mergeSelector = [
+    'a', 'b', 'bdi', 'bdo', 'cite', 'code', 'del', 'em', 'i', 'ins', 'kbd',
+    'mark', 's', 'samp', 'small', 'span', 'strong', 'sub', 'sup', 'u', 'var',
+].join(', ');
 const phrasingSelector = [
     'a', 'abbr', 'area', 'audio', 'b', 'bdi', 'bdo', 'br', 'button',
     'cite', 'code', 'data', 'datalist', 'del', 'dfn', 'em', 'embed', 'i', 'iframe',
@@ -22,39 +26,16 @@ const phrasingSelector = [
 export const isPhrasingContent = (node) => $._isText(node) || $.is(node, phrasingSelector);
 
 /**
- * Determines whether a node is a form element.
- * https://developer.mozilla.org/en-US/docs/Web/API/HTMLFormElement/elements
- * @param {Node} node The input node.
- * @returns {boolean} Whether the node is a form element.
- */
-const isFormElement = (node) => $.is(node, 'button, fieldset, input, object, output, select, textarea');
-
-/**
- * Determines whether a node is a void element.
- * https://developer.mozilla.org/en-US/docs/Glossary/Void_element
- * @param {Node} node The input node.
- * @returns {boolean} Whether the node is a void element.
- */
-const isVoidElement = (node) => $.is(node, 'area, base, br, col, embed, hr, img, input, link, meta, param, source, track, wbr');
-
-/**
- * Determines whether a node is a phrasing container.
- * @param {Node} node The input node.
- * @returns {boolean} Whether the node is a phrasing container.
- */
-const isPhrasingContainer = (node) => !$._isText(node) && isPhrasingContent(node) && !isVoidElement(node) && !isFormElement(node);
-
-/**
- * Joins adjacent inline elements.
+ * Joins adjacent inline formatting elements without merging media or other structured content.
  * @param {HTMLElement} container The container.
  * @param {EditorSelectionMarkers} markers The selection markers.
  */
 export function joinAdjacentNodes(container, markers) {
-    const elements = $.find('*', container);
+    const elements = $.find(mergeSelector, container);
     const isMarker = (node) => node === markers.start || node === markers.end;
 
     for (const element of elements) {
-        if (!containsNode(container, element) || !isPhrasingContainer(element)) {
+        if (!containsNode(container, element)) {
             continue;
         }
 
@@ -66,7 +47,7 @@ export function joinAdjacentNodes(container, markers) {
             next = next.nextSibling;
         }
 
-        if (!next || !isPhrasingContainer(next) || !$.isEqual(element, next, { shallow: true })) {
+        if (!next || !$.isEqual(element, next, { shallow: true })) {
             continue;
         }
 
