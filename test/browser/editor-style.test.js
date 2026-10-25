@@ -22,7 +22,8 @@ test.describe('Editor styles', () => {
                     const fontSize = await indentation.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
 
                     await expect(indentation).toHaveAttribute('style', /margin-inline-start: 2em/);
-                    await expect(indentation).toHaveCSS('margin-right', `${fontSize * 2}px`);
+                    await expect.poll(() => indentation.evaluate((node) => parseFloat(getComputedStyle(node).marginRight)))
+                        .toBeCloseTo(fontSize * 2, 2);
                 });
 
                 test('fits a narrow container', async ({ page }) => {
