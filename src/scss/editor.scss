@@ -108,6 +108,8 @@
 }
 
 .editor-popover {
+    --ui-popover-border-radius: var(--ui-border-radius-sm);
+
     max-inline-size: calc(100vw - 1rem);
 
     .popover-body {
@@ -150,11 +152,13 @@
 }
 
 .editor-img-resize {
+    --ui-editor-img-resize-z-index: #{vars.$editor-img-resize-z-index};
     --ui-editor-img-resize-size: #{vars.$editor-img-resize-size};
     --ui-editor-img-resize-bg: #{vars.$editor-img-resize-bg};
     inset-block-start: 100%;
     right: 0;
 
+    z-index: var(--ui-editor-img-resize-z-index);
     inline-size: var(--ui-editor-img-resize-size);
     block-size: var(--ui-editor-img-resize-size);
     cursor: nwse-resize;
@@ -185,7 +189,7 @@
 .editor-resize,
 .editor-img-resize {
     &:focus-visible {
-        z-index: 1;
+        z-index: var(--ui-editor-img-resize-z-index, 1);
         outline: 2px solid var(--ui-primary);
         outline-offset: 1px;
         opacity: 1;

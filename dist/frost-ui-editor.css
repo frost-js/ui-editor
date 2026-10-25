@@ -97,6 +97,7 @@
 }
 
 .editor-popover {
+  --ui-popover-border-radius: var(--ui-border-radius-sm);
   max-inline-size: calc(100vw - 1rem);
 }
 .editor-popover .popover-body {
@@ -117,7 +118,7 @@
 }
 
 .editor-img-highlight {
-  --ui-editor-img-highlight-z-index: 1071;
+  --ui-editor-img-highlight-z-index: auto;
   --ui-editor-img-highlight-bg: var(--ui-border-color-translucent);
   --ui-editor-img-highlight-border-width: var(--ui-border-width);
   --ui-editor-img-highlight-border-color: var(--ui-body-color);
@@ -134,10 +135,12 @@
 }
 
 .editor-img-resize {
+  --ui-editor-img-resize-z-index: 1071;
   --ui-editor-img-resize-size: 5px;
   --ui-editor-img-resize-bg: var(--ui-body-color);
   inset-block-start: 100%;
   right: 0;
+  z-index: var(--ui-editor-img-resize-z-index);
   inline-size: var(--ui-editor-img-resize-size);
   block-size: var(--ui-editor-img-resize-size);
   cursor: nwse-resize;
@@ -165,7 +168,7 @@
 .editor-color:focus-visible,
 .editor-resize:focus-visible,
 .editor-img-resize:focus-visible {
-  z-index: 1;
+  z-index: var(--ui-editor-img-resize-z-index, 1);
   outline: 2px solid var(--ui-primary);
   outline-offset: 1px;
   opacity: 1;

@@ -1,10 +1,11 @@
-$editor-img-highlight-z-index: 1071 !default;
+$editor-img-highlight-z-index: auto !default;
 $editor-img-highlight-bg: var(--ui-border-color-translucent) !default;
 $editor-img-highlight-border-color: var(--ui-body-color) !default;
 $editor-img-highlight-border-width: var(--ui-border-width) !default;
 $editor-img-cursor-size: 2rem !default;
 $editor-img-size-bg: var(--ui-tertiary-color) !default;
 $editor-img-size-color: var(--ui-body-bg) !default;
+$editor-img-resize-z-index: 1071 !default;
 $editor-img-resize-size: 5px !default;
 $editor-img-resize-bg: var(--ui-body-color) !default;
 

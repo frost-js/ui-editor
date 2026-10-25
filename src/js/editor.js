@@ -2633,6 +2633,11 @@ export default class Editor extends BaseComponent {
         }
 
         if ($.isSame(currentNode, this.#currentNode)) {
+            if ($.is(currentNode, 'img')) {
+                this.#highlightImage(currentNode);
+            }
+
+            this.#popper?.update();
             return;
         }
 

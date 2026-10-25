@@ -2975,7 +2975,11 @@ var Editor = class extends BaseComponent {
 	*/
 	#refreshPopover(currentNode, event) {
 		if (!this.node) return;
-		if ($.isSame(currentNode, this.#currentNode)) return;
+		if ($.isSame(currentNode, this.#currentNode)) {
+			if ($.is(currentNode, "img")) this.#highlightImage(currentNode);
+			this.#popper?.update();
+			return;
+		}
 		this.#removePopover();
 		this.#currentNode = currentNode;
 		if (!this.#currentNode) return;

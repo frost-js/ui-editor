@@ -510,7 +510,7 @@ Parts expose runtime CSS custom properties backed by the [Sass defaults](./src/s
 | `.editor-img-cursor` | `--ui-editor-img-cursor-size` |
 | `.editor-img-highlight` | `--ui-editor-img-highlight-z-index`, `--ui-editor-img-highlight-bg`, `--ui-editor-img-highlight-border-width`, `--ui-editor-img-highlight-border-color` |
 | `.editor-img-size` | `--ui-editor-img-size-color`, `--ui-editor-img-size-bg` |
-| `.editor-img-resize` | `--ui-editor-img-resize-size`, `--ui-editor-img-resize-bg` |
+| `.editor-img-resize` | `--ui-editor-img-resize-z-index`, `--ui-editor-img-resize-size`, `--ui-editor-img-resize-bg` |
 
 ```css
 .article-editor .editor-panel {

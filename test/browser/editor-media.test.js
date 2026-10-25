@@ -33,6 +33,15 @@ test.describe('Editor media', () => {
                     await expect(image).not.toHaveAttribute('style', /width:/);
                 }
 
+                const bounds = await image.boundingBox();
+                const highlight = await page.locator('.editor-img-highlight').boundingBox();
+
+                expect(highlight.width).toBeCloseTo(Math.round(bounds.width) + 2, 0);
+                expect(highlight.height).toBeCloseTo(Math.round(bounds.height) + 2, 0);
+                expect(highlight.x).toBeCloseTo(Math.round(bounds.x) - 2, 0);
+                expect(highlight.y).toBeCloseTo(Math.round(bounds.y) - 2, 0);
+                await expect(page.locator('.editor-img-resize')).toHaveAttribute('aria-valuenow', String(Math.round(bounds.width)));
+
                 await expect(page.locator('#editor')).toHaveValue(await page.locator('.editor').innerHTML());
                 await page.evaluate(() => window.editor.undo());
 

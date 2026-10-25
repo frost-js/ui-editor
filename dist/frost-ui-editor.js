@@ -3006,7 +3006,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#refreshPopover(currentNode, event) {
 			if (!this.node) return;
-			if (_fr0st_query.default.isSame(currentNode, this.#currentNode)) return;
+			if (_fr0st_query.default.isSame(currentNode, this.#currentNode)) {
+				if (_fr0st_query.default.is(currentNode, "img")) this.#highlightImage(currentNode);
+				this.#popper?.update();
+				return;
+			}
 			this.#removePopover();
 			this.#currentNode = currentNode;
 			if (!this.#currentNode) return;
