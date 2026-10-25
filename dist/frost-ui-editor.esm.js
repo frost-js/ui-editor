@@ -184,7 +184,7 @@ function normalizePhrasing(container) {
 function normalizeSpans(container) {
 	const elements = $.find("span", container);
 	for (const element of elements) {
-		if ([...$.getProperty(element, "attributes")].length) continue;
+		if ($.getProperty(element, "attributes").length) continue;
 		const contents = $.contents(element);
 		if (contents.length) $.after(element, contents);
 		$.detach(element);
@@ -382,7 +382,11 @@ function outdentBlocks(blocks, root) {
 		while (remaining.length) {
 			const group = [remaining.shift()];
 			const styled = !$.is(group[0].parentElement.parentElement, "li") && getIndent(group[0]) > 0;
-			while (remaining.length && (!$.is(remaining[0].parentElement.parentElement, "li") && getIndent(remaining[0]) > 0) === styled) group.push(remaining.shift());
+			while (remaining.length) {
+				const next = remaining[0];
+				if ((!$.is(next.parentElement.parentElement, "li") && getIndent(next) > 0) !== styled) break;
+				group.push(remaining.shift());
+			}
 			if (styled) for (const item of group) setIndent(item, getIndent(item) - 2);
 			else outdentItems(group);
 		}
@@ -405,7 +409,7 @@ function outdentBlocks(blocks, root) {
 		if (selected.includes(wrapper)) {
 			if (indentationOnly && indent <= 0) $.replaceWith(wrapper, wrapper.childNodes);
 			else setIndent(wrapper, indent);
-		} else if (selected.length) {
+		} else {
 			const following = $.clone(wrapper, { deep: false })[0];
 			const originalNodes = new Set($.find("[id]", wrapper));
 			let first = selected[0];
@@ -459,7 +463,6 @@ var classes = {
 	dropdownButtons: "pt-2 pe-1 pb-1 ps-2 text-nowrap",
 	dropdownGroup: "btn-group",
 	dropdownItem: "dropdown-item",
-	dropdownItemDisabled: "disabled",
 	dropdownToggle: "dropdown-toggle",
 	dropHover: "text-primary",
 	dropTarget: "editor-drop-target position-absolute w-100 text-center rounded",
@@ -792,12 +795,14 @@ function createInput(Component, options) {
 			...options.attributes
 		}
 	});
-	const invalidFeedback = $.create("div", { class: Component.classes.invalidFeedback });
+	const invalidFeedback = $.create("div", {
+		class: Component.classes.invalidFeedback,
+		attributes: { id: `${options.id}-error` }
+	});
+	$.setAttribute(input, "aria-describedby", `${options.id}-error`);
 	$.append(group, label);
 	$.append(inputContainer, input);
 	$.append(group, inputContainer);
-	invalidFeedback.id = `${options.id}-error`;
-	$.setAttribute(input, "aria-describedby", invalidFeedback.id);
 	$.append(group, invalidFeedback);
 	return {
 		group,
@@ -830,12 +835,13 @@ function createModal(Component, options) {
 	const modalHeader = $.create("div", { class: Component.classes.modalHeader });
 	$.append(modalContent, modalHeader);
 	if (options.title) {
+		const id = generateId("editor-dialog");
 		const modalTitle = $.create("h6", {
 			class: Component.classes.modalTitle,
-			text: options.title
+			text: options.title,
+			attributes: { id }
 		});
-		modalTitle.id = generateId("editor-dialog");
-		$.setAttribute(modal, "aria-labelledby", modalTitle.id);
+		$.setAttribute(modal, "aria-labelledby", id);
 		$.append(modalHeader, modalTitle);
 	}
 	const closeBtn = $.create("button", {
@@ -1500,41 +1506,32 @@ var Editor = class extends BaseComponent {
 			this.#updateTable(node, (td, _, table) => {
 				const index = $.index(td);
 				const rows = $.find(":scope > thead > tr, :scope > tbody > tr", table);
-				this.#observe(false);
 				for (const row of rows) {
 					const newTd = $.create("td", { html: "<br>" });
 					const cells = $.children(row, "th, td");
 					$.after(cells[index], newTd);
 				}
-				this.#observe();
-				this.#updateValue();
 			});
 		} },
 		tableColumnBefore: { action(node) {
 			this.#updateTable(node, (td, _, table) => {
 				const index = $.index(td);
 				const rows = $.find(":scope > thead > tr, :scope > tbody > tr", table);
-				this.#observe(false);
 				for (const row of rows) {
 					const newTd = $.create("td", { html: "<br>" });
 					const cells = $.children(row, "th, td");
 					$.before(cells[index], newTd);
 				}
-				this.#observe();
-				this.#updateValue();
 			});
 		} },
 		tableColumnRemove: { action(node) {
 			this.#updateTable(node, (td, _, table) => {
 				const index = $.index(td);
 				const rows = $.find(":scope > thead > tr, :scope > tbody > tr", table);
-				this.#observe(false);
 				for (const row of rows) {
 					const cells = $.children(row, "th, td");
 					$.remove(cells[index]);
 				}
-				this.#observe();
-				this.#updateValue();
 				this.#removePopover();
 			});
 		} },
@@ -1586,11 +1583,12 @@ var Editor = class extends BaseComponent {
 	#components = /* @__PURE__ */ new Set();
 	/** @type {HTMLElement|null} */
 	#container = null;
+	/** @type {ReturnType<typeof $.debounce>|null} */
+	#contentChanged = null;
 	/** @type {HTMLElement|null} */
 	#currentNode = null;
 	/** @type {string} */
 	#defaultFont = "sans-serif";
-	#disposing = false;
 	/** @type {HTMLElement|null} */
 	#dropTarget = null;
 	/** @type {HTMLElement|null} */
@@ -1735,15 +1733,13 @@ var Editor = class extends BaseComponent {
 	}
 	/** @inheritdoc */
 	dispose() {
-		if (!this.node || this.#disposing) return;
-		this.#disposing = true;
+		if (!this.node) return;
 		const node = this.node;
 		const active = document.activeElement;
 		const restoreFocus = containsNode(this.#container, active) || containsNode(this.#modal, active) || containsNode(this.#fullScreen, active);
 		removeEditor(this);
 		this.#observer?.disconnect();
 		this.#observer = null;
-		super.dispose();
 		let failure;
 		const release = (callback) => {
 			try {
@@ -1761,52 +1757,54 @@ var Editor = class extends BaseComponent {
 		}
 		this.#images.clear();
 		for (const cleanup of this.#cleanups.splice(0).reverse()) release(cleanup);
-		for (const component of this.#components) release(() => component.dispose());
+		for (const component of this.#components) {
+			const element = component.node;
+			release(() => component.dispose());
+			if (component instanceof Modal) $.remove(element);
+		}
 		this.#components.clear();
 		release(() => this.#popper?.dispose());
-		for (const modal of [this.#modal, this.#fullScreen]) if (modal) {
-			release(() => Modal.init(modal).dispose());
-			$.remove(modal);
-		}
 		if (this.#container) $.remove(this.#container);
 		this.#releaseDisplay?.();
 		this.#releaseDisplay = null;
 		if (!this.#originalStyle && !$.getAttribute(node, "style")) $.removeAttribute(node, "style");
 		for (const [name, value] of this.#originalAttributes) if (value === null) $.removeAttribute(node, name);
 		else $.setAttribute(node, name, value);
+		this.#buttons = null;
+		this.#contentChanged = null;
+		this.#currentNode = null;
+		this.#history = null;
+		this.#lastRange = null;
+		this.#redoHistory = null;
+		this.#container = null;
+		this.#dropTarget = null;
+		this.#dropText = null;
+		this.#editor = null;
+		this.#editorBody = null;
+		this.#editorContainer = null;
+		this.#editorScroll = null;
+		this.#fullScreen = null;
+		this.#imgCursor = null;
+		this.#imgHighlight = null;
+		this.#imgResize = null;
+		this.#imgSize = null;
+		this.#lineNumbers = null;
+		this.#modal = null;
+		this.#popover = null;
+		this.#popoverArrow = null;
+		this.#popoverBody = null;
+		this.#popper = null;
+		this.#resizeBar = null;
+		this.#source = null;
+		this.#sourceContainer = null;
+		this.#sourceOuter = null;
+		this.#sourceScroll = null;
+		this.#toolbar = null;
+		super.dispose();
 		if (restoreFocus && node.isConnected && !node.hidden) {
 			node.focus({ preventScroll: true });
 			node.setSelectionRange(...this.#originalSelection);
 		}
-		this.#container = null;
-		this.#toolbar = null;
-		this.#editorBody = null;
-		this.#editorContainer = null;
-		this.#editorScroll = null;
-		this.#editor = null;
-		this.#imgHighlight = null;
-		this.#imgCursor = null;
-		this.#imgResize = null;
-		this.#imgSize = null;
-		this.#sourceOuter = null;
-		this.#sourceContainer = null;
-		this.#sourceScroll = null;
-		this.#lineNumbers = null;
-		this.#source = null;
-		this.#popover = null;
-		this.#popoverArrow = null;
-		this.#popoverBody = null;
-		this.#dropTarget = null;
-		this.#dropText = null;
-		this.#resizeBar = null;
-		this.#currentNode = null;
-		this.#lastRange = null;
-		this.#history = null;
-		this.#redoHistory = null;
-		this.#buttons = null;
-		this.#modal = null;
-		this.#fullScreen = null;
-		this.#popper = null;
 		if (failure) throw failure;
 	}
 	/**
@@ -1863,7 +1861,6 @@ var Editor = class extends BaseComponent {
 	* @param {string} value The HTML string.
 	*/
 	insertHtml(value) {
-		if (!this.node || $.is(this.node, ":disabled") || this.node.readOnly) return;
 		this.#execCommand("insertHTML", value);
 	}
 	/**
@@ -2392,9 +2389,7 @@ var Editor = class extends BaseComponent {
 							const nextParent = $.next(lastParent).shift();
 							let formatElement = "p";
 							if (nextParent && $.is(nextParent, "h1, h2, h3, h4, h5, h6, pre")) formatElement = $.tagName(nextParent);
-							this.#observe(false);
 							this.#execCommand("formatBlock", formatElement);
-							this.#observe();
 						}
 					}
 					break;
@@ -2431,9 +2426,10 @@ var Editor = class extends BaseComponent {
 		const labels = [...this.node.labels];
 		const generated = [];
 		for (const label of labels) {
-			if (!label.id) {
-				label.id = generateId("editor-label");
-				generated.push([label, label.id]);
+			if (!$.getAttribute(label, "id")) {
+				const id = generateId("editor-label");
+				$.setAttribute(label, "id", id);
+				generated.push([label, id]);
 			}
 			this.listen(label, "click.ui.editor", (event) => {
 				if (event.target === label || !$.closest(event.target, "a, button, input, select, textarea")[0]) {
@@ -2900,12 +2896,7 @@ var Editor = class extends BaseComponent {
 			});
 			if (this.#pendingMutation) {
 				this.#pendingMutation = false;
-				this.#debounce(() => {
-					if ($.isVisible(this.#sourceContainer)) return;
-					this.#normalize();
-					this.#checkEmpty();
-					this.#updateValue();
-				})();
+				this.#contentChanged();
 			}
 		}
 	}
@@ -2992,8 +2983,10 @@ var Editor = class extends BaseComponent {
 		else $.removeClass(this.#editor, this.constructor.classes.editorDisabled);
 		$.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
 		$.setAttribute(this.#editor, "tabindex", disabled ? "-1" : $.getAttribute(this.node, "tabindex") || "0");
-		this.#source.disabled = disabled;
-		this.#source.readOnly = readOnly;
+		$.setProperty(this.#source, {
+			disabled,
+			readOnly
+		});
 		for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
 			$.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
 			$.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
@@ -3153,7 +3146,7 @@ var Editor = class extends BaseComponent {
 	*/
 	#removeModal() {
 		if (!this.#modal) return;
-		Modal.init(this.#modal).dispose();
+		$.getData(this.#modal, Modal.DATA_KEY)?.dispose();
 		$.remove(this.#modal);
 		this.#modal = null;
 	}
@@ -3540,7 +3533,7 @@ var Editor = class extends BaseComponent {
 				$.focus(fileInput);
 			},
 			onHidden: () => {
-				this.#removeModal();
+				this.#modal = null;
 				if (this.node) {
 					selectRange(originalRange);
 					if (!returnFocus?.isConnected) this.#focusEditor();
@@ -3605,7 +3598,7 @@ var Editor = class extends BaseComponent {
 				$.focus(urlInput);
 			},
 			onHidden: () => {
-				this.#removeModal();
+				this.#modal = null;
 				if (this.node) {
 					selectRange(originalRange);
 					if (!returnFocus?.isConnected) this.#focusEditor();
@@ -3683,7 +3676,7 @@ var Editor = class extends BaseComponent {
 				$.focus(urlInput);
 			},
 			onHidden: () => {
-				this.#removeModal();
+				this.#modal = null;
 				if (this.node) {
 					selectRange(originalRange);
 					if (!returnFocus?.isConnected) this.#focusEditor();
@@ -3840,14 +3833,14 @@ var Editor = class extends BaseComponent {
 	* Starts observing content changes owned by this editor.
 	*/
 	#watchContent() {
-		const changed = this.#debounce(() => {
+		this.#contentChanged = this.#debounce(() => {
 			if ($.isVisible(this.#sourceContainer)) return;
 			this.#normalize();
 			this.#checkEmpty();
 			this.#updateValue();
 		});
 		this.#observer = new window.MutationObserver((records) => {
-			if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) changed();
+			if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) this.#contentChanged();
 		});
 		this.#observe();
 	}

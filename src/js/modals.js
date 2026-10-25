@@ -117,13 +117,16 @@ export function createInput(Component, options) {
 
     const invalidFeedback = $.create('div', {
         class: Component.classes.invalidFeedback,
+        attributes: {
+            id: `${options.id}-error`,
+        },
     });
+
+    $.setAttribute(input, 'aria-describedby', `${options.id}-error`);
 
     $.append(group, label);
     $.append(inputContainer, input);
     $.append(group, inputContainer);
-    invalidFeedback.id = `${options.id}-error`;
-    $.setAttribute(input, 'aria-describedby', invalidFeedback.id);
     $.append(group, invalidFeedback);
 
     return { group, input, invalidFeedback };
@@ -170,13 +173,14 @@ export function createModal(Component, options) {
     $.append(modalContent, modalHeader);
 
     if (options.title) {
+        const id = generateId('editor-dialog');
         const modalTitle = $.create('h6', {
             class: Component.classes.modalTitle,
             text: options.title,
+            attributes: { id },
         });
 
-        modalTitle.id = generateId('editor-dialog');
-        $.setAttribute(modal, 'aria-labelledby', modalTitle.id);
+        $.setAttribute(modal, 'aria-labelledby', id);
         $.append(modalHeader, modalTitle);
     }
 

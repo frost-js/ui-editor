@@ -98,12 +98,14 @@ export function normalizePhrasing(container) {
                 continue;
             }
 
+            // Lift the first nested block and everything after it out of its parent.
             const nextSiblings = contents.splice(i);
 
             $.after(element, nextSiblings);
 
             const tagName = $.tagName(element);
 
+            // Rewrap inline runs while carrying the original formatting into nested blocks.
             const wrapContents = (parent, nodes) => {
                 const stack = [];
                 let lastNode;
@@ -174,7 +176,7 @@ export function normalizeSpans(container) {
     const elements = $.find('span', container);
 
     for (const element of elements) {
-        if ([...$.getProperty(element, 'attributes')].length) {
+        if ($.getProperty(element, 'attributes').length) {
             continue;
         }
 

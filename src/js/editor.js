@@ -393,8 +393,6 @@ export default class Editor extends BaseComponent {
                     const index = $.index(td);
                     const rows = $.find(':scope > thead > tr, :scope > tbody > tr', table);
 
-                    this.#observe(false);
-
                     for (const row of rows) {
                         const newTd = $.create('td', {
                             html: '<br>',
@@ -403,9 +401,6 @@ export default class Editor extends BaseComponent {
 
                         $.after(cells[index], newTd);
                     }
-
-                    this.#observe();
-                    this.#updateValue();
                 });
             },
         },
@@ -415,8 +410,6 @@ export default class Editor extends BaseComponent {
                     const index = $.index(td);
                     const rows = $.find(':scope > thead > tr, :scope > tbody > tr', table);
 
-                    this.#observe(false);
-
                     for (const row of rows) {
                         const newTd = $.create('td', {
                             html: '<br>',
@@ -425,9 +418,6 @@ export default class Editor extends BaseComponent {
 
                         $.before(cells[index], newTd);
                     }
-
-                    this.#observe();
-                    this.#updateValue();
                 });
             },
         },
@@ -437,16 +427,12 @@ export default class Editor extends BaseComponent {
                     const index = $.index(td);
                     const rows = $.find(':scope > thead > tr, :scope > tbody > tr', table);
 
-                    this.#observe(false);
-
                     for (const row of rows) {
                         const cells = $.children(row, 'th, td');
 
                         $.remove(cells[index]);
                     }
 
-                    this.#observe();
-                    this.#updateValue();
                     this.#removePopover();
                 });
             },
@@ -526,11 +512,12 @@ export default class Editor extends BaseComponent {
     #components = new Set();
     /** @type {HTMLElement|null} */
     #container = null;
+    /** @type {ReturnType<typeof $.debounce>|null} */
+    #contentChanged = null;
     /** @type {HTMLElement|null} */
     #currentNode = null;
     /** @type {string} */
     #defaultFont = 'sans-serif';
-    #disposing = false;
     /** @type {HTMLElement|null} */
     #dropTarget = null;
     /** @type {HTMLElement|null} */
@@ -631,10 +618,12 @@ export default class Editor extends BaseComponent {
                 .filter((font) => document.fonts.check(`12px ${font}`));
             this.#defaultFont = this.#fonts.includes(this.options.defaultFont) ?
                 this.options.defaultFont : this.#fonts[0] || 'sans-serif';
+
             this.#render();
             $.setHtml(this.#editor, $.getValue(node));
             this.#refreshDisabled();
             this.#checkEmpty();
+
             this.#events();
             this.#normalize();
             this.#updateValue();
@@ -696,11 +685,9 @@ export default class Editor extends BaseComponent {
 
     /** @inheritdoc */
     dispose() {
-        if (!this.node || this.#disposing) {
+        if (!this.node) {
             return;
         }
-
-        this.#disposing = true;
 
         const node = this.node;
         const active = document.activeElement;
@@ -710,7 +697,6 @@ export default class Editor extends BaseComponent {
         removeEditor(this);
         this.#observer?.disconnect();
         this.#observer = null;
-        super.dispose();
 
         let failure;
         const release = (callback) => {
@@ -740,18 +726,18 @@ export default class Editor extends BaseComponent {
         }
 
         for (const component of this.#components) {
+            const element = component.node;
+
             release(() => component.dispose());
+
+            // Modals live outside the editor container, including while closing.
+            if (component instanceof Modal) {
+                $.remove(element);
+            }
         }
 
         this.#components.clear();
         release(() => this.#popper?.dispose());
-
-        for (const modal of [this.#modal, this.#fullScreen]) {
-            if (modal) {
-                release(() => Modal.init(modal).dispose());
-                $.remove(modal);
-            }
-        }
 
         if (this.#container) {
             $.remove(this.#container);
@@ -772,40 +758,45 @@ export default class Editor extends BaseComponent {
             }
         }
 
+        this.#buttons = null;
+        this.#contentChanged = null;
+        this.#currentNode = null;
+        this.#history = null;
+        this.#lastRange = null;
+        this.#redoHistory = null;
+
+        this.#container = null;
+        this.#dropTarget = null;
+        this.#dropText = null;
+        this.#editor = null;
+        this.#editorBody = null;
+        this.#editorContainer = null;
+        this.#editorScroll = null;
+        this.#fullScreen = null;
+        this.#imgCursor = null;
+        this.#imgHighlight = null;
+        this.#imgResize = null;
+        this.#imgSize = null;
+        this.#lineNumbers = null;
+        this.#modal = null;
+        this.#popover = null;
+        this.#popoverArrow = null;
+        this.#popoverBody = null;
+        this.#popper = null;
+        this.#resizeBar = null;
+        this.#source = null;
+        this.#sourceContainer = null;
+        this.#sourceOuter = null;
+        this.#sourceScroll = null;
+        this.#toolbar = null;
+
+        super.dispose();
+
+        // Restore native focus after removing the editor's focus-forwarding listener.
         if (restoreFocus && node.isConnected && !node.hidden) {
             node.focus({ preventScroll: true });
             node.setSelectionRange(...this.#originalSelection);
         }
-
-        this.#container = null;
-        this.#toolbar = null;
-        this.#editorBody = null;
-        this.#editorContainer = null;
-        this.#editorScroll = null;
-        this.#editor = null;
-        this.#imgHighlight = null;
-        this.#imgCursor = null;
-        this.#imgResize = null;
-        this.#imgSize = null;
-        this.#sourceOuter = null;
-        this.#sourceContainer = null;
-        this.#sourceScroll = null;
-        this.#lineNumbers = null;
-        this.#source = null;
-        this.#popover = null;
-        this.#popoverArrow = null;
-        this.#popoverBody = null;
-        this.#dropTarget = null;
-        this.#dropText = null;
-        this.#resizeBar = null;
-        this.#currentNode = null;
-        this.#lastRange = null;
-        this.#history = null;
-        this.#redoHistory = null;
-        this.#buttons = null;
-        this.#modal = null;
-        this.#fullScreen = null;
-        this.#popper = null;
 
         if (failure) {
             throw failure;
@@ -875,10 +866,6 @@ export default class Editor extends BaseComponent {
      * @param {string} value The HTML string.
      */
     insertHtml(value) {
-        if (!this.node || $.is(this.node, ':disabled') || this.node.readOnly) {
-            return;
-        }
-
         this.#execCommand('insertHTML', value);
     }
 
@@ -1659,9 +1646,7 @@ export default class Editor extends BaseComponent {
                                 formatElement = $.tagName(nextParent);
                             }
 
-                            this.#observe(false);
                             this.#execCommand('formatBlock', formatElement);
-                            this.#observe();
                         }
                     }
 
@@ -1718,9 +1703,11 @@ export default class Editor extends BaseComponent {
         const generated = [];
 
         for (const label of labels) {
-            if (!label.id) {
-                label.id = generateId('editor-label');
-                generated.push([label, label.id]);
+            if (!$.getAttribute(label, 'id')) {
+                const id = generateId('editor-label');
+
+                $.setAttribute(label, 'id', id);
+                generated.push([label, id]);
             }
 
             this.listen(label, 'click.ui.editor', (event) => {
@@ -1733,6 +1720,7 @@ export default class Editor extends BaseComponent {
 
         this.#labelledBy = labels.map((label) => label.id).join(' ');
         this.#refreshDisabled();
+
         this.listen(this.node, 'focus.ui.editor', (event) => {
             if (event.target === document.activeElement) {
                 focus();
@@ -2378,6 +2366,7 @@ export default class Editor extends BaseComponent {
 
         if (!observe) {
             if (this.#observationDepth++ === 0) {
+                // Preserve changes queued before our own DOM edits suspend observation.
                 this.#pendingMutation ||= this.#observer.takeRecords().some((record) => record.type !== 'attributes' || record.target !== this.#editor);
                 this.#observer.disconnect();
             }
@@ -2392,15 +2381,7 @@ export default class Editor extends BaseComponent {
 
             if (this.#pendingMutation) {
                 this.#pendingMutation = false;
-                this.#debounce(() => {
-                    if ($.isVisible(this.#sourceContainer)) {
-                        return;
-                    }
-
-                    this.#normalize();
-                    this.#checkEmpty();
-                    this.#updateValue();
-                })();
+                this.#contentChanged();
             }
         }
     }
@@ -2526,8 +2507,7 @@ export default class Editor extends BaseComponent {
 
         $.setAttribute(this.#editor, 'contenteditable', String(!disabled && !readOnly));
         $.setAttribute(this.#editor, 'tabindex', disabled ? '-1' : ($.getAttribute(this.node, 'tabindex') || '0'));
-        this.#source.disabled = disabled;
-        this.#source.readOnly = readOnly;
+        $.setProperty(this.#source, { disabled, readOnly });
 
         for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
             $.setAttribute(handle, 'tabindex', disabled || readOnly ? '-1' : '0');
@@ -2638,6 +2618,7 @@ export default class Editor extends BaseComponent {
             }
 
             this.#popper?.update();
+
             return;
         }
 
@@ -2768,7 +2749,7 @@ export default class Editor extends BaseComponent {
             return;
         }
 
-        Modal.init(this.#modal).dispose();
+        $.getData(this.#modal, Modal.DATA_KEY)?.dispose();
         $.remove(this.#modal);
         this.#modal = null;
     }
@@ -3334,7 +3315,7 @@ export default class Editor extends BaseComponent {
                 $.focus(fileInput);
             },
             onHidden: () => {
-                this.#removeModal();
+                this.#modal = null;
 
                 if (this.node) {
                     selectRange(originalRange);
@@ -3422,7 +3403,7 @@ export default class Editor extends BaseComponent {
                 $.focus(urlInput);
             },
             onHidden: () => {
-                this.#removeModal();
+                this.#modal = null;
 
                 if (this.node) {
                     selectRange(originalRange);
@@ -3515,7 +3496,6 @@ export default class Editor extends BaseComponent {
                 }
 
                 $.removeClass(urlGroup, this.constructor.classes.formError);
-
                 $.removeAttribute(urlInput, 'aria-invalid');
 
                 const video = $.create('iframe', {
@@ -3537,7 +3517,7 @@ export default class Editor extends BaseComponent {
                 $.focus(urlInput);
             },
             onHidden: () => {
-                this.#removeModal();
+                this.#modal = null;
 
                 if (this.node) {
                     selectRange(originalRange);
@@ -3770,7 +3750,7 @@ export default class Editor extends BaseComponent {
      * Starts observing content changes owned by this editor.
      */
     #watchContent() {
-        const changed = this.#debounce(() => {
+        this.#contentChanged = this.#debounce(() => {
             if ($.isVisible(this.#sourceContainer)) {
                 return;
             }
@@ -3782,7 +3762,7 @@ export default class Editor extends BaseComponent {
 
         this.#observer = new window.MutationObserver((records) => {
             if (records.some((record) => record.type !== 'attributes' || record.target !== this.#editor)) {
-                changed();
+                this.#contentChanged();
             }
         });
         this.#observe();

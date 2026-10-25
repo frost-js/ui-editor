@@ -274,7 +274,15 @@ export function outdentBlocks(blocks, root) {
             const group = [remaining.shift()];
             const styled = !$.is(group[0].parentElement.parentElement, 'li') && getIndent(group[0]) > 0;
 
-            while (remaining.length && (!$.is(remaining[0].parentElement.parentElement, 'li') && getIndent(remaining[0]) > 0) === styled) {
+            // Keep margin-based outdenting separate from moving items out of a list.
+            while (remaining.length) {
+                const next = remaining[0];
+                const nextStyled = !$.is(next.parentElement.parentElement, 'li') && getIndent(next) > 0;
+
+                if (nextStyled !== styled) {
+                    break;
+                }
+
                 group.push(remaining.shift());
             }
 
@@ -321,7 +329,7 @@ export function outdentBlocks(blocks, root) {
             } else {
                 setIndent(wrapper, indent);
             }
-        } else if (selected.length) {
+        } else {
             const following = $.clone(wrapper, { deep: false })[0];
             const originalNodes = new Set($.find('[id]', wrapper));
             let first = selected[0];

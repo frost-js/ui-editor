@@ -155,9 +155,9 @@
     --ui-editor-img-resize-z-index: #{vars.$editor-img-resize-z-index};
     --ui-editor-img-resize-size: #{vars.$editor-img-resize-size};
     --ui-editor-img-resize-bg: #{vars.$editor-img-resize-bg};
+
     inset-block-start: 100%;
     right: 0;
-
     z-index: var(--ui-editor-img-resize-z-index);
     inline-size: var(--ui-editor-img-resize-size);
     block-size: var(--ui-editor-img-resize-size);

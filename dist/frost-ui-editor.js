@@ -215,7 +215,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	function normalizeSpans(container) {
 		const elements = _fr0st_query.default.find("span", container);
 		for (const element of elements) {
-			if ([..._fr0st_query.default.getProperty(element, "attributes")].length) continue;
+			if (_fr0st_query.default.getProperty(element, "attributes").length) continue;
 			const contents = _fr0st_query.default.contents(element);
 			if (contents.length) _fr0st_query.default.after(element, contents);
 			_fr0st_query.default.detach(element);
@@ -413,7 +413,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			while (remaining.length) {
 				const group = [remaining.shift()];
 				const styled = !_fr0st_query.default.is(group[0].parentElement.parentElement, "li") && getIndent(group[0]) > 0;
-				while (remaining.length && (!_fr0st_query.default.is(remaining[0].parentElement.parentElement, "li") && getIndent(remaining[0]) > 0) === styled) group.push(remaining.shift());
+				while (remaining.length) {
+					const next = remaining[0];
+					if ((!_fr0st_query.default.is(next.parentElement.parentElement, "li") && getIndent(next) > 0) !== styled) break;
+					group.push(remaining.shift());
+				}
 				if (styled) for (const item of group) setIndent(item, getIndent(item) - 2);
 				else outdentItems(group);
 			}
@@ -436,7 +440,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (selected.includes(wrapper)) {
 				if (indentationOnly && indent <= 0) _fr0st_query.default.replaceWith(wrapper, wrapper.childNodes);
 				else setIndent(wrapper, indent);
-			} else if (selected.length) {
+			} else {
 				const following = _fr0st_query.default.clone(wrapper, { deep: false })[0];
 				const originalNodes = new Set(_fr0st_query.default.find("[id]", wrapper));
 				let first = selected[0];
@@ -490,7 +494,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		dropdownButtons: "pt-2 pe-1 pb-1 ps-2 text-nowrap",
 		dropdownGroup: "btn-group",
 		dropdownItem: "dropdown-item",
-		dropdownItemDisabled: "disabled",
 		dropdownToggle: "dropdown-toggle",
 		dropHover: "text-primary",
 		dropTarget: "editor-drop-target position-absolute w-100 text-center rounded",
@@ -823,12 +826,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				...options.attributes
 			}
 		});
-		const invalidFeedback = _fr0st_query.default.create("div", { class: Component.classes.invalidFeedback });
+		const invalidFeedback = _fr0st_query.default.create("div", {
+			class: Component.classes.invalidFeedback,
+			attributes: { id: `${options.id}-error` }
+		});
+		_fr0st_query.default.setAttribute(input, "aria-describedby", `${options.id}-error`);
 		_fr0st_query.default.append(group, label);
 		_fr0st_query.default.append(inputContainer, input);
 		_fr0st_query.default.append(group, inputContainer);
-		invalidFeedback.id = `${options.id}-error`;
-		_fr0st_query.default.setAttribute(input, "aria-describedby", invalidFeedback.id);
 		_fr0st_query.default.append(group, invalidFeedback);
 		return {
 			group,
@@ -861,12 +866,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		const modalHeader = _fr0st_query.default.create("div", { class: Component.classes.modalHeader });
 		_fr0st_query.default.append(modalContent, modalHeader);
 		if (options.title) {
+			const id = (0, _fr0st_ui.generateId)("editor-dialog");
 			const modalTitle = _fr0st_query.default.create("h6", {
 				class: Component.classes.modalTitle,
-				text: options.title
+				text: options.title,
+				attributes: { id }
 			});
-			modalTitle.id = (0, _fr0st_ui.generateId)("editor-dialog");
-			_fr0st_query.default.setAttribute(modal, "aria-labelledby", modalTitle.id);
+			_fr0st_query.default.setAttribute(modal, "aria-labelledby", id);
 			_fr0st_query.default.append(modalHeader, modalTitle);
 		}
 		const closeBtn = _fr0st_query.default.create("button", {
@@ -1531,41 +1537,32 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				this.#updateTable(node, (td, _, table) => {
 					const index = _fr0st_query.default.index(td);
 					const rows = _fr0st_query.default.find(":scope > thead > tr, :scope > tbody > tr", table);
-					this.#observe(false);
 					for (const row of rows) {
 						const newTd = _fr0st_query.default.create("td", { html: "<br>" });
 						const cells = _fr0st_query.default.children(row, "th, td");
 						_fr0st_query.default.after(cells[index], newTd);
 					}
-					this.#observe();
-					this.#updateValue();
 				});
 			} },
 			tableColumnBefore: { action(node) {
 				this.#updateTable(node, (td, _, table) => {
 					const index = _fr0st_query.default.index(td);
 					const rows = _fr0st_query.default.find(":scope > thead > tr, :scope > tbody > tr", table);
-					this.#observe(false);
 					for (const row of rows) {
 						const newTd = _fr0st_query.default.create("td", { html: "<br>" });
 						const cells = _fr0st_query.default.children(row, "th, td");
 						_fr0st_query.default.before(cells[index], newTd);
 					}
-					this.#observe();
-					this.#updateValue();
 				});
 			} },
 			tableColumnRemove: { action(node) {
 				this.#updateTable(node, (td, _, table) => {
 					const index = _fr0st_query.default.index(td);
 					const rows = _fr0st_query.default.find(":scope > thead > tr, :scope > tbody > tr", table);
-					this.#observe(false);
 					for (const row of rows) {
 						const cells = _fr0st_query.default.children(row, "th, td");
 						_fr0st_query.default.remove(cells[index]);
 					}
-					this.#observe();
-					this.#updateValue();
 					this.#removePopover();
 				});
 			} },
@@ -1617,11 +1614,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		#components = /* @__PURE__ */ new Set();
 		/** @type {HTMLElement|null} */
 		#container = null;
+		/** @type {ReturnType<typeof $.debounce>|null} */
+		#contentChanged = null;
 		/** @type {HTMLElement|null} */
 		#currentNode = null;
 		/** @type {string} */
 		#defaultFont = "sans-serif";
-		#disposing = false;
 		/** @type {HTMLElement|null} */
 		#dropTarget = null;
 		/** @type {HTMLElement|null} */
@@ -1766,15 +1764,13 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		}
 		/** @inheritdoc */
 		dispose() {
-			if (!this.node || this.#disposing) return;
-			this.#disposing = true;
+			if (!this.node) return;
 			const node = this.node;
 			const active = document.activeElement;
 			const restoreFocus = containsNode(this.#container, active) || containsNode(this.#modal, active) || containsNode(this.#fullScreen, active);
 			removeEditor(this);
 			this.#observer?.disconnect();
 			this.#observer = null;
-			super.dispose();
 			let failure;
 			const release = (callback) => {
 				try {
@@ -1792,52 +1788,54 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}
 			this.#images.clear();
 			for (const cleanup of this.#cleanups.splice(0).reverse()) release(cleanup);
-			for (const component of this.#components) release(() => component.dispose());
+			for (const component of this.#components) {
+				const element = component.node;
+				release(() => component.dispose());
+				if (component instanceof _fr0st_ui.Modal) _fr0st_query.default.remove(element);
+			}
 			this.#components.clear();
 			release(() => this.#popper?.dispose());
-			for (const modal of [this.#modal, this.#fullScreen]) if (modal) {
-				release(() => _fr0st_ui.Modal.init(modal).dispose());
-				_fr0st_query.default.remove(modal);
-			}
 			if (this.#container) _fr0st_query.default.remove(this.#container);
 			this.#releaseDisplay?.();
 			this.#releaseDisplay = null;
 			if (!this.#originalStyle && !_fr0st_query.default.getAttribute(node, "style")) _fr0st_query.default.removeAttribute(node, "style");
 			for (const [name, value] of this.#originalAttributes) if (value === null) _fr0st_query.default.removeAttribute(node, name);
 			else _fr0st_query.default.setAttribute(node, name, value);
+			this.#buttons = null;
+			this.#contentChanged = null;
+			this.#currentNode = null;
+			this.#history = null;
+			this.#lastRange = null;
+			this.#redoHistory = null;
+			this.#container = null;
+			this.#dropTarget = null;
+			this.#dropText = null;
+			this.#editor = null;
+			this.#editorBody = null;
+			this.#editorContainer = null;
+			this.#editorScroll = null;
+			this.#fullScreen = null;
+			this.#imgCursor = null;
+			this.#imgHighlight = null;
+			this.#imgResize = null;
+			this.#imgSize = null;
+			this.#lineNumbers = null;
+			this.#modal = null;
+			this.#popover = null;
+			this.#popoverArrow = null;
+			this.#popoverBody = null;
+			this.#popper = null;
+			this.#resizeBar = null;
+			this.#source = null;
+			this.#sourceContainer = null;
+			this.#sourceOuter = null;
+			this.#sourceScroll = null;
+			this.#toolbar = null;
+			super.dispose();
 			if (restoreFocus && node.isConnected && !node.hidden) {
 				node.focus({ preventScroll: true });
 				node.setSelectionRange(...this.#originalSelection);
 			}
-			this.#container = null;
-			this.#toolbar = null;
-			this.#editorBody = null;
-			this.#editorContainer = null;
-			this.#editorScroll = null;
-			this.#editor = null;
-			this.#imgHighlight = null;
-			this.#imgCursor = null;
-			this.#imgResize = null;
-			this.#imgSize = null;
-			this.#sourceOuter = null;
-			this.#sourceContainer = null;
-			this.#sourceScroll = null;
-			this.#lineNumbers = null;
-			this.#source = null;
-			this.#popover = null;
-			this.#popoverArrow = null;
-			this.#popoverBody = null;
-			this.#dropTarget = null;
-			this.#dropText = null;
-			this.#resizeBar = null;
-			this.#currentNode = null;
-			this.#lastRange = null;
-			this.#history = null;
-			this.#redoHistory = null;
-			this.#buttons = null;
-			this.#modal = null;
-			this.#fullScreen = null;
-			this.#popper = null;
 			if (failure) throw failure;
 		}
 		/**
@@ -1894,7 +1892,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* @param {string} value The HTML string.
 		*/
 		insertHtml(value) {
-			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || this.node.readOnly) return;
 			this.#execCommand("insertHTML", value);
 		}
 		/**
@@ -2423,9 +2420,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 								const nextParent = _fr0st_query.default.next(lastParent).shift();
 								let formatElement = "p";
 								if (nextParent && _fr0st_query.default.is(nextParent, "h1, h2, h3, h4, h5, h6, pre")) formatElement = _fr0st_query.default.tagName(nextParent);
-								this.#observe(false);
 								this.#execCommand("formatBlock", formatElement);
-								this.#observe();
 							}
 						}
 						break;
@@ -2462,9 +2457,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			const labels = [...this.node.labels];
 			const generated = [];
 			for (const label of labels) {
-				if (!label.id) {
-					label.id = (0, _fr0st_ui.generateId)("editor-label");
-					generated.push([label, label.id]);
+				if (!_fr0st_query.default.getAttribute(label, "id")) {
+					const id = (0, _fr0st_ui.generateId)("editor-label");
+					_fr0st_query.default.setAttribute(label, "id", id);
+					generated.push([label, id]);
 				}
 				this.listen(label, "click.ui.editor", (event) => {
 					if (event.target === label || !_fr0st_query.default.closest(event.target, "a, button, input, select, textarea")[0]) {
@@ -2931,12 +2927,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				});
 				if (this.#pendingMutation) {
 					this.#pendingMutation = false;
-					this.#debounce(() => {
-						if (_fr0st_query.default.isVisible(this.#sourceContainer)) return;
-						this.#normalize();
-						this.#checkEmpty();
-						this.#updateValue();
-					})();
+					this.#contentChanged();
 				}
 			}
 		}
@@ -3023,8 +3014,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			else _fr0st_query.default.removeClass(this.#editor, this.constructor.classes.editorDisabled);
 			_fr0st_query.default.setAttribute(this.#editor, "contenteditable", String(!disabled && !readOnly));
 			_fr0st_query.default.setAttribute(this.#editor, "tabindex", disabled ? "-1" : _fr0st_query.default.getAttribute(this.node, "tabindex") || "0");
-			this.#source.disabled = disabled;
-			this.#source.readOnly = readOnly;
+			_fr0st_query.default.setProperty(this.#source, {
+				disabled,
+				readOnly
+			});
 			for (const handle of [this.#imgResize, this.#resizeBar].filter(Boolean)) {
 				_fr0st_query.default.setAttribute(handle, "tabindex", disabled || readOnly ? "-1" : "0");
 				_fr0st_query.default.setAttribute(handle, "aria-disabled", String(disabled || readOnly));
@@ -3184,7 +3177,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#removeModal() {
 			if (!this.#modal) return;
-			_fr0st_ui.Modal.init(this.#modal).dispose();
+			_fr0st_query.default.getData(this.#modal, _fr0st_ui.Modal.DATA_KEY)?.dispose();
 			_fr0st_query.default.remove(this.#modal);
 			this.#modal = null;
 		}
@@ -3571,7 +3564,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.focus(fileInput);
 				},
 				onHidden: () => {
-					this.#removeModal();
+					this.#modal = null;
 					if (this.node) {
 						selectRange(originalRange);
 						if (!returnFocus?.isConnected) this.#focusEditor();
@@ -3636,7 +3629,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.focus(urlInput);
 				},
 				onHidden: () => {
-					this.#removeModal();
+					this.#modal = null;
 					if (this.node) {
 						selectRange(originalRange);
 						if (!returnFocus?.isConnected) this.#focusEditor();
@@ -3714,7 +3707,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.focus(urlInput);
 				},
 				onHidden: () => {
-					this.#removeModal();
+					this.#modal = null;
 					if (this.node) {
 						selectRange(originalRange);
 						if (!returnFocus?.isConnected) this.#focusEditor();
@@ -3871,14 +3864,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		* Starts observing content changes owned by this editor.
 		*/
 		#watchContent() {
-			const changed = this.#debounce(() => {
+			this.#contentChanged = this.#debounce(() => {
 				if (_fr0st_query.default.isVisible(this.#sourceContainer)) return;
 				this.#normalize();
 				this.#checkEmpty();
 				this.#updateValue();
 			});
 			this.#observer = new window.MutationObserver((records) => {
-				if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) changed();
+				if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) this.#contentChanged();
 			});
 			this.#observe();
 		}

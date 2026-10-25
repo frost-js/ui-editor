@@ -21,7 +21,6 @@ export const classes = {
     dropdownButtons: 'pt-2 pe-1 pb-1 ps-2 text-nowrap',
     dropdownGroup: 'btn-group',
     dropdownItem: 'dropdown-item',
-    dropdownItemDisabled: 'disabled',
     dropdownToggle: 'dropdown-toggle',
     dropHover: 'text-primary',
     dropTarget: 'editor-drop-target position-absolute w-100 text-center rounded',
