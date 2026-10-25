@@ -2,7 +2,7 @@
 
 import $ from '@fr0st/query';
 import { BaseComponent, Dropdown, generateId, Modal, Popper, Tooltip } from '@fr0st/ui';
-import { containsNode } from './helpers.js';
+import { containsNode, hasMergedCells } from './helpers.js';
 import { getSelectionData, restoreSelectionData } from './history.js';
 import icons from './icons.js';
 import { getSelectedBlocks, indentBlocks, outdentBlocks } from './indentation.js';
@@ -210,6 +210,7 @@ export default class Editor extends BaseComponent {
         popover: 'editor-popover popover',
         popoverArrow: 'popover-arrow',
         popoverBody: 'popover-body mb-n1 ms-n2 me-n3',
+        popoverNotice: 'small text-body-secondary mb-0 ms-2 me-3',
         popoverShow: 'show',
         resizeBar: 'editor-resize card-footer',
         source: 'editor-source font-monospace border-0 p-2 mb-0 w-100',
@@ -388,6 +389,7 @@ export default class Editor extends BaseComponent {
             tableColumnAfter: 'Add Column After',
             tableColumnBefore: 'Add Column Before',
             tableColumnRemove: 'Remove Column',
+            tableMerged: 'Row and column changes are unavailable for tables with merged cells.',
             tableRemove: 'Remove Table',
             tableRowAfter: 'Add Row After',
             tableRowBefore: 'Add Row Before',
@@ -1179,6 +1181,14 @@ export default class Editor extends BaseComponent {
         }
 
         const img = $.create('img', { attributes: { src } });
+
+        if ($.isVisible(this.#sourceContainer)) {
+            $.focus(this.#source);
+            document.execCommand('insertText', false, $.getProperty(img, 'outerHTML'));
+
+            return;
+        }
+
         const newImg = this.insertNode(img);
 
         if (!newImg) {
@@ -2958,6 +2968,21 @@ export default class Editor extends BaseComponent {
             case 'td':
             case 'th':
                 this.#renderPopoverItems(this.options.popovers.table);
+
+                if (hasMergedCells($.closest(this.#currentNode, 'table')[0])) {
+                    const actions = $.find('[data-ui-action^="tableRow"], [data-ui-action^="tableColumn"]', this.#popoverBody);
+
+                    $.addClass(actions, 'disabled');
+                    $.setAttribute(actions, { 'disabled': true, 'aria-disabled': true });
+
+                    const notice = $.create('p', {
+                        class: this.constructor.classes.popoverNotice,
+                        text: this.constructor.lang.popovers.tableMerged,
+                    });
+
+                    $.append(this.#popoverBody, notice);
+                }
+
                 break;
         }
 
@@ -4021,7 +4046,7 @@ export default class Editor extends BaseComponent {
     #updateTable(td, callback) {
         const table = $.closest(td, 'table')[0];
 
-        if (!table || !containsNode(this.#editor, table)) {
+        if (!table || !containsNode(this.#editor, table) || hasMergedCells(table)) {
             return;
         }
 

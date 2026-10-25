@@ -268,7 +268,7 @@ Data attributes configure options; they do not initialize Editor by themselves. 
 | `indent()` | `void` | Indent selected blocks or list items while retaining selection. |
 | `insertHorizontalRule()` | `void` | Insert a horizontal rule. |
 | `insertHtml(html)` | `void` | Insert HTML at the selection. |
-| `insertImage(src)` | `void` | Insert an image. |
+| `insertImage(src)` | `void` | Insert an image in rich mode, or its HTML at the source selection in source mode. |
 | `insertLink(href, text, newWindow?)` | `void` | Insert a link; newWindow defaults to false. |
 | `insertNode(node)` | `HTMLElement\|null` | Insert a trusted DOM element, recording history and synchronizing the textarea. |
 | `insertOrderedList()` | `void` | Toggle ordered-list formatting. |
@@ -464,6 +464,8 @@ Editor.init(document.querySelector('#custom'), {
 A plugin can supply `command` (an editor method) and `value` (its argument), or `action()`. Rendering accepts `content` (HTML), `icon` (an `Editor.icons` key), `title`, `setContent()`, and `setTitle()`. `dropdown` accepts nested button groups or a callback receiving the dropdown container. `disableCheck()` returns whether to disable the button. Callbacks run with the editor as `this`. Plugin HTML and DOM are trusted application code.
 
 ### Popovers
+
+Tables with merged cells (`colspan` or `rowspan`) disable row and column actions and show an explanation. Cell text editing and removing the whole table remain available.
 
 Default groups:
 

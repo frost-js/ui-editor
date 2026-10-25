@@ -42,6 +42,14 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	function containsNode(parent, node) {
 		return Boolean(parent && node) && (_fr0st_query.default.isSame(parent, node) || _fr0st_query.default.hasDescendent(parent, node));
 	}
+	/**
+	* Checks a table's own cells for column or row spans, including rowSpan="0".
+	* @param {HTMLTableElement} table The table to check.
+	* @returns {boolean} Whether the table contains merged cells.
+	*/
+	function hasMergedCells(table) {
+		return [..._fr0st_query.default.getProperty(table, "rows")].some((row) => [..._fr0st_query.default.getProperty(row, "cells")].some((cell) => _fr0st_query.default.getProperty(cell, "colSpan") > 1 || _fr0st_query.default.getProperty(cell, "rowSpan") !== 1));
+	}
 
 // src/js/history.js
 	var window$4 = _fr0st_query.default.getWindow();
@@ -1308,6 +1316,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			popover: "editor-popover popover",
 			popoverArrow: "popover-arrow",
 			popoverBody: "popover-body mb-n1 ms-n2 me-n3",
+			popoverNotice: "small text-body-secondary mb-0 ms-2 me-3",
 			popoverShow: "show",
 			resizeBar: "editor-resize card-footer",
 			source: "editor-source font-monospace border-0 p-2 mb-0 w-100",
@@ -1486,6 +1495,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				tableColumnAfter: "Add Column After",
 				tableColumnBefore: "Add Column Before",
 				tableColumnRemove: "Remove Column",
+				tableMerged: "Row and column changes are unavailable for tables with merged cells.",
 				tableRemove: "Remove Table",
 				tableRowAfter: "Add Row After",
 				tableRowBefore: "Add Row Before",
@@ -2059,6 +2069,11 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		insertImage(src) {
 			if (!this.node || _fr0st_query.default.is(this.node, ":disabled") || _fr0st_query.default.getProperty(this.node, "readOnly")) return;
 			const img = _fr0st_query.default.create("img", { attributes: { src } });
+			if (_fr0st_query.default.isVisible(this.#sourceContainer)) {
+				_fr0st_query.default.focus(this.#source);
+				document.execCommand("insertText", false, _fr0st_query.default.getProperty(img, "outerHTML"));
+				return;
+			}
 			const newImg = this.insertNode(img);
 			if (!newImg) return;
 			const image = new window.Image();
@@ -3271,7 +3286,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.show(this.#imgHighlight);
 					break;
 				case "td":
-				case "th": this.#renderPopoverItems(this.options.popovers.table);
+				case "th":
+					this.#renderPopoverItems(this.options.popovers.table);
+					if (hasMergedCells(_fr0st_query.default.closest(this.#currentNode, "table")[0])) {
+						const actions = _fr0st_query.default.find("[data-ui-action^=\"tableRow\"], [data-ui-action^=\"tableColumn\"]", this.#popoverBody);
+						_fr0st_query.default.addClass(actions, "disabled");
+						_fr0st_query.default.setAttribute(actions, {
+							"disabled": true,
+							"aria-disabled": true
+						});
+						const notice = _fr0st_query.default.create("p", {
+							class: this.constructor.classes.popoverNotice,
+							text: this.constructor.lang.popovers.tableMerged
+						});
+						_fr0st_query.default.append(this.#popoverBody, notice);
+					}
 			}
 			this.#popper.update();
 		}
@@ -4005,7 +4034,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		*/
 		#updateTable(td, callback) {
 			const table = _fr0st_query.default.closest(td, "table")[0];
-			if (!table || !containsNode(this.#editor, table)) return;
+			if (!table || !containsNode(this.#editor, table) || hasMergedCells(table)) return;
 			this.#observe(false);
 			try {
 				callback(td, _fr0st_query.default.closest(td, "tr")[0], table);

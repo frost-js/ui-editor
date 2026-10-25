@@ -9,3 +9,16 @@ import $ from '@fr0st/query';
 export function containsNode(parent, node) {
     return Boolean(parent && node) && ($.isSame(parent, node) || $.hasDescendent(parent, node));
 }
+
+/**
+ * Checks a table's own cells for column or row spans, including rowSpan="0".
+ * @param {HTMLTableElement} table The table to check.
+ * @returns {boolean} Whether the table contains merged cells.
+ */
+export function hasMergedCells(table) {
+    return [...$.getProperty(table, 'rows')].some((row) =>
+        [...$.getProperty(row, 'cells')].some((cell) =>
+            $.getProperty(cell, 'colSpan') > 1 || $.getProperty(cell, 'rowSpan') !== 1,
+        ),
+    );
+}
