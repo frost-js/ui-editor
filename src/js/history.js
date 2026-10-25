@@ -1,9 +1,21 @@
-/** @import { EditorSelectionData } from './types.js'; */
-
 import $ from '@fr0st/query';
 import { containsNode } from './helpers.js';
 
 const window = $.getWindow();
+
+/**
+ * @typedef {object} EditorSelectionData
+ * @property {number[]} anchorPath Child indexes from the editing surface to the selection anchor.
+ * @property {number} anchorOffset The anchor offset.
+ * @property {number[]} focusPath Child indexes from the editing surface to the selection focus.
+ * @property {number} focusOffset The focus offset.
+ */
+
+/**
+ * @typedef {object} EditorHistoryEntry
+ * @property {string} html The serialized content.
+ * @property {EditorSelectionData|null} [selectionData=null] The selection to restore.
+ */
 
 /**
  * Gets a descendant by its child indexes, returning null for stale paths.

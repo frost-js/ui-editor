@@ -496,7 +496,7 @@ Editor.lang.modals.cancel = 'Cancel editing';
 Editor.lang.toolbar = 'Document formatting';
 ```
 
-The full default dictionaries are in [config.js](./src/js/config.js). Configure language before creating editors.
+The full default dictionaries are in [editor.js](./src/js/editor.js). Configure language before creating editors.
 
 ### CSS custom properties
 

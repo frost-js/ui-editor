@@ -1,12 +1,11 @@
-/** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover, EditorDropdownCallback } from './types.js'; */
+/** @import { EditorHistoryEntry } from './history.js'; */
 
 import $ from '@fr0st/query';
 import { BaseComponent, Dropdown, generateId, Modal, Popper, Tooltip } from '@fr0st/ui';
-import { getSelectedBlocks, indentBlocks, outdentBlocks } from './commands.js';
-import { classes, lang } from './config.js';
 import { containsNode } from './helpers.js';
 import { getSelectionData, restoreSelectionData } from './history.js';
 import icons from './icons.js';
+import { getSelectedBlocks, indentBlocks, outdentBlocks } from './indentation.js';
 import { createCheckbox, createFileInput, createInput, createModal } from './modals.js';
 import { isPhrasingContent, joinAdjacentNodes, normalizePhrasing, normalizeSpans, normalizeStyles } from './normalize.js';
 import { getRange, normalizeText, restoreSelection, saveSelection, selectNode, selectRange } from './selection.js';
@@ -17,6 +16,140 @@ const document = $.getContext();
 const window = $.getWindow();
 
 /**
+ * @callback EditorAction
+ * @this {Editor}
+ * @returns {void} Nothing.
+ */
+
+/**
+ * @callback EditorDropdownCallback
+ * @this {Editor}
+ * @param {HTMLElement} dropdown The dropdown container to populate.
+ * @returns {void} Nothing.
+ */
+
+/**
+ * @callback EditorContentCallback
+ * @this {Editor}
+ * @returns {string|number} The button HTML, title, or numeric label.
+ */
+
+/**
+ * @callback EditorDisableCallback
+ * @this {Editor}
+ * @returns {boolean} Whether the button should be disabled.
+ */
+
+/**
+ * @callback EditorUploadCallback
+ * @this {Editor}
+ * @param {FileList|File[]} files The files to upload and insert.
+ * @returns {void|Promise<void>} Optional asynchronous completion.
+ */
+
+/**
+ * @callback EditorKeyDownCallback
+ * @this {Editor}
+ * @param {KeyboardEvent} event The keyboard event.
+ * @returns {void} Nothing.
+ */
+
+/**
+ * @typedef {object} EditorPopoverGroups
+ * @property {Array<string|string[]>} [image] Image actions and groups.
+ * @property {Array<string|string[]>} [link] Link actions and groups.
+ * @property {Array<string|string[]>} [table] Table actions and groups.
+ */
+
+/**
+ * @typedef {object} EditorOptions
+ * @property {string[][]|null} [buttons=null] Toolbar groups, or the component's default toolbar.
+ * @property {string[]|null} [fonts=null] Fonts to filter against the browser's available fonts.
+ * @property {string} [defaultFont='Arial'] The preferred font.
+ * @property {string|number} [height='auto'] The content area's CSS height.
+ * @property {boolean} [resizable=true] Whether to render a resize handle.
+ * @property {number} [historyLimit=1000] Maximum history snapshots, including the initial content; at least one.
+ * @property {EditorPopoverGroups} [popovers] Image, link, and table action groups.
+ * @property {EditorUploadCallback} [imageUpload] The image upload callback; the default reader is canceled on disposal.
+ * @property {EditorKeyDownCallback|null} [keyDown] A keyboard callback, or null to disable shortcuts.
+ */
+
+/**
+ * @typedef {object} EditorPlugin
+ * @property {string} [command] The editor method to invoke.
+ * @property {string|number} [value] The command argument.
+ * @property {EditorAction} [action] The custom action.
+ * @property {string[][]|EditorDropdownCallback} [dropdown] Nested toolbar groups or a dropdown renderer.
+ * @property {EditorContentCallback} [setContent] The dynamic button HTML.
+ * @property {EditorContentCallback} [setTitle] The dynamic title.
+ * @property {EditorDisableCallback} [disableCheck] A custom disabled-state check.
+ * @property {string} [content] Static button HTML.
+ * @property {string} [icon] The icon lookup key.
+ * @property {string} [title] The accessible button title.
+ */
+
+/**
+ * @callback EditorPopoverAction
+ * @this {Editor}
+ * @param {HTMLElement} node The selected content element.
+ * @returns {void} Nothing.
+ */
+
+/**
+ * @callback EditorPopoverRenderer
+ * @this {Editor}
+ * @param {HTMLElement} node The selected content element.
+ * @returns {HTMLElement} The rendered popover element.
+ */
+
+/**
+ * @typedef {object} EditorPopover
+ * @property {EditorPopoverAction} [action] The popover action.
+ * @property {EditorPopoverRenderer} [render] A custom renderer.
+ * @property {string} [icon] The icon lookup key.
+ * @property {string} [title] The accessible title.
+ * @property {string} [content] Custom button HTML.
+ */
+
+/**
+ * @typedef {object} EditorLanguage
+ * @property {string} toolbar The toolbar name.
+ * @property {string} contextToolbar The context toolbar name.
+ * @property {string} resizeEditor The editor resize handle name.
+ * @property {string} resizeImage The image resize handle name.
+ * @property {Record<string, string>} drop Drag and drop messages.
+ * @property {Record<string, string>} dropdowns Dropdown labels.
+ * @property {Record<string, string>} modals Dialog labels and messages.
+ * @property {Record<string, string>} plugins Toolbar action titles.
+ * @property {Record<string, string>} popovers Popover action titles.
+ * @property {Record<string, string>} styles Block style titles.
+ */
+
+/**
+ * Emitted on the textarea after initialization completes.
+ * @event Editor#init.ui.editor
+ * @type {CustomEvent}
+ */
+
+/**
+ * Emitted on the textarea after its content changes, including undo and redo.
+ * @event Editor#change.ui.editor
+ * @type {CustomEvent}
+ */
+
+/**
+ * Forwarded from the editing surface to the textarea when it receives focus.
+ * @event Editor#focus.ui.editor
+ * @type {CustomEvent}
+ */
+
+/**
+ * Forwarded from the editing surface to the textarea when it loses focus.
+ * @event Editor#blur.ui.editor
+ * @type {CustomEvent}
+ */
+
+/**
  * A customizable WYSIWYG editor backed by a native textarea.
  * @augments {BaseComponent<EditorOptions>}
  * @fires Editor#init.ui.editor
@@ -24,7 +157,77 @@ const window = $.getWindow();
  */
 export default class Editor extends BaseComponent {
     static buttons = buttons;
-    static classes = classes;
+    static classes = {
+        btn: 'btn btn-editor btn-sm fs-6 lh-1',
+        btnGroup: 'btn-group me-1 mb-1',
+        btnIcon: 'pe-none',
+        checkbox: 'input-check',
+        checkboxLabel: 'form-check-label',
+        checkboxContainer: 'form-check',
+        color: 'editor-color flex-grow-1 d-block border-0',
+        colorBtnContent: 'fw-bold d-inline-block px-1 pe-none',
+        colorContainerRow: 'row g-0',
+        colorContainerColumn: 'col-6',
+        colorDefaultBtn: 'btn btn-outline-editor btn-sm d-block w-100 py-0',
+        colorLabel: 'd-block text-center',
+        colorLabelContainer: 'p-2',
+        colorRow: 'd-flex flex-row px-2',
+        container: 'editor-panel card',
+        dropdown: 'editor-dropdown dropdown-menu',
+        dropdownButtons: 'pt-2 pe-1 pb-1 ps-2 text-nowrap',
+        dropdownGroup: 'btn-group',
+        dropdownItem: 'dropdown-item',
+        dropdownToggle: 'dropdown-toggle',
+        dropHover: 'text-primary',
+        dropTarget: 'editor-drop-target position-absolute w-100 text-center rounded',
+        dropText: 'position-absolute top-50 start-50 translate-middle h5 pe-none',
+        editor: 'editor w-100 p-2',
+        editorBody: 'card-body d-flex p-0',
+        editorContainer: 'editor-container position-relative',
+        editorDisabled: 'editor-disabled',
+        editorScroll: 'editor-scroll d-block w-100 overflow-auto',
+        formError: 'form-error',
+        formGroup: 'mb-2',
+        imgCursor: 'editor-img-cursor position-absolute pe-none',
+        imgHighlight: 'editor-img-highlight position-absolute pe-none',
+        imgResize: 'editor-img-resize position-absolute pe-auto',
+        imgSize: 'editor-img-size position-absolute bottom-0 end-0 text-end me-2 mb-2 py-1 px-3 rounded',
+        input: 'input-filled',
+        inputContainer: 'form-input',
+        invalidFeedback: 'invalid-feedback',
+        linkUrl: 'editor-link-url d-inline-block text-truncate me-1',
+        modal: 'modal',
+        modalBody: 'modal-body',
+        modalBtnClose: 'btn-close',
+        modalBtnPrimary: 'btn btn-primary ripple mb-0',
+        modalBtnSecondary: 'btn btn-secondary ripple mb-0',
+        modalContent: 'modal-content shadow',
+        modalDialog: 'modal-dialog',
+        modalFooter: 'modal-footer',
+        modalFullscreen: 'modal-fullscreen',
+        modalHeader: 'modal-header',
+        modalTitle: 'modal-title',
+        popover: 'editor-popover popover',
+        popoverArrow: 'popover-arrow',
+        popoverBody: 'popover-body mb-n1 ms-n2 me-n3',
+        popoverShow: 'show',
+        resizeBar: 'editor-resize card-footer',
+        source: 'editor-source font-monospace border-0 p-2 mb-0 w-100',
+        sourceContainer: 'd-flex h-100',
+        sourceLines: 'font-monospace bg-body-secondary p-2 mb-0 border-end',
+        sourceOuter: 'w-100 overflow-hidden',
+        sourceScroll: 'd-flex w-100',
+        styleContent: 'mb-1',
+        table: 'table table-bordered',
+        tableCell: 'flex-column',
+        tableDropdown: 'p-2',
+        tableHover: 'bg-primary',
+        tableInfo: 'text-body-secondary',
+        tableLink: 'editor-table-link d-block border p-2 rounded-0',
+        tableRow: 'd-flex flex-row',
+        toolbar: 'card-header pt-1 pe-0 pb-0 ps-1',
+        toolbarButtons: 'btn-toolbar',
+    };
     static colors = colors;
     /** @type {EditorOptions} */
     static defaults = {
@@ -109,7 +312,99 @@ export default class Editor extends BaseComponent {
     static fonts = fonts;
     static fontSizes = fontSizes;
     static icons = icons;
-    static lang = lang;
+    /** @type {EditorLanguage} */
+    static lang = {
+        resizeEditor: 'Resize editor',
+        resizeImage: 'Image width',
+        toolbar: 'Formatting',
+        contextToolbar: 'Context formatting',
+        drop: {
+            drop: 'Drop image or text',
+            dropHere: 'Drop image or text here',
+        },
+        dropdowns: {
+            colorBackground: 'Background Color',
+            colorDefault: 'Use Default',
+            colorForeground: 'Foreground Color',
+            colorTransparent: 'Use Transparent',
+        },
+        modals: {
+            cancel: 'Cancel',
+            close: 'Close',
+            imageFile: 'Select Files',
+            imageUrl: 'Image URL',
+            insertImage: 'Insert Image',
+            insertLink: 'Insert Link',
+            insertVideo: 'Insert Video',
+            linkNewWindow: 'Open in new window',
+            linkText: 'Link Text',
+            linkUrl: 'Link URL',
+            videoUrl: 'Video URL',
+            videoUrlInvalid: 'Invalid video URL.',
+        },
+        plugins: {
+            alignCenter: 'Align Center',
+            alignJustify: 'Justify Full',
+            alignLeft: 'Align Left',
+            alignRight: 'Align Right',
+            bold: 'Bold',
+            color: 'Font Color',
+            font: 'Font Family',
+            fontSize: 'Font Size',
+            fullScreen: 'Full Screen',
+            hr: 'Horizontal Rule',
+            image: 'Image',
+            indent: 'Indent',
+            italic: 'Italic',
+            link: 'Link',
+            orderedList: 'Ordered List',
+            outdent: 'Outdent',
+            paragraph: 'Paragraph',
+            redo: 'Redo',
+            removeFormat: 'Remove Formatting',
+            source: 'View Source',
+            strikethrough: 'Strikethrough',
+            style: 'Style',
+            subscript: 'Subscript',
+            superscript: 'Superscript',
+            table: 'Table',
+            underline: 'Underline',
+            undo: 'Undo',
+            unlink: 'Unlink',
+            unorderedList: 'Unordered List',
+            video: 'Video',
+        },
+        popovers: {
+            imageFull: 'Full Size',
+            imageHalf: 'Half Size',
+            imageOriginal: 'Original Size',
+            imageQuarter: 'Quarter Size',
+            imageRemove: 'Remove Image',
+            floatLeft: 'Float Left',
+            floatNone: 'Remove Float',
+            floatRight: 'Float Right',
+            linkEdit: 'Edit Link',
+            tableColumnAfter: 'Add Column After',
+            tableColumnBefore: 'Add Column Before',
+            tableColumnRemove: 'Remove Column',
+            tableRemove: 'Remove Table',
+            tableRowAfter: 'Add Row After',
+            tableRowBefore: 'Add Row Before',
+            tableRowRemove: 'Remove Row',
+            unlink: 'Remove Link',
+        },
+        styles: {
+            p: 'Paragraph',
+            blockquote: 'Quote',
+            pre: 'Code',
+            h1: 'Header 1',
+            h2: 'Header 2',
+            h3: 'Header 3',
+            h4: 'Header 4',
+            h5: 'Header 5',
+            h6: 'Header 6',
+        },
+    };
     /** @type {Record<string, EditorPlugin>} */
     static plugins = {
         alignCenter: {
@@ -184,7 +479,7 @@ export default class Editor extends BaseComponent {
                     return;
                 }
 
-                this.#fullScreen = createModal(this.constructor, {
+                this.#fullScreen = createModal(this.constructor.classes, this.constructor.lang, {
                     content: this.#container,
                     fullScreen: true,
                     onShown: () => {
@@ -1686,7 +1981,22 @@ export default class Editor extends BaseComponent {
             this.#refreshToolbar();
         }, { delegate: 'a, td, th, img', capture: true });
 
-        this.#watchContent();
+        this.#contentChanged = this.#debounce(() => {
+            if ($.isVisible(this.#sourceContainer)) {
+                return;
+            }
+
+            this.#normalize();
+            this.#checkEmpty();
+            this.#updateValue();
+        });
+
+        this.#observer = new window.MutationObserver((records) => {
+            if (records.some((record) => record.type !== 'attributes' || record.target !== this.#editor)) {
+                this.#contentChanged();
+            }
+        });
+        this.#observe();
     }
 
     /**
@@ -3268,7 +3578,7 @@ export default class Editor extends BaseComponent {
         const returnFocus = document.activeElement;
         const container = $.create('div');
 
-        const { group: fileGroup, input: fileInput } = createFileInput(this.constructor, {
+        const { group: fileGroup, input: fileInput } = createFileInput(this.constructor.classes, {
             id: generateId('editor-image-file'),
             label: this.constructor.lang.modals.imageFile,
             attributes: {
@@ -3277,7 +3587,7 @@ export default class Editor extends BaseComponent {
             },
         });
 
-        const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
+        const { group: urlGroup, input: urlInput } = createInput(this.constructor.classes, {
             id: generateId('editor-image-url'),
             label: this.constructor.lang.modals.imageUrl,
         });
@@ -3293,7 +3603,7 @@ export default class Editor extends BaseComponent {
 
         range.collapse();
 
-        this.#modal = createModal(this.constructor, {
+        this.#modal = createModal(this.constructor.classes, this.constructor.lang, {
             returnFocus,
             title: this.constructor.lang.modals.insertImage,
             content: container,
@@ -3339,17 +3649,17 @@ export default class Editor extends BaseComponent {
         const returnFocus = document.activeElement;
         const container = $.create('div');
 
-        const { group: textGroup, input: textInput } = createInput(this.constructor, {
+        const { group: textGroup, input: textInput } = createInput(this.constructor.classes, {
             id: generateId('editor-link-text'),
             label: this.constructor.lang.modals.linkText,
         });
 
-        const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
+        const { group: urlGroup, input: urlInput } = createInput(this.constructor.classes, {
             id: generateId('editor-link-url'),
             label: this.constructor.lang.modals.linkUrl,
         });
 
-        const { group: newWindowGroup, input: newWindowInput } = createCheckbox(this.constructor, {
+        const { group: newWindowGroup, input: newWindowInput } = createCheckbox(this.constructor.classes, {
             id: generateId('editor-link-new-window'),
             label: this.constructor.lang.modals.linkNewWindow,
         });
@@ -3384,7 +3694,7 @@ export default class Editor extends BaseComponent {
             range = getRange();
         }
 
-        this.#modal = createModal(this.constructor, {
+        this.#modal = createModal(this.constructor.classes, this.constructor.lang, {
             returnFocus,
             title: this.constructor.lang.modals.insertLink,
             content: container,
@@ -3452,7 +3762,7 @@ export default class Editor extends BaseComponent {
         const returnFocus = document.activeElement;
         const container = $.create('div');
 
-        const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+        const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor.classes, {
             id: generateId('editor-video-url'),
             label: this.constructor.lang.modals.videoUrl,
         });
@@ -3465,7 +3775,7 @@ export default class Editor extends BaseComponent {
 
         const range = getRange();
 
-        this.#modal = createModal(this.constructor, {
+        this.#modal = createModal(this.constructor.classes, this.constructor.lang, {
             returnFocus,
             title: this.constructor.lang.modals.insertVideo,
             content: container,
@@ -3744,27 +4054,5 @@ export default class Editor extends BaseComponent {
         }
 
         $.triggerEvent(this.node, 'change.ui.editor', { data: { skipUpdate: true } });
-    }
-
-    /**
-     * Starts observing content changes owned by this editor.
-     */
-    #watchContent() {
-        this.#contentChanged = this.#debounce(() => {
-            if ($.isVisible(this.#sourceContainer)) {
-                return;
-            }
-
-            this.#normalize();
-            this.#checkEmpty();
-            this.#updateValue();
-        });
-
-        this.#observer = new window.MutationObserver((records) => {
-            if (records.some((record) => record.type !== 'attributes' || record.target !== this.#editor)) {
-                this.#contentChanged();
-            }
-        });
-        this.#observe();
     }
 }

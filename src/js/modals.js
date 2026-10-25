@@ -1,6 +1,4 @@
-/** @import Editor from './editor.js'; */
-
-/** @import { EditorInputOptions, EditorInputElements, EditorModalOptions } from './types.js'; */
+/** @import { EditorLanguage } from './editor.js'; */
 
 import $ from '@fr0st/query';
 import { generateId, Modal } from '@fr0st/ui';
@@ -8,22 +6,52 @@ import { generateId, Modal } from '@fr0st/ui';
 const document = $.getContext();
 
 /**
+ * @typedef {object} EditorInputOptions
+ * @property {string} id The control ID.
+ * @property {string} label The label text.
+ * @property {string} [type='text'] The input type.
+ * @property {Record<string, string|number|boolean>} [attributes] Additional control attributes.
+ */
+
+/**
+ * @typedef {object} EditorInputElements
+ * @property {HTMLDivElement} group The control group.
+ * @property {HTMLInputElement} input The input.
+ * @property {HTMLDivElement} [invalidFeedback] The validation message container.
+ */
+
+/**
+ * @typedef {object} EditorModalOptions
+ * @property {string} [title] The dialog title.
+ * @property {HTMLElement} [returnFocus] The invoking control to refocus after closing.
+ * @property {HTMLElement} [content] The dialog content.
+ * @property {boolean} [fullScreen=false] Whether to use a fullscreen dialog.
+ * @property {string} [cancelText] The cancel label.
+ * @property {string} [submitText] The submit label.
+ * @property {(event: Event) => boolean|void} [onSubmit] The submit handler; false keeps the dialog open.
+ * @property {(event: Event) => void} [onShow] The before-show handler.
+ * @property {(event: Event) => void} [onShown] The shown handler.
+ * @property {(event: Event) => void} [onHide] The before-hide handler.
+ * @property {(event: Event) => void} [onHidden] The hidden handler.
+ */
+
+/**
  * Creates a form checkbox.
- * @param {typeof Editor} Component The component class.
+ * @param {Record<string, string>} classes The editor classes.
  * @param {EditorInputOptions} options Options for the checkbox.
  * @returns {EditorInputElements} The form elements.
  */
-export function createCheckbox(Component, options) {
+export function createCheckbox(classes, options) {
     const group = $.create('div', {
-        class: Component.classes.formGroup,
+        class: classes.formGroup,
     });
 
     const inputContainer = $.create('div', {
-        class: Component.classes.checkboxContainer,
+        class: classes.checkboxContainer,
     });
 
     const input = $.create('input', {
-        class: Component.classes.checkbox,
+        class: classes.checkbox,
         attributes: {
             id: options.id,
             type: 'checkbox',
@@ -33,7 +61,7 @@ export function createCheckbox(Component, options) {
 
     const label = $.create('label', {
         text: options.label,
-        class: Component.classes.checkboxLabel,
+        class: classes.checkboxLabel,
         attributes: {
             for: options.id,
         },
@@ -48,13 +76,13 @@ export function createCheckbox(Component, options) {
 
 /**
  * Creates a form file input.
- * @param {typeof Editor} Component The component class.
+ * @param {Record<string, string>} classes The editor classes.
  * @param {EditorInputOptions} options Options for the file input.
  * @returns {EditorInputElements} The form elements.
  */
-export function createFileInput(Component, options) {
+export function createFileInput(classes, options) {
     const group = $.create('div', {
-        class: Component.classes.formGroup,
+        class: classes.formGroup,
     });
 
     const label = $.create('label', {
@@ -65,11 +93,11 @@ export function createFileInput(Component, options) {
     });
 
     const inputContainer = $.create('div', {
-        class: Component.classes.inputContainer,
+        class: classes.inputContainer,
     });
 
     const input = $.create('input', {
-        class: Component.classes.input,
+        class: classes.input,
         attributes: {
             id: options.id,
             type: 'file',
@@ -86,13 +114,13 @@ export function createFileInput(Component, options) {
 
 /**
  * Creates a form text input.
- * @param {typeof Editor} Component The component class.
+ * @param {Record<string, string>} classes The editor classes.
  * @param {EditorInputOptions} options Options for the text input.
  * @returns {EditorInputElements} The form elements.
  */
-export function createInput(Component, options) {
+export function createInput(classes, options) {
     const group = $.create('div', {
-        class: Component.classes.formGroup,
+        class: classes.formGroup,
     });
 
     const label = $.create('label', {
@@ -103,11 +131,11 @@ export function createInput(Component, options) {
     });
 
     const inputContainer = $.create('div', {
-        class: Component.classes.inputContainer,
+        class: classes.inputContainer,
     });
 
     const input = $.create('input', {
-        class: Component.classes.input,
+        class: classes.input,
         attributes: {
             id: options.id,
             type: options.type || 'text',
@@ -116,7 +144,7 @@ export function createInput(Component, options) {
     });
 
     const invalidFeedback = $.create('div', {
-        class: Component.classes.invalidFeedback,
+        class: classes.invalidFeedback,
         attributes: {
             id: `${options.id}-error`,
         },
@@ -134,40 +162,41 @@ export function createInput(Component, options) {
 
 /**
  * Creates a modal.
- * @param {typeof Editor} Component The component class.
+ * @param {Record<string, string>} classes The editor classes.
+ * @param {EditorLanguage} lang The editor language.
  * @param {EditorModalOptions} options Options for the modal.
  * @returns {HTMLElement} The modal element.
  */
-export function createModal(Component, options) {
+export function createModal(classes, lang, options) {
     const returnFocus = options.returnFocus || document.activeElement;
     const modal = $.create('div', {
-        class: Component.classes.modal,
+        class: classes.modal,
         attributes: {
             'tabindex': -1,
             'role': 'dialog',
             'aria-modal': true,
-            'aria-label': options.title || Component.lang.plugins.fullScreen,
+            'aria-label': options.title || lang.plugins.fullScreen,
         },
     });
 
     const modalDialog = $.create('div', {
-        class: Component.classes.modalDialog,
+        class: classes.modalDialog,
     });
 
     $.append(modal, modalDialog);
 
     if (options.fullScreen) {
-        $.addClass(modalDialog, Component.classes.modalFullscreen);
+        $.addClass(modalDialog, classes.modalFullscreen);
     }
 
     const modalContent = $.create('form', {
-        class: Component.classes.modalContent,
+        class: classes.modalContent,
     });
 
     $.append(modalDialog, modalContent);
 
     const modalHeader = $.create('div', {
-        class: Component.classes.modalHeader,
+        class: classes.modalHeader,
     });
 
     $.append(modalContent, modalHeader);
@@ -175,7 +204,7 @@ export function createModal(Component, options) {
     if (options.title) {
         const id = generateId('editor-dialog');
         const modalTitle = $.create('h6', {
-            class: Component.classes.modalTitle,
+            class: classes.modalTitle,
             text: options.title,
             attributes: { id },
         });
@@ -185,13 +214,13 @@ export function createModal(Component, options) {
     }
 
     const closeBtn = $.create('button', {
-        class: Component.classes.modalBtnClose,
+        class: classes.modalBtnClose,
         dataset: {
             uiDismiss: 'modal',
         },
         attributes: {
             'type': 'button',
-            'aria-label': Component.lang.modals.close,
+            'aria-label': lang.modals.close,
         },
     });
 
@@ -199,7 +228,7 @@ export function createModal(Component, options) {
 
     if (options.content) {
         const modalBody = $.create('div', {
-            class: Component.classes.modalBody,
+            class: classes.modalBody,
         });
 
         $.append(modalBody, options.content);
@@ -208,14 +237,14 @@ export function createModal(Component, options) {
 
     if (options.onSubmit) {
         const modalFooter = $.create('div', {
-            class: Component.classes.modalFooter,
+            class: classes.modalFooter,
         });
 
         $.append(modalContent, modalFooter);
 
         const cancelButton = $.create('button', {
             text: options.cancelText,
-            class: Component.classes.modalBtnSecondary,
+            class: classes.modalBtnSecondary,
             dataset: {
                 uiDismiss: 'modal',
             },
@@ -228,7 +257,7 @@ export function createModal(Component, options) {
 
         const submitButton = $.create('button', {
             text: options.submitText,
-            class: Component.classes.modalBtnPrimary,
+            class: classes.modalBtnPrimary,
             attributes: {
                 type: 'submit',
             },

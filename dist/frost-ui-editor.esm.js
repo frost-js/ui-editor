@@ -12,8 +12,122 @@ function containsNode(parent, node) {
 	return Boolean(parent && node) && ($.isSame(parent, node) || $.hasDescendent(parent, node));
 }
 
+// src/js/history.js
+var window$4 = $.getWindow();
+/**
+* @typedef {object} EditorSelectionData
+* @property {number[]} anchorPath Child indexes from the editing surface to the selection anchor.
+* @property {number} anchorOffset The anchor offset.
+* @property {number[]} focusPath Child indexes from the editing surface to the selection focus.
+* @property {number} focusOffset The focus offset.
+*/
+/**
+* @typedef {object} EditorHistoryEntry
+* @property {string} html The serialized content.
+* @property {EditorSelectionData|null} [selectionData=null] The selection to restore.
+*/
+/**
+* Gets a descendant by its child indexes, returning null for stale paths.
+* @param {number[]} path The child indexes.
+* @param {HTMLElement} container The editing boundary.
+* @returns {Node|null} The descendant.
+*/
+function getNodeFromPath(path, container) {
+	let node = container;
+	for (const index of path) node = node?.childNodes[index];
+	return node || null;
+}
+/**
+* Gets child indexes from the editing boundary to a descendant.
+* @param {Node} node The descendant.
+* @param {HTMLElement} container The editing boundary.
+* @returns {number[]} The child indexes.
+*/
+function getPathToNode(node, container) {
+	const path = [];
+	while (node !== container) {
+		path.unshift([...node.parentNode.childNodes].indexOf(node));
+		node = node.parentNode;
+	}
+	return path;
+}
+/**
+* Captures a selection owned by this editor, including backward ranges.
+* @param {HTMLElement} container The editing boundary.
+* @returns {EditorSelectionData|null} The saved selection.
+*/
+function getSelectionData(container) {
+	const { anchorNode, anchorOffset, focusNode, focusOffset } = window$4.getSelection();
+	if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
+	return {
+		anchorPath: getPathToNode(anchorNode, container),
+		anchorOffset,
+		focusPath: getPathToNode(focusNode, container),
+		focusOffset
+	};
+}
+/**
+* Restores a saved selection within the current editing boundary.
+* @param {HTMLElement} container The editing boundary.
+* @param {EditorSelectionData|null} selectionData The saved selection.
+*/
+function restoreSelectionData(container, selectionData) {
+	const selection = window$4.getSelection();
+	const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
+	const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
+	const length = (node) => node.nodeType === window$4.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
+	if (anchor && focus) selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)), focus, Math.min(selectionData.focusOffset, length(focus)));
+	else {
+		selection.selectAllChildren(container);
+		selection.collapseToEnd();
+	}
+}
+
+// src/js/icons.js
+var icons_default = {
+	alignCenter: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m4 4h10v2H7V7m-4 4h18v2H3v-2m4 4h10v2H7v-2m-4 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
+	alignJustify: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m0 4h18v2H3V7m0 4h18v2H3v-2m0 4h18v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
+	alignLeft: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m0 4h12v2H3V7m0 4h18v2H3v-2m0 4h12v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
+	alignRight: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m6 4h12v2H9V7m-6 4h18v2H3v-2m6 4h12v2H9v-2m-6 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
+	bold: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M13.5 15.5H10v-3h3.5A1.5 1.5 0 0 1 15 14a1.5 1.5 0 0 1-1.5 1.5m-3.5-9h3A1.5 1.5 0 0 1 14.5 8A1.5 1.5 0 0 1 13 9.5h-3m5.6 1.29c.97-.68 1.65-1.79 1.65-2.79c0-2.26-1.75-4-4-4H7v14h7.04c2.1 0 3.71-1.7 3.71-3.79c0-1.52-.86-2.82-2.15-3.42z\" fill=\"currentColor\"/></svg>",
+	floatLeft: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 7h6v6H3V7m0-4h18v2H3V3m18 4v2H11V7h10m0 4v2H11v-2h10M3 15h14v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
+	floatNone: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 7h6v6H3V7m0-4h18v2H3V3m18 8v2H11v-2h10M3 15h14v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
+	floatRight: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M15 7h6v6h-6V7M3 3h18v2H3V3m10 4v2H3V7h10m-4 4v2H3v-2h6m-6 4h14v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
+	fullScreen: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M9.5 13.09l1.41 1.41l-4.5 4.5H10v2H3v-7h2v3.59l4.5-4.5m1.41-3.59L9.5 10.91L5 6.41V10H3V3h7v2H6.41l4.5 4.5m3.59 3.59l4.5 4.5V14h2v7h-7v-2h3.59l-4.5-4.5l1.41-1.41M13.09 9.5l4.5-4.5H14V3h7v7h-2V6.41l-4.5 4.5l-1.41-1.41z\" fill=\"currentColor\"/></svg>",
+	hr: "<span class=\"d-block\" style=\"width: 12px; border-bottom: 2px solid currentColor;\"></span>",
+	image: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M8.5 13.5l2.5 3l3.5-4.5l4.5 6H5m16 1V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z\" fill=\"currentColor\"/></svg>",
+	imageOriginal: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M12 8c-3.56 0-5.35 4.31-2.83 6.83C11.69 17.35 16 15.56 16 12c0-2.21-1.79-4-4-4m-7 7H3v4c0 1.1.9 2 2 2h4v-2H5M5 5h4V3H5c-1.1 0-2 .9-2 2v4h2m14-6h-4v2h4v4h2V5c0-1.1-.9-2-2-2m0 16h-4v2h4c1.1 0 2-.9 2-2v-4h-2\" fill=\"currentColor\"/></svg>",
+	imageRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 3c-1.1 0-2 .9-2 2v14a2 2 0 0 0 2 2h9.09c-.06-.33-.09-.66-.09-1c0-.68.12-1.36.35-2H5l3.5-4.5l2.5 3l3.5-4.5l2.23 2.97c.97-.63 2.11-.97 3.27-.97c.34 0 .67.03 1 .09V5a2 2 0 0 0-2-2H5m11.47 14.88L18.59 20l-2.12 2.12l1.41 1.42L20 21.41l2.12 2.13l1.42-1.42L21.41 20l2.13-2.12l-1.42-1.42L20 18.59l-2.12-2.12l-1.42 1.41z\" fill=\"currentColor\"/></svg>",
+	indent: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M11 13h10v-2H11m0-2h10V7H11M3 3v2h18V3M11 17h10v-2H11M3 8v8l4-4m-4 9h18v-2H3v2z\" fill=\"currentColor\"/></svg>",
+	italic: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4h-8z\" fill=\"currentColor\"/></svg>",
+	link: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5a5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8v2m9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1c0 1.71-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5a5 5 0 0 0-5-5z\" fill=\"currentColor\"/></svg>",
+	linkEdit: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 3c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7H5V5h7V3H5m12.78 1a.69.69 0 0 0-.48.2l-1.22 1.21l2.5 2.5L19.8 6.7c.26-.26.26-.7 0-.95L18.25 4.2c-.13-.13-.3-.2-.47-.2m-2.41 2.12L8 13.5V16h2.5l7.37-7.38l-2.5-2.5z\" fill=\"currentColor\"/></svg>",
+	orderedList: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M7 13v-2h14v2H7m0 6v-2h14v2H7M7 7V5h14v2H7M3 8V5H2V4h2v4H3m-1 9v-1h3v4H2v-1h2v-.5H3v-1h1V17H2m2.25-7a.75.75 0 0 1 .75.75c0 .2-.08.39-.21.52L3.12 13H5v1H2v-.92L4 11H2v-1h2.25z\" fill=\"currentColor\"/></svg>",
+	outdent: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M11 13h10v-2H11m0-2h10V7H11M3 3v2h18V3M3 21h18v-2H3m0-7l4 4V8m4 9h10v-2H11v2z\" fill=\"currentColor\"/></svg>",
+	paragraph: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M10 11a4 4 0 0 1-4-4a4 4 0 0 1 4-4h8v2h-2v16h-2V5h-2v16h-2V11z\" fill=\"currentColor\"/></svg>",
+	redo: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M18.4 10.6C16.55 9 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16a8.002 8.002 0 0 1 7.6-5.5c1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z\" fill=\"currentColor\"/></svg>",
+	removeFormat: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M6 5v.18L8.82 8h2.4l-.72 1.68l2.1 2.1L14.21 8H20V5H6M3.27 5L2 6.27l6.97 6.97L6.5 19h3l1.57-3.66L16.73 21L18 19.73L3.55 5.27L3.27 5z\" fill=\"currentColor\"/></svg>",
+	source: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M14.6 16.6l4.6-4.6l-4.6-4.6L16 6l6 6l-6 6l-1.4-1.4m-5.2 0L4.8 12l4.6-4.6L8 6l-6 6l6 6l1.4-1.4z\" fill=\"currentColor\"/></svg>",
+	strikethrough: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 14h18v-2H3m2-8v3h5v3h4V7h5V4m-9 15h4v-3h-4v3z\" fill=\"currentColor\"/></svg>",
+	style: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M18.5 4l1.16 4.35l-.96.26c-.45-.87-.91-1.74-1.44-2.18C16.73 6 16.11 6 15.5 6H13v10.5c0 .5 0 1 .33 1.25c.34.25 1 .25 1.67.25v1H9v-1c.67 0 1.33 0 1.67-.25c.33-.25.33-.75.33-1.25V6H8.5c-.61 0-1.23 0-1.76.43c-.53.44-.99 1.31-1.44 2.18l-.96-.26L5.5 4h13z\" fill=\"currentColor\"/></svg>",
+	superscript: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M16 7.41L11.41 12L16 16.59L14.59 18L10 13.41L5.41 18L4 16.59L8.59 12L4 7.41L5.41 6L10 10.59L14.59 6L16 7.41M21.85 9h-4.88V8l.89-.82c.76-.64 1.32-1.18 1.7-1.63c.37-.44.56-.85.57-1.23a.884.884 0 0 0-.27-.7c-.18-.19-.47-.28-.86-.29c-.31.01-.58.07-.84.17l-.66.39l-.45-1.17c.27-.22.59-.39.98-.53S18.85 2 19.32 2c.78 0 1.38.2 1.78.61c.4.39.62.93.62 1.57c-.01.56-.19 1.08-.54 1.55c-.34.48-.76.93-1.27 1.36l-.64.52v.02h2.58V9z\" fill=\"currentColor\"/></svg>",
+	table: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2m0 4v4h6V8H5m8 0v4h6V8h-6m-8 6v4h6v-4H5m8 0v4h6v-4h-6z\" fill=\"currentColor\"/></svg>",
+	tableColumnAfter: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M11 2a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H2V2h9m-7 8v4h7v-4H4m0 6v4h7v-4H4M4 4v4h7V4H4m11 7h3V8h2v3h3v2h-3v3h-2v-3h-3v-2z\" fill=\"currentColor\"/></svg>",
+	tableColumnBefore: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M13 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h9V2h-9m7 8v4h-7v-4h7m0 6v4h-7v-4h7m0-12v4h-7V4h7M9 11H6V8H4v3H1v2h3v3h2v-3h3v-2z\" fill=\"currentColor\"/></svg>",
+	tableColumnRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M4 2h7a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m0 8v4h7v-4H4m0 6v4h7v-4H4M4 4v4h7V4H4m13.59 8L15 9.41L16.41 8L19 10.59L21.59 8L23 9.41L20.41 12L23 14.59L21.59 16L19 13.41L16.41 16L15 14.59L17.59 12z\" fill=\"currentColor\"/></svg>",
+	tableRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M15.46 15.88l1.42-1.42L19 16.59l2.12-2.13l1.42 1.42L20.41 18l2.13 2.12l-1.42 1.42L19 19.41l-2.12 2.13l-1.42-1.42L17.59 18l-2.13-2.12M4 3h14a2 2 0 0 1 2 2v7.08a6.01 6.01 0 0 0-4.32.92H12v4h1.08c-.11.68-.11 1.35 0 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2m0 4v4h6V7H4m8 0v4h6V7h-6m-8 6v4h6v-4H4z\" fill=\"currentColor\"/></svg>",
+	tableRowAfter: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M22 10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3h2v2h4V3h2v2h4V3h2v2h4V3h2v7M4 10h4V7H4v3m6 0h4V7h-4v3m10 0V7h-4v3h4m-9 4h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z\" fill=\"currentColor\"/></svg>",
+	tableRowBefore: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M22 14a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7h2v-2h4v2h2v-2h4v2h2v-2h4v2h2v-7M4 14h4v3H4v-3m6 0h4v3h-4v-3m10 0v3h-4v-3h4m-9-4h2V7h3V5h-3V2h-2v3H8v2h3v3z\" fill=\"currentColor\"/></svg>",
+	tableRowRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M9.41 13L12 15.59L14.59 13L16 14.41L13.41 17L16 19.59L14.59 21L12 18.41L9.41 21L8 19.59L10.59 17L8 14.41L9.41 13M22 9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3M4 9h4V6H4v3m6 0h4V6h-4v3m6 0h4V6h-4v3z\" fill=\"currentColor\"/></svg>",
+	underline: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 21h14v-2H5v2m7-4a6 6 0 0 0 6-6V3h-2.5v8a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 11V3H6v8a6 6 0 0 0 6 6z\" fill=\"currentColor\"/></svg>",
+	undo: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88c3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z\" fill=\"currentColor\"/></svg>",
+	unlink: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1c0 1.43-.98 2.63-2.31 3l1.46 1.44C20.88 15.61 22 13.95 22 12a5 5 0 0 0-5-5m-1 4h-2.19l2 2H16v-2M2 4.27l3.11 3.11A4.991 4.991 0 0 0 2 12a5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1c0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73L13 15.27V17h1.73l4.01 4L20 19.74L3.27 3L2 4.27z\" fill=\"currentColor\"/></svg>",
+	unorderedList: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M7 5h14v2H7V5m0 8v-2h14v2H7M4 4.5A1.5 1.5 0 0 1 5.5 6A1.5 1.5 0 0 1 4 7.5A1.5 1.5 0 0 1 2.5 6A1.5 1.5 0 0 1 4 4.5m0 6A1.5 1.5 0 0 1 5.5 12A1.5 1.5 0 0 1 4 13.5A1.5 1.5 0 0 1 2.5 12A1.5 1.5 0 0 1 4 10.5M7 19v-2h14v2H7m-3-2.5A1.5 1.5 0 0 1 5.5 18A1.5 1.5 0 0 1 4 19.5A1.5 1.5 0 0 1 2.5 18A1.5 1.5 0 0 1 4 16.5z\" fill=\"currentColor\"/></svg>",
+	video: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z\" fill=\"currentColor\"/></svg>"
+};
+
 // src/js/normalize.js
-/** @import { EditorSelectionMarkers } from './types.js'; */
+/** @import { EditorSelectionMarkers } from './selection.js'; */
 var transparent = "rgba(0, 0, 0, 0)";
 var phrasingSelector = [
 	"a",
@@ -215,8 +329,8 @@ function normalizeStyles(container) {
 	}
 }
 
-// src/js/commands.js
-var window$4 = $.getWindow();
+// src/js/indentation.js
+var window$3 = $.getWindow();
 /**
 * Tests whether a range includes content inside a block rather than just its boundary.
 * @param {Range} range The selected range.
@@ -234,10 +348,10 @@ function intersects(range, block) {
 	const blockEnd = blockStart.cloneRange();
 	blockStart.collapse(true);
 	blockEnd.collapse(false);
-	if (start.compareBoundaryPoints(window$4.Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(window$4.Range.START_TO_START, blockStart) <= 0) return false;
+	if (start.compareBoundaryPoints(window$3.Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(window$3.Range.START_TO_START, blockStart) <= 0) return false;
 	const overlap = range.cloneRange();
-	if (start.compareBoundaryPoints(window$4.Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
-	if (end.compareBoundaryPoints(window$4.Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
+	if (start.compareBoundaryPoints(window$3.Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
+	if (end.compareBoundaryPoints(window$3.Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
 	return Boolean(overlap.toString() || $.find("br, img, hr, iframe, video, audio, svg, input", block).some((node) => overlap.intersectsNode(node)) || !block.childNodes.length);
 }
 /**
@@ -247,7 +361,7 @@ function intersects(range, block) {
 * @returns {HTMLElement[]} The selected blocks or sibling list items.
 */
 function getSelectedBlocks(root, range) {
-	const anchor = range.startContainer.nodeType === window$4.Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
+	const anchor = range.startContainer.nodeType === window$3.Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
 	const item = $.is(anchor, "li") ? anchor : $.closest(anchor, "li")[0];
 	if (item && containsNode(root, item) && containsNode(item.parentElement, range.endContainer)) return [...item.parentElement.children].filter((node) => $.is(node, "li") && intersects(range, node));
 	const blocks = [];
@@ -441,291 +555,47 @@ function outdentBlocks(blocks, root) {
 	}
 }
 
-// src/js/config.js
-/** @import { EditorLanguage } from './types.js'; */
-var classes = {
-	btn: "btn btn-editor btn-sm fs-6 lh-1",
-	btnGroup: "btn-group me-1 mb-1",
-	btnIcon: "pe-none",
-	checkbox: "input-check",
-	checkboxLabel: "form-check-label",
-	checkboxContainer: "form-check",
-	color: "editor-color flex-grow-1 d-block border-0",
-	colorBtnContent: "fw-bold d-inline-block px-1 pe-none",
-	colorContainerRow: "row g-0",
-	colorContainerColumn: "col-6",
-	colorDefaultBtn: "btn btn-outline-editor btn-sm d-block w-100 py-0",
-	colorLabel: "d-block text-center",
-	colorLabelContainer: "p-2",
-	colorRow: "d-flex flex-row px-2",
-	container: "editor-panel card",
-	dropdown: "editor-dropdown dropdown-menu",
-	dropdownButtons: "pt-2 pe-1 pb-1 ps-2 text-nowrap",
-	dropdownGroup: "btn-group",
-	dropdownItem: "dropdown-item",
-	dropdownToggle: "dropdown-toggle",
-	dropHover: "text-primary",
-	dropTarget: "editor-drop-target position-absolute w-100 text-center rounded",
-	dropText: "position-absolute top-50 start-50 translate-middle h5 pe-none",
-	editor: "editor w-100 p-2",
-	editorBody: "card-body d-flex p-0",
-	editorContainer: "editor-container position-relative",
-	editorDisabled: "editor-disabled",
-	editorScroll: "editor-scroll d-block w-100 overflow-auto",
-	formError: "form-error",
-	formGroup: "mb-2",
-	imgCursor: "editor-img-cursor position-absolute pe-none",
-	imgHighlight: "editor-img-highlight position-absolute pe-none",
-	imgResize: "editor-img-resize position-absolute pe-auto",
-	imgSize: "editor-img-size position-absolute bottom-0 end-0 text-end me-2 mb-2 py-1 px-3 rounded",
-	input: "input-filled",
-	inputContainer: "form-input",
-	invalidFeedback: "invalid-feedback",
-	linkUrl: "editor-link-url d-inline-block text-truncate me-1",
-	modal: "modal",
-	modalBody: "modal-body",
-	modalBtnClose: "btn-close",
-	modalBtnPrimary: "btn btn-primary ripple mb-0",
-	modalBtnSecondary: "btn btn-secondary ripple mb-0",
-	modalContent: "modal-content shadow",
-	modalDialog: "modal-dialog",
-	modalFooter: "modal-footer",
-	modalFullscreen: "modal-fullscreen",
-	modalHeader: "modal-header",
-	modalTitle: "modal-title",
-	popover: "editor-popover popover",
-	popoverArrow: "popover-arrow",
-	popoverBody: "popover-body mb-n1 ms-n2 me-n3",
-	popoverShow: "show",
-	resizeBar: "editor-resize card-footer",
-	source: "editor-source font-monospace border-0 p-2 mb-0 w-100",
-	sourceContainer: "d-flex h-100",
-	sourceLines: "font-monospace bg-body-secondary p-2 mb-0 border-end",
-	sourceOuter: "w-100 overflow-hidden",
-	sourceScroll: "d-flex w-100",
-	styleContent: "mb-1",
-	table: "table table-bordered",
-	tableCell: "flex-column",
-	tableDropdown: "p-2",
-	tableHover: "bg-primary",
-	tableInfo: "text-body-secondary",
-	tableLink: "editor-table-link d-block border p-2 rounded-0",
-	tableRow: "d-flex flex-row",
-	toolbar: "card-header pt-1 pe-0 pb-0 ps-1",
-	toolbarButtons: "btn-toolbar"
-};
-/** @type {EditorLanguage} */
-var lang = {
-	resizeEditor: "Resize editor",
-	resizeImage: "Image width",
-	toolbar: "Formatting",
-	contextToolbar: "Context formatting",
-	drop: {
-		drop: "Drop image or text",
-		dropHere: "Drop image or text here"
-	},
-	dropdowns: {
-		colorBackground: "Background Color",
-		colorDefault: "Use Default",
-		colorForeground: "Foreground Color",
-		colorTransparent: "Use Transparent"
-	},
-	modals: {
-		cancel: "Cancel",
-		close: "Close",
-		imageFile: "Select Files",
-		imageUrl: "Image URL",
-		insertImage: "Insert Image",
-		insertLink: "Insert Link",
-		insertVideo: "Insert Video",
-		linkNewWindow: "Open in new window",
-		linkText: "Link Text",
-		linkUrl: "Link URL",
-		videoUrl: "Video URL",
-		videoUrlInvalid: "Invalid video URL."
-	},
-	plugins: {
-		alignCenter: "Align Center",
-		alignJustify: "Justify Full",
-		alignLeft: "Align Left",
-		alignRight: "Align Right",
-		bold: "Bold",
-		color: "Font Color",
-		font: "Font Family",
-		fontSize: "Font Size",
-		fullScreen: "Full Screen",
-		hr: "Horizontal Rule",
-		image: "Image",
-		indent: "Indent",
-		italic: "Italic",
-		link: "Link",
-		orderedList: "Ordered List",
-		outdent: "Outdent",
-		paragraph: "Paragraph",
-		redo: "Redo",
-		removeFormat: "Remove Formatting",
-		source: "View Source",
-		strikethrough: "Strikethrough",
-		style: "Style",
-		subscript: "Subscript",
-		superscript: "Superscript",
-		table: "Table",
-		underline: "Underline",
-		undo: "Undo",
-		unlink: "Unlink",
-		unorderedList: "Unordered List",
-		video: "Video"
-	},
-	popovers: {
-		imageFull: "Full Size",
-		imageHalf: "Half Size",
-		imageOriginal: "Original Size",
-		imageQuarter: "Quarter Size",
-		imageRemove: "Remove Image",
-		floatLeft: "Float Left",
-		floatNone: "Remove Float",
-		floatRight: "Float Right",
-		linkEdit: "Edit Link",
-		tableColumnAfter: "Add Column After",
-		tableColumnBefore: "Add Column Before",
-		tableColumnRemove: "Remove Column",
-		tableRemove: "Remove Table",
-		tableRowAfter: "Add Row After",
-		tableRowBefore: "Add Row Before",
-		tableRowRemove: "Remove Row",
-		unlink: "Remove Link"
-	},
-	styles: {
-		p: "Paragraph",
-		blockquote: "Quote",
-		pre: "Code",
-		h1: "Header 1",
-		h2: "Header 2",
-		h3: "Header 3",
-		h4: "Header 4",
-		h5: "Header 5",
-		h6: "Header 6"
-	}
-};
-
-// src/js/history.js
-/** @import { EditorSelectionData } from './types.js'; */
-var window$3 = $.getWindow();
-/**
-* Gets a descendant by its child indexes, returning null for stale paths.
-* @param {number[]} path The child indexes.
-* @param {HTMLElement} container The editing boundary.
-* @returns {Node|null} The descendant.
-*/
-function getNodeFromPath(path, container) {
-	let node = container;
-	for (const index of path) node = node?.childNodes[index];
-	return node || null;
-}
-/**
-* Gets child indexes from the editing boundary to a descendant.
-* @param {Node} node The descendant.
-* @param {HTMLElement} container The editing boundary.
-* @returns {number[]} The child indexes.
-*/
-function getPathToNode(node, container) {
-	const path = [];
-	while (node !== container) {
-		path.unshift([...node.parentNode.childNodes].indexOf(node));
-		node = node.parentNode;
-	}
-	return path;
-}
-/**
-* Captures a selection owned by this editor, including backward ranges.
-* @param {HTMLElement} container The editing boundary.
-* @returns {EditorSelectionData|null} The saved selection.
-*/
-function getSelectionData(container) {
-	const { anchorNode, anchorOffset, focusNode, focusOffset } = window$3.getSelection();
-	if (!anchorNode || !focusNode || !containsNode(container, anchorNode) || !containsNode(container, focusNode)) return null;
-	return {
-		anchorPath: getPathToNode(anchorNode, container),
-		anchorOffset,
-		focusPath: getPathToNode(focusNode, container),
-		focusOffset
-	};
-}
-/**
-* Restores a saved selection within the current editing boundary.
-* @param {HTMLElement} container The editing boundary.
-* @param {EditorSelectionData|null} selectionData The saved selection.
-*/
-function restoreSelectionData(container, selectionData) {
-	const selection = window$3.getSelection();
-	const anchor = selectionData && getNodeFromPath(selectionData.anchorPath, container);
-	const focus = selectionData && getNodeFromPath(selectionData.focusPath, container);
-	const length = (node) => node.nodeType === window$3.Node.TEXT_NODE ? node.textContent.length : node.childNodes.length;
-	if (anchor && focus) selection.setBaseAndExtent(anchor, Math.min(selectionData.anchorOffset, length(anchor)), focus, Math.min(selectionData.focusOffset, length(focus)));
-	else {
-		selection.selectAllChildren(container);
-		selection.collapseToEnd();
-	}
-}
-
-// src/js/icons.js
-var icons_default = {
-	alignCenter: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m4 4h10v2H7V7m-4 4h18v2H3v-2m4 4h10v2H7v-2m-4 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
-	alignJustify: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m0 4h18v2H3V7m0 4h18v2H3v-2m0 4h18v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
-	alignLeft: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m0 4h12v2H3V7m0 4h18v2H3v-2m0 4h12v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
-	alignRight: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 3h18v2H3V3m6 4h12v2H9V7m-6 4h18v2H3v-2m6 4h12v2H9v-2m-6 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
-	bold: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M13.5 15.5H10v-3h3.5A1.5 1.5 0 0 1 15 14a1.5 1.5 0 0 1-1.5 1.5m-3.5-9h3A1.5 1.5 0 0 1 14.5 8A1.5 1.5 0 0 1 13 9.5h-3m5.6 1.29c.97-.68 1.65-1.79 1.65-2.79c0-2.26-1.75-4-4-4H7v14h7.04c2.1 0 3.71-1.7 3.71-3.79c0-1.52-.86-2.82-2.15-3.42z\" fill=\"currentColor\"/></svg>",
-	floatLeft: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 7h6v6H3V7m0-4h18v2H3V3m18 4v2H11V7h10m0 4v2H11v-2h10M3 15h14v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
-	floatNone: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 7h6v6H3V7m0-4h18v2H3V3m18 8v2H11v-2h10M3 15h14v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
-	floatRight: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M15 7h6v6h-6V7M3 3h18v2H3V3m10 4v2H3V7h10m-4 4v2H3v-2h6m-6 4h14v2H3v-2m0 4h18v2H3v-2z\" fill=\"currentColor\"/></svg>",
-	fullScreen: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M9.5 13.09l1.41 1.41l-4.5 4.5H10v2H3v-7h2v3.59l4.5-4.5m1.41-3.59L9.5 10.91L5 6.41V10H3V3h7v2H6.41l4.5 4.5m3.59 3.59l4.5 4.5V14h2v7h-7v-2h3.59l-4.5-4.5l1.41-1.41M13.09 9.5l4.5-4.5H14V3h7v7h-2V6.41l-4.5 4.5l-1.41-1.41z\" fill=\"currentColor\"/></svg>",
-	hr: "<span class=\"d-block\" style=\"width: 12px; border-bottom: 2px solid currentColor;\"></span>",
-	image: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M8.5 13.5l2.5 3l3.5-4.5l4.5 6H5m16 1V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z\" fill=\"currentColor\"/></svg>",
-	imageOriginal: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M12 8c-3.56 0-5.35 4.31-2.83 6.83C11.69 17.35 16 15.56 16 12c0-2.21-1.79-4-4-4m-7 7H3v4c0 1.1.9 2 2 2h4v-2H5M5 5h4V3H5c-1.1 0-2 .9-2 2v4h2m14-6h-4v2h4v4h2V5c0-1.1-.9-2-2-2m0 16h-4v2h4c1.1 0 2-.9 2-2v-4h-2\" fill=\"currentColor\"/></svg>",
-	imageRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 3c-1.1 0-2 .9-2 2v14a2 2 0 0 0 2 2h9.09c-.06-.33-.09-.66-.09-1c0-.68.12-1.36.35-2H5l3.5-4.5l2.5 3l3.5-4.5l2.23 2.97c.97-.63 2.11-.97 3.27-.97c.34 0 .67.03 1 .09V5a2 2 0 0 0-2-2H5m11.47 14.88L18.59 20l-2.12 2.12l1.41 1.42L20 21.41l2.12 2.13l1.42-1.42L21.41 20l2.13-2.12l-1.42-1.42L20 18.59l-2.12-2.12l-1.42 1.41z\" fill=\"currentColor\"/></svg>",
-	indent: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M11 13h10v-2H11m0-2h10V7H11M3 3v2h18V3M11 17h10v-2H11M3 8v8l4-4m-4 9h18v-2H3v2z\" fill=\"currentColor\"/></svg>",
-	italic: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4h-8z\" fill=\"currentColor\"/></svg>",
-	link: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5a5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8v2m9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1c0 1.71-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5a5 5 0 0 0-5-5z\" fill=\"currentColor\"/></svg>",
-	linkEdit: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 3c-1.11 0-2 .89-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7H5V5h7V3H5m12.78 1a.69.69 0 0 0-.48.2l-1.22 1.21l2.5 2.5L19.8 6.7c.26-.26.26-.7 0-.95L18.25 4.2c-.13-.13-.3-.2-.47-.2m-2.41 2.12L8 13.5V16h2.5l7.37-7.38l-2.5-2.5z\" fill=\"currentColor\"/></svg>",
-	orderedList: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M7 13v-2h14v2H7m0 6v-2h14v2H7M7 7V5h14v2H7M3 8V5H2V4h2v4H3m-1 9v-1h3v4H2v-1h2v-.5H3v-1h1V17H2m2.25-7a.75.75 0 0 1 .75.75c0 .2-.08.39-.21.52L3.12 13H5v1H2v-.92L4 11H2v-1h2.25z\" fill=\"currentColor\"/></svg>",
-	outdent: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M11 13h10v-2H11m0-2h10V7H11M3 3v2h18V3M3 21h18v-2H3m0-7l4 4V8m4 9h10v-2H11v2z\" fill=\"currentColor\"/></svg>",
-	paragraph: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M10 11a4 4 0 0 1-4-4a4 4 0 0 1 4-4h8v2h-2v16h-2V5h-2v16h-2V11z\" fill=\"currentColor\"/></svg>",
-	redo: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M18.4 10.6C16.55 9 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16a8.002 8.002 0 0 1 7.6-5.5c1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z\" fill=\"currentColor\"/></svg>",
-	removeFormat: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M6 5v.18L8.82 8h2.4l-.72 1.68l2.1 2.1L14.21 8H20V5H6M3.27 5L2 6.27l6.97 6.97L6.5 19h3l1.57-3.66L16.73 21L18 19.73L3.55 5.27L3.27 5z\" fill=\"currentColor\"/></svg>",
-	source: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M14.6 16.6l4.6-4.6l-4.6-4.6L16 6l6 6l-6 6l-1.4-1.4m-5.2 0L4.8 12l4.6-4.6L8 6l-6 6l6 6l1.4-1.4z\" fill=\"currentColor\"/></svg>",
-	strikethrough: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M3 14h18v-2H3m2-8v3h5v3h4V7h5V4m-9 15h4v-3h-4v3z\" fill=\"currentColor\"/></svg>",
-	style: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M18.5 4l1.16 4.35l-.96.26c-.45-.87-.91-1.74-1.44-2.18C16.73 6 16.11 6 15.5 6H13v10.5c0 .5 0 1 .33 1.25c.34.25 1 .25 1.67.25v1H9v-1c.67 0 1.33 0 1.67-.25c.33-.25.33-.75.33-1.25V6H8.5c-.61 0-1.23 0-1.76.43c-.53.44-.99 1.31-1.44 2.18l-.96-.26L5.5 4h13z\" fill=\"currentColor\"/></svg>",
-	superscript: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M16 7.41L11.41 12L16 16.59L14.59 18L10 13.41L5.41 18L4 16.59L8.59 12L4 7.41L5.41 6L10 10.59L14.59 6L16 7.41M21.85 9h-4.88V8l.89-.82c.76-.64 1.32-1.18 1.7-1.63c.37-.44.56-.85.57-1.23a.884.884 0 0 0-.27-.7c-.18-.19-.47-.28-.86-.29c-.31.01-.58.07-.84.17l-.66.39l-.45-1.17c.27-.22.59-.39.98-.53S18.85 2 19.32 2c.78 0 1.38.2 1.78.61c.4.39.62.93.62 1.57c-.01.56-.19 1.08-.54 1.55c-.34.48-.76.93-1.27 1.36l-.64.52v.02h2.58V9z\" fill=\"currentColor\"/></svg>",
-	table: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2m0 4v4h6V8H5m8 0v4h6V8h-6m-8 6v4h6v-4H5m8 0v4h6v-4h-6z\" fill=\"currentColor\"/></svg>",
-	tableColumnAfter: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M11 2a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H2V2h9m-7 8v4h7v-4H4m0 6v4h7v-4H4M4 4v4h7V4H4m11 7h3V8h2v3h3v2h-3v3h-2v-3h-3v-2z\" fill=\"currentColor\"/></svg>",
-	tableColumnBefore: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M13 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h9V2h-9m7 8v4h-7v-4h7m0 6v4h-7v-4h7m0-12v4h-7V4h7M9 11H6V8H4v3H1v2h3v3h2v-3h3v-2z\" fill=\"currentColor\"/></svg>",
-	tableColumnRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M4 2h7a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2m0 8v4h7v-4H4m0 6v4h7v-4H4M4 4v4h7V4H4m13.59 8L15 9.41L16.41 8L19 10.59L21.59 8L23 9.41L20.41 12L23 14.59L21.59 16L19 13.41L16.41 16L15 14.59L17.59 12z\" fill=\"currentColor\"/></svg>",
-	tableRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M15.46 15.88l1.42-1.42L19 16.59l2.12-2.13l1.42 1.42L20.41 18l2.13 2.12l-1.42 1.42L19 19.41l-2.12 2.13l-1.42-1.42L17.59 18l-2.13-2.12M4 3h14a2 2 0 0 1 2 2v7.08a6.01 6.01 0 0 0-4.32.92H12v4h1.08c-.11.68-.11 1.35 0 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2m0 4v4h6V7H4m8 0v4h6V7h-6m-8 6v4h6v-4H4z\" fill=\"currentColor\"/></svg>",
-	tableRowAfter: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M22 10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V3h2v2h4V3h2v2h4V3h2v2h4V3h2v7M4 10h4V7H4v3m6 0h4V7h-4v3m10 0V7h-4v3h4m-9 4h2v3h3v2h-3v3h-2v-3H8v-2h3v-3z\" fill=\"currentColor\"/></svg>",
-	tableRowBefore: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M22 14a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v7h2v-2h4v2h2v-2h4v2h2v-2h4v2h2v-7M4 14h4v3H4v-3m6 0h4v3h-4v-3m10 0v3h-4v-3h4m-9-4h2V7h3V5h-3V2h-2v3H8v2h3v3z\" fill=\"currentColor\"/></svg>",
-	tableRowRemove: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M9.41 13L12 15.59L14.59 13L16 14.41L13.41 17L16 19.59L14.59 21L12 18.41L9.41 21L8 19.59L10.59 17L8 14.41L9.41 13M22 9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3M4 9h4V6H4v3m6 0h4V6h-4v3m6 0h4V6h-4v3z\" fill=\"currentColor\"/></svg>",
-	underline: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M5 21h14v-2H5v2m7-4a6 6 0 0 0 6-6V3h-2.5v8a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 11V3H6v8a6 6 0 0 0 6 6z\" fill=\"currentColor\"/></svg>",
-	undo: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M12.5 8c-2.65 0-5.05 1-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88c3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z\" fill=\"currentColor\"/></svg>",
-	unlink: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M17 7h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1c0 1.43-.98 2.63-2.31 3l1.46 1.44C20.88 15.61 22 13.95 22 12a5 5 0 0 0-5-5m-1 4h-2.19l2 2H16v-2M2 4.27l3.11 3.11A4.991 4.991 0 0 0 2 12a5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1c0-1.59 1.21-2.9 2.76-3.07L8.73 11H8v2h2.73L13 15.27V17h1.73l4.01 4L20 19.74L3.27 3L2 4.27z\" fill=\"currentColor\"/></svg>",
-	unorderedList: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M7 5h14v2H7V5m0 8v-2h14v2H7M4 4.5A1.5 1.5 0 0 1 5.5 6A1.5 1.5 0 0 1 4 7.5A1.5 1.5 0 0 1 2.5 6A1.5 1.5 0 0 1 4 4.5m0 6A1.5 1.5 0 0 1 5.5 12A1.5 1.5 0 0 1 4 13.5A1.5 1.5 0 0 1 2.5 12A1.5 1.5 0 0 1 4 10.5M7 19v-2h14v2H7m-3-2.5A1.5 1.5 0 0 1 5.5 18A1.5 1.5 0 0 1 4 19.5A1.5 1.5 0 0 1 2.5 18A1.5 1.5 0 0 1 4 16.5z\" fill=\"currentColor\"/></svg>",
-	video: "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" aria-hidden=\"true\" focusable=\"false\" width=\"1em\" height=\"1em\" preserveAspectRatio=\"xMidYMid meet\" viewBox=\"0 0 24 24\"><path d=\"M17 10.5V7a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-3.5l4 4v-11l-4 4z\" fill=\"currentColor\"/></svg>"
-};
-
 // src/js/modals.js
-/** @import Editor from './editor.js'; */
-/** @import { EditorInputOptions, EditorInputElements, EditorModalOptions } from './types.js'; */
+/** @import { EditorLanguage } from './editor.js'; */
 var document$2 = $.getContext();
 /**
+* @typedef {object} EditorInputOptions
+* @property {string} id The control ID.
+* @property {string} label The label text.
+* @property {string} [type='text'] The input type.
+* @property {Record<string, string|number|boolean>} [attributes] Additional control attributes.
+*/
+/**
+* @typedef {object} EditorInputElements
+* @property {HTMLDivElement} group The control group.
+* @property {HTMLInputElement} input The input.
+* @property {HTMLDivElement} [invalidFeedback] The validation message container.
+*/
+/**
+* @typedef {object} EditorModalOptions
+* @property {string} [title] The dialog title.
+* @property {HTMLElement} [returnFocus] The invoking control to refocus after closing.
+* @property {HTMLElement} [content] The dialog content.
+* @property {boolean} [fullScreen=false] Whether to use a fullscreen dialog.
+* @property {string} [cancelText] The cancel label.
+* @property {string} [submitText] The submit label.
+* @property {(event: Event) => boolean|void} [onSubmit] The submit handler; false keeps the dialog open.
+* @property {(event: Event) => void} [onShow] The before-show handler.
+* @property {(event: Event) => void} [onShown] The shown handler.
+* @property {(event: Event) => void} [onHide] The before-hide handler.
+* @property {(event: Event) => void} [onHidden] The hidden handler.
+*/
+/**
 * Creates a form checkbox.
-* @param {typeof Editor} Component The component class.
+* @param {Record<string, string>} classes The editor classes.
 * @param {EditorInputOptions} options Options for the checkbox.
 * @returns {EditorInputElements} The form elements.
 */
-function createCheckbox(Component, options) {
-	const group = $.create("div", { class: Component.classes.formGroup });
-	const inputContainer = $.create("div", { class: Component.classes.checkboxContainer });
+function createCheckbox(classes, options) {
+	const group = $.create("div", { class: classes.formGroup });
+	const inputContainer = $.create("div", { class: classes.checkboxContainer });
 	const input = $.create("input", {
-		class: Component.classes.checkbox,
+		class: classes.checkbox,
 		attributes: {
 			id: options.id,
 			type: "checkbox",
@@ -734,7 +604,7 @@ function createCheckbox(Component, options) {
 	});
 	const label = $.create("label", {
 		text: options.label,
-		class: Component.classes.checkboxLabel,
+		class: classes.checkboxLabel,
 		attributes: { for: options.id }
 	});
 	$.append(inputContainer, input);
@@ -747,19 +617,19 @@ function createCheckbox(Component, options) {
 }
 /**
 * Creates a form file input.
-* @param {typeof Editor} Component The component class.
+* @param {Record<string, string>} classes The editor classes.
 * @param {EditorInputOptions} options Options for the file input.
 * @returns {EditorInputElements} The form elements.
 */
-function createFileInput(Component, options) {
-	const group = $.create("div", { class: Component.classes.formGroup });
+function createFileInput(classes, options) {
+	const group = $.create("div", { class: classes.formGroup });
 	const label = $.create("label", {
 		text: options.label,
 		attributes: { for: options.id }
 	});
-	const inputContainer = $.create("div", { class: Component.classes.inputContainer });
+	const inputContainer = $.create("div", { class: classes.inputContainer });
 	const input = $.create("input", {
-		class: Component.classes.input,
+		class: classes.input,
 		attributes: {
 			id: options.id,
 			type: "file",
@@ -776,19 +646,19 @@ function createFileInput(Component, options) {
 }
 /**
 * Creates a form text input.
-* @param {typeof Editor} Component The component class.
+* @param {Record<string, string>} classes The editor classes.
 * @param {EditorInputOptions} options Options for the text input.
 * @returns {EditorInputElements} The form elements.
 */
-function createInput(Component, options) {
-	const group = $.create("div", { class: Component.classes.formGroup });
+function createInput(classes, options) {
+	const group = $.create("div", { class: classes.formGroup });
 	const label = $.create("label", {
 		text: options.label,
 		attributes: { for: options.id }
 	});
-	const inputContainer = $.create("div", { class: Component.classes.inputContainer });
+	const inputContainer = $.create("div", { class: classes.inputContainer });
 	const input = $.create("input", {
-		class: Component.classes.input,
+		class: classes.input,
 		attributes: {
 			id: options.id,
 			type: options.type || "text",
@@ -796,7 +666,7 @@ function createInput(Component, options) {
 		}
 	});
 	const invalidFeedback = $.create("div", {
-		class: Component.classes.invalidFeedback,
+		class: classes.invalidFeedback,
 		attributes: { id: `${options.id}-error` }
 	});
 	$.setAttribute(input, "aria-describedby", `${options.id}-error`);
@@ -812,32 +682,33 @@ function createInput(Component, options) {
 }
 /**
 * Creates a modal.
-* @param {typeof Editor} Component The component class.
+* @param {Record<string, string>} classes The editor classes.
+* @param {EditorLanguage} lang The editor language.
 * @param {EditorModalOptions} options Options for the modal.
 * @returns {HTMLElement} The modal element.
 */
-function createModal(Component, options) {
+function createModal(classes, lang, options) {
 	const returnFocus = options.returnFocus || document$2.activeElement;
 	const modal = $.create("div", {
-		class: Component.classes.modal,
+		class: classes.modal,
 		attributes: {
 			"tabindex": -1,
 			"role": "dialog",
 			"aria-modal": true,
-			"aria-label": options.title || Component.lang.plugins.fullScreen
+			"aria-label": options.title || lang.plugins.fullScreen
 		}
 	});
-	const modalDialog = $.create("div", { class: Component.classes.modalDialog });
+	const modalDialog = $.create("div", { class: classes.modalDialog });
 	$.append(modal, modalDialog);
-	if (options.fullScreen) $.addClass(modalDialog, Component.classes.modalFullscreen);
-	const modalContent = $.create("form", { class: Component.classes.modalContent });
+	if (options.fullScreen) $.addClass(modalDialog, classes.modalFullscreen);
+	const modalContent = $.create("form", { class: classes.modalContent });
 	$.append(modalDialog, modalContent);
-	const modalHeader = $.create("div", { class: Component.classes.modalHeader });
+	const modalHeader = $.create("div", { class: classes.modalHeader });
 	$.append(modalContent, modalHeader);
 	if (options.title) {
 		const id = generateId("editor-dialog");
 		const modalTitle = $.create("h6", {
-			class: Component.classes.modalTitle,
+			class: classes.modalTitle,
 			text: options.title,
 			attributes: { id }
 		});
@@ -845,32 +716,32 @@ function createModal(Component, options) {
 		$.append(modalHeader, modalTitle);
 	}
 	const closeBtn = $.create("button", {
-		class: Component.classes.modalBtnClose,
+		class: classes.modalBtnClose,
 		dataset: { uiDismiss: "modal" },
 		attributes: {
 			"type": "button",
-			"aria-label": Component.lang.modals.close
+			"aria-label": lang.modals.close
 		}
 	});
 	$.append(modalHeader, closeBtn);
 	if (options.content) {
-		const modalBody = $.create("div", { class: Component.classes.modalBody });
+		const modalBody = $.create("div", { class: classes.modalBody });
 		$.append(modalBody, options.content);
 		$.append(modalContent, modalBody);
 	}
 	if (options.onSubmit) {
-		const modalFooter = $.create("div", { class: Component.classes.modalFooter });
+		const modalFooter = $.create("div", { class: classes.modalFooter });
 		$.append(modalContent, modalFooter);
 		const cancelButton = $.create("button", {
 			text: options.cancelText,
-			class: Component.classes.modalBtnSecondary,
+			class: classes.modalBtnSecondary,
 			dataset: { uiDismiss: "modal" },
 			attributes: { type: "button" }
 		});
 		$.append(modalFooter, cancelButton);
 		const submitButton = $.create("button", {
 			text: options.submitText,
-			class: Component.classes.modalBtnPrimary,
+			class: classes.modalBtnPrimary,
 			attributes: { type: "submit" }
 		});
 		$.append(modalFooter, submitButton);
@@ -905,8 +776,13 @@ function createModal(Component, options) {
 }
 
 // src/js/selection.js
-/** @import { EditorSelectionMarkers } from './types.js'; */
 var window$2 = $.getWindow();
+/**
+* @typedef {object} EditorSelectionMarkers
+* @property {Text} [start] The start marker.
+* @property {Text} [end] The end marker.
+* @property {boolean} [backward=false] Whether the selection runs toward the start.
+*/
 /**
 * Gets the current range, optionally restricted to an editing boundary.
 * @param {HTMLElement|null} [container=null] The optional editing boundary.
@@ -1218,9 +1094,126 @@ var styles = [
 ];
 
 // src/js/editor.js
-/** @import { EditorOptions, EditorHistoryEntry, EditorPlugin, EditorPopover, EditorDropdownCallback } from './types.js'; */
+/** @import { EditorHistoryEntry } from './history.js'; */
 var document = $.getContext();
 var window = $.getWindow();
+/**
+* @callback EditorAction
+* @this {Editor}
+* @returns {void} Nothing.
+*/
+/**
+* @callback EditorDropdownCallback
+* @this {Editor}
+* @param {HTMLElement} dropdown The dropdown container to populate.
+* @returns {void} Nothing.
+*/
+/**
+* @callback EditorContentCallback
+* @this {Editor}
+* @returns {string|number} The button HTML, title, or numeric label.
+*/
+/**
+* @callback EditorDisableCallback
+* @this {Editor}
+* @returns {boolean} Whether the button should be disabled.
+*/
+/**
+* @callback EditorUploadCallback
+* @this {Editor}
+* @param {FileList|File[]} files The files to upload and insert.
+* @returns {void|Promise<void>} Optional asynchronous completion.
+*/
+/**
+* @callback EditorKeyDownCallback
+* @this {Editor}
+* @param {KeyboardEvent} event The keyboard event.
+* @returns {void} Nothing.
+*/
+/**
+* @typedef {object} EditorPopoverGroups
+* @property {Array<string|string[]>} [image] Image actions and groups.
+* @property {Array<string|string[]>} [link] Link actions and groups.
+* @property {Array<string|string[]>} [table] Table actions and groups.
+*/
+/**
+* @typedef {object} EditorOptions
+* @property {string[][]|null} [buttons=null] Toolbar groups, or the component's default toolbar.
+* @property {string[]|null} [fonts=null] Fonts to filter against the browser's available fonts.
+* @property {string} [defaultFont='Arial'] The preferred font.
+* @property {string|number} [height='auto'] The content area's CSS height.
+* @property {boolean} [resizable=true] Whether to render a resize handle.
+* @property {number} [historyLimit=1000] Maximum history snapshots, including the initial content; at least one.
+* @property {EditorPopoverGroups} [popovers] Image, link, and table action groups.
+* @property {EditorUploadCallback} [imageUpload] The image upload callback; the default reader is canceled on disposal.
+* @property {EditorKeyDownCallback|null} [keyDown] A keyboard callback, or null to disable shortcuts.
+*/
+/**
+* @typedef {object} EditorPlugin
+* @property {string} [command] The editor method to invoke.
+* @property {string|number} [value] The command argument.
+* @property {EditorAction} [action] The custom action.
+* @property {string[][]|EditorDropdownCallback} [dropdown] Nested toolbar groups or a dropdown renderer.
+* @property {EditorContentCallback} [setContent] The dynamic button HTML.
+* @property {EditorContentCallback} [setTitle] The dynamic title.
+* @property {EditorDisableCallback} [disableCheck] A custom disabled-state check.
+* @property {string} [content] Static button HTML.
+* @property {string} [icon] The icon lookup key.
+* @property {string} [title] The accessible button title.
+*/
+/**
+* @callback EditorPopoverAction
+* @this {Editor}
+* @param {HTMLElement} node The selected content element.
+* @returns {void} Nothing.
+*/
+/**
+* @callback EditorPopoverRenderer
+* @this {Editor}
+* @param {HTMLElement} node The selected content element.
+* @returns {HTMLElement} The rendered popover element.
+*/
+/**
+* @typedef {object} EditorPopover
+* @property {EditorPopoverAction} [action] The popover action.
+* @property {EditorPopoverRenderer} [render] A custom renderer.
+* @property {string} [icon] The icon lookup key.
+* @property {string} [title] The accessible title.
+* @property {string} [content] Custom button HTML.
+*/
+/**
+* @typedef {object} EditorLanguage
+* @property {string} toolbar The toolbar name.
+* @property {string} contextToolbar The context toolbar name.
+* @property {string} resizeEditor The editor resize handle name.
+* @property {string} resizeImage The image resize handle name.
+* @property {Record<string, string>} drop Drag and drop messages.
+* @property {Record<string, string>} dropdowns Dropdown labels.
+* @property {Record<string, string>} modals Dialog labels and messages.
+* @property {Record<string, string>} plugins Toolbar action titles.
+* @property {Record<string, string>} popovers Popover action titles.
+* @property {Record<string, string>} styles Block style titles.
+*/
+/**
+* Emitted on the textarea after initialization completes.
+* @event Editor#init.ui.editor
+* @type {CustomEvent}
+*/
+/**
+* Emitted on the textarea after its content changes, including undo and redo.
+* @event Editor#change.ui.editor
+* @type {CustomEvent}
+*/
+/**
+* Forwarded from the editing surface to the textarea when it receives focus.
+* @event Editor#focus.ui.editor
+* @type {CustomEvent}
+*/
+/**
+* Forwarded from the editing surface to the textarea when it loses focus.
+* @event Editor#blur.ui.editor
+* @type {CustomEvent}
+*/
 /**
 * A customizable WYSIWYG editor backed by a native textarea.
 * @augments {BaseComponent<EditorOptions>}
@@ -1229,7 +1222,77 @@ var window = $.getWindow();
 */
 var Editor = class extends BaseComponent {
 	static buttons = buttons;
-	static classes = classes;
+	static classes = {
+		btn: "btn btn-editor btn-sm fs-6 lh-1",
+		btnGroup: "btn-group me-1 mb-1",
+		btnIcon: "pe-none",
+		checkbox: "input-check",
+		checkboxLabel: "form-check-label",
+		checkboxContainer: "form-check",
+		color: "editor-color flex-grow-1 d-block border-0",
+		colorBtnContent: "fw-bold d-inline-block px-1 pe-none",
+		colorContainerRow: "row g-0",
+		colorContainerColumn: "col-6",
+		colorDefaultBtn: "btn btn-outline-editor btn-sm d-block w-100 py-0",
+		colorLabel: "d-block text-center",
+		colorLabelContainer: "p-2",
+		colorRow: "d-flex flex-row px-2",
+		container: "editor-panel card",
+		dropdown: "editor-dropdown dropdown-menu",
+		dropdownButtons: "pt-2 pe-1 pb-1 ps-2 text-nowrap",
+		dropdownGroup: "btn-group",
+		dropdownItem: "dropdown-item",
+		dropdownToggle: "dropdown-toggle",
+		dropHover: "text-primary",
+		dropTarget: "editor-drop-target position-absolute w-100 text-center rounded",
+		dropText: "position-absolute top-50 start-50 translate-middle h5 pe-none",
+		editor: "editor w-100 p-2",
+		editorBody: "card-body d-flex p-0",
+		editorContainer: "editor-container position-relative",
+		editorDisabled: "editor-disabled",
+		editorScroll: "editor-scroll d-block w-100 overflow-auto",
+		formError: "form-error",
+		formGroup: "mb-2",
+		imgCursor: "editor-img-cursor position-absolute pe-none",
+		imgHighlight: "editor-img-highlight position-absolute pe-none",
+		imgResize: "editor-img-resize position-absolute pe-auto",
+		imgSize: "editor-img-size position-absolute bottom-0 end-0 text-end me-2 mb-2 py-1 px-3 rounded",
+		input: "input-filled",
+		inputContainer: "form-input",
+		invalidFeedback: "invalid-feedback",
+		linkUrl: "editor-link-url d-inline-block text-truncate me-1",
+		modal: "modal",
+		modalBody: "modal-body",
+		modalBtnClose: "btn-close",
+		modalBtnPrimary: "btn btn-primary ripple mb-0",
+		modalBtnSecondary: "btn btn-secondary ripple mb-0",
+		modalContent: "modal-content shadow",
+		modalDialog: "modal-dialog",
+		modalFooter: "modal-footer",
+		modalFullscreen: "modal-fullscreen",
+		modalHeader: "modal-header",
+		modalTitle: "modal-title",
+		popover: "editor-popover popover",
+		popoverArrow: "popover-arrow",
+		popoverBody: "popover-body mb-n1 ms-n2 me-n3",
+		popoverShow: "show",
+		resizeBar: "editor-resize card-footer",
+		source: "editor-source font-monospace border-0 p-2 mb-0 w-100",
+		sourceContainer: "d-flex h-100",
+		sourceLines: "font-monospace bg-body-secondary p-2 mb-0 border-end",
+		sourceOuter: "w-100 overflow-hidden",
+		sourceScroll: "d-flex w-100",
+		styleContent: "mb-1",
+		table: "table table-bordered",
+		tableCell: "flex-column",
+		tableDropdown: "p-2",
+		tableHover: "bg-primary",
+		tableInfo: "text-body-secondary",
+		tableLink: "editor-table-link d-block border p-2 rounded-0",
+		tableRow: "d-flex flex-row",
+		toolbar: "card-header pt-1 pe-0 pb-0 ps-1",
+		toolbarButtons: "btn-toolbar"
+	};
 	static colors = colors;
 	/** @type {EditorOptions} */
 	static defaults = {
@@ -1314,7 +1377,99 @@ var Editor = class extends BaseComponent {
 	static fonts = fonts;
 	static fontSizes = fontSizes;
 	static icons = icons_default;
-	static lang = lang;
+	/** @type {EditorLanguage} */
+	static lang = {
+		resizeEditor: "Resize editor",
+		resizeImage: "Image width",
+		toolbar: "Formatting",
+		contextToolbar: "Context formatting",
+		drop: {
+			drop: "Drop image or text",
+			dropHere: "Drop image or text here"
+		},
+		dropdowns: {
+			colorBackground: "Background Color",
+			colorDefault: "Use Default",
+			colorForeground: "Foreground Color",
+			colorTransparent: "Use Transparent"
+		},
+		modals: {
+			cancel: "Cancel",
+			close: "Close",
+			imageFile: "Select Files",
+			imageUrl: "Image URL",
+			insertImage: "Insert Image",
+			insertLink: "Insert Link",
+			insertVideo: "Insert Video",
+			linkNewWindow: "Open in new window",
+			linkText: "Link Text",
+			linkUrl: "Link URL",
+			videoUrl: "Video URL",
+			videoUrlInvalid: "Invalid video URL."
+		},
+		plugins: {
+			alignCenter: "Align Center",
+			alignJustify: "Justify Full",
+			alignLeft: "Align Left",
+			alignRight: "Align Right",
+			bold: "Bold",
+			color: "Font Color",
+			font: "Font Family",
+			fontSize: "Font Size",
+			fullScreen: "Full Screen",
+			hr: "Horizontal Rule",
+			image: "Image",
+			indent: "Indent",
+			italic: "Italic",
+			link: "Link",
+			orderedList: "Ordered List",
+			outdent: "Outdent",
+			paragraph: "Paragraph",
+			redo: "Redo",
+			removeFormat: "Remove Formatting",
+			source: "View Source",
+			strikethrough: "Strikethrough",
+			style: "Style",
+			subscript: "Subscript",
+			superscript: "Superscript",
+			table: "Table",
+			underline: "Underline",
+			undo: "Undo",
+			unlink: "Unlink",
+			unorderedList: "Unordered List",
+			video: "Video"
+		},
+		popovers: {
+			imageFull: "Full Size",
+			imageHalf: "Half Size",
+			imageOriginal: "Original Size",
+			imageQuarter: "Quarter Size",
+			imageRemove: "Remove Image",
+			floatLeft: "Float Left",
+			floatNone: "Remove Float",
+			floatRight: "Float Right",
+			linkEdit: "Edit Link",
+			tableColumnAfter: "Add Column After",
+			tableColumnBefore: "Add Column Before",
+			tableColumnRemove: "Remove Column",
+			tableRemove: "Remove Table",
+			tableRowAfter: "Add Row After",
+			tableRowBefore: "Add Row Before",
+			tableRowRemove: "Remove Row",
+			unlink: "Remove Link"
+		},
+		styles: {
+			p: "Paragraph",
+			blockquote: "Quote",
+			pre: "Code",
+			h1: "Header 1",
+			h2: "Header 2",
+			h3: "Header 3",
+			h4: "Header 4",
+			h5: "Header 5",
+			h6: "Header 6"
+		}
+	};
 	/** @type {Record<string, EditorPlugin>} */
 	static plugins = {
 		alignCenter: { command: "justifyCenter" },
@@ -1365,7 +1520,7 @@ var Editor = class extends BaseComponent {
 				Modal.init(this.#fullScreen).hide();
 				return;
 			}
-			this.#fullScreen = createModal(this.constructor, {
+			this.#fullScreen = createModal(this.constructor.classes, this.constructor.lang, {
 				content: this.#container,
 				fullScreen: true,
 				onShown: () => {
@@ -2414,7 +2569,16 @@ var Editor = class extends BaseComponent {
 			delegate: "a, td, th, img",
 			capture: true
 		});
-		this.#watchContent();
+		this.#contentChanged = this.#debounce(() => {
+			if ($.isVisible(this.#sourceContainer)) return;
+			this.#normalize();
+			this.#checkEmpty();
+			this.#updateValue();
+		});
+		this.#observer = new window.MutationObserver((records) => {
+			if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) this.#contentChanged();
+		});
+		this.#observe();
 	}
 	/**
 	* Attaches native form, label, validation, and state synchronization.
@@ -3498,7 +3662,7 @@ var Editor = class extends BaseComponent {
 		this.#removeModal();
 		const returnFocus = document.activeElement;
 		const container = $.create("div");
-		const { group: fileGroup, input: fileInput } = createFileInput(this.constructor, {
+		const { group: fileGroup, input: fileInput } = createFileInput(this.constructor.classes, {
 			id: generateId("editor-image-file"),
 			label: this.constructor.lang.modals.imageFile,
 			attributes: {
@@ -3506,7 +3670,7 @@ var Editor = class extends BaseComponent {
 				multiple: true
 			}
 		});
-		const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
+		const { group: urlGroup, input: urlInput } = createInput(this.constructor.classes, {
 			id: generateId("editor-image-url"),
 			label: this.constructor.lang.modals.imageUrl
 		});
@@ -3516,7 +3680,7 @@ var Editor = class extends BaseComponent {
 		this.#focusEditor();
 		const range = getRange();
 		range.collapse();
-		this.#modal = createModal(this.constructor, {
+		this.#modal = createModal(this.constructor.classes, this.constructor.lang, {
 			returnFocus,
 			title: this.constructor.lang.modals.insertImage,
 			content: container,
@@ -3550,15 +3714,15 @@ var Editor = class extends BaseComponent {
 		this.#removeModal();
 		const returnFocus = document.activeElement;
 		const container = $.create("div");
-		const { group: textGroup, input: textInput } = createInput(this.constructor, {
+		const { group: textGroup, input: textInput } = createInput(this.constructor.classes, {
 			id: generateId("editor-link-text"),
 			label: this.constructor.lang.modals.linkText
 		});
-		const { group: urlGroup, input: urlInput } = createInput(this.constructor, {
+		const { group: urlGroup, input: urlInput } = createInput(this.constructor.classes, {
 			id: generateId("editor-link-url"),
 			label: this.constructor.lang.modals.linkUrl
 		});
-		const { group: newWindowGroup, input: newWindowInput } = createCheckbox(this.constructor, {
+		const { group: newWindowGroup, input: newWindowInput } = createCheckbox(this.constructor.classes, {
 			id: generateId("editor-link-new-window"),
 			label: this.constructor.lang.modals.linkNewWindow
 		});
@@ -3581,7 +3745,7 @@ var Editor = class extends BaseComponent {
 			this.#focusEditor();
 			range = getRange();
 		}
-		this.#modal = createModal(this.constructor, {
+		this.#modal = createModal(this.constructor.classes, this.constructor.lang, {
 			returnFocus,
 			title: this.constructor.lang.modals.insertLink,
 			content: container,
@@ -3631,7 +3795,7 @@ var Editor = class extends BaseComponent {
 		this.#removeModal();
 		const returnFocus = document.activeElement;
 		const container = $.create("div");
-		const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor, {
+		const { group: urlGroup, input: urlInput, invalidFeedback: urlInvalidFeedback } = createInput(this.constructor.classes, {
 			id: generateId("editor-video-url"),
 			label: this.constructor.lang.modals.videoUrl
 		});
@@ -3639,7 +3803,7 @@ var Editor = class extends BaseComponent {
 		const originalRange = getRange()?.cloneRange();
 		this.#focusEditor();
 		const range = getRange();
-		this.#modal = createModal(this.constructor, {
+		this.#modal = createModal(this.constructor.classes, this.constructor.lang, {
 			returnFocus,
 			title: this.constructor.lang.modals.insertVideo,
 			content: container,
@@ -3828,21 +3992,6 @@ var Editor = class extends BaseComponent {
 			$.removeAttribute(this.#source, "aria-invalid");
 		}
 		$.triggerEvent(this.node, "change.ui.editor", { data: { skipUpdate: true } });
-	}
-	/**
-	* Starts observing content changes owned by this editor.
-	*/
-	#watchContent() {
-		this.#contentChanged = this.#debounce(() => {
-			if ($.isVisible(this.#sourceContainer)) return;
-			this.#normalize();
-			this.#checkEmpty();
-			this.#updateValue();
-		});
-		this.#observer = new window.MutationObserver((records) => {
-			if (records.some((record) => record.type !== "attributes" || record.target !== this.#editor)) this.#contentChanged();
-		});
-		this.#observe();
 	}
 };
 

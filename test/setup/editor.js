@@ -1,6 +1,6 @@
 /** @import { Page } from '@playwright/test'; */
 
-/** @import { EditorOptions } from '../../src/js/types.js'; */
+/** @import { EditorOptions } from '../../src/js/editor.js'; */
 
 /**
  * Creates a textarea and editor with a small toolbar for behavior tests.

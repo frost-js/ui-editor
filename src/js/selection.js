@@ -1,9 +1,14 @@
-/** @import { EditorSelectionMarkers } from './types.js'; */
-
 import $ from '@fr0st/query';
 import { containsNode } from './helpers.js';
 
 const window = $.getWindow();
+
+/**
+ * @typedef {object} EditorSelectionMarkers
+ * @property {Text} [start] The start marker.
+ * @property {Text} [end] The end marker.
+ * @property {boolean} [backward=false] Whether the selection runs toward the start.
+ */
 
 /**
  * Gets the current range, optionally restricted to an editing boundary.

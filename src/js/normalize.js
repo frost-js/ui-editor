@@ -1,4 +1,4 @@
-/** @import { EditorSelectionMarkers } from './types.js'; */
+/** @import { EditorSelectionMarkers } from './selection.js'; */
 
 import $ from '@fr0st/query';
 import { containsNode } from './helpers.js';
