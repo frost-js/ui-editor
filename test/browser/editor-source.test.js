@@ -2,6 +2,22 @@ import { expect, test } from '#test';
 import { createEditor } from '../setup/editor.js';
 
 test.describe('Editor source', () => {
+    test.describe('content synchronization', () => {
+        test('round trips source edits through the textarea and the editing surface', async ({ page }) => {
+            await createEditor(page);
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
+            const source = page.locator('.editor-source');
+
+            await expect(source).toHaveValue('<p>Hello world</p>');
+            await source.fill('<h2>Source title</h2><p>Source body</p>');
+            await page.getByRole('button', { name: 'View Source', exact: true }).click();
+
+            await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', '<h2>Source title</h2><p>Source body</p>');
+            await expect(page.locator('#editor')).toHaveValue('<h2>Source title</h2><p>Source body</p>');
+        });
+    });
+
     test.describe('indentation', () => {
         for (const [name, value, start, end, shift, expected, selection] of [
             ['inserts a tab at the caret', 'abc', 1, 1, false, 'a\tbc', [2, 2]],
@@ -81,22 +97,6 @@ test.describe('Editor source', () => {
 
             await expect(source).not.toBeFocused();
             await expect(source).toHaveValue('\tone');
-        });
-    });
-
-    test.describe('content synchronization', () => {
-        test('round trips source edits through the textarea and the editing surface', async ({ page }) => {
-            await createEditor(page);
-            await page.getByRole('button', { name: 'View Source', exact: true }).click();
-
-            const source = page.locator('.editor-source');
-
-            await expect(source).toHaveValue('<p>Hello world</p>');
-            await source.fill('<h2>Source title</h2><p>Source body</p>');
-            await page.getByRole('button', { name: 'View Source', exact: true }).click();
-
-            await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', '<h2>Source title</h2><p>Source body</p>');
-            await expect(page.locator('#editor')).toHaveValue('<h2>Source title</h2><p>Source body</p>');
         });
     });
 });

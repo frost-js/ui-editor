@@ -95,19 +95,22 @@ test.describe('Editor history', () => {
     });
 
     test.describe('historyLimit option', () => {
-        test('bounds history safely for zero, negative, and non-finite limits', async ({ page }) => {
-            for (const historyLimit of [0, -1, 'invalid']) {
+        for (const [name, historyLimit, expected] of [
+            ['zero', 0, '<p>Hello!</p>'],
+            ['negative', -1, '<p>Hello!</p>'],
+            ['non-finite', 'invalid', '<p>Hello</p>'],
+        ]) {
+            test(`normalizes a ${name} history limit`, async ({ page }) => {
                 await createEditor(page, '<p>Hello</p>', { historyLimit });
                 await page.evaluate(() => window.editor.insertText('!'));
 
-                await expect(page.locator('.editor')).toContainText('!');
-                await page.evaluate(() => {
-                    window.editor.undo();
-                    window.editor.dispose();
-                    document.querySelector('#editor').remove();
-                });
-            }
-        });
+                await expect(page.locator('#editor')).toHaveValue('<p>Hello!</p>');
+                await page.evaluate(() => window.editor.undo());
+
+                await expect(page.locator('#editor')).toHaveValue(expected);
+                await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', expected);
+            });
+        }
     });
 
     test.describe('native history events', () => {

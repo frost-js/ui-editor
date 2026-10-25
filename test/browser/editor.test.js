@@ -379,6 +379,38 @@ test.describe('Editor', () => {
             await expect(page.locator('#editor')).toBeVisible();
         });
 
+        test('finishes restoring the textarea even when extension cleanup throws', async ({ page }) => {
+            await createEditor(page);
+
+            const result = await page.evaluate(() => {
+                const editor = window.editor;
+
+                editor.onDispose(() => {
+                    throw new Error('Extension cleanup failed');
+                });
+
+                let message;
+
+                try {
+                    editor.dispose();
+                } catch (error) {
+                    message = error.message;
+                }
+
+                editor.dispose();
+
+                return {
+                    message,
+                    disposed: editor.node === null,
+                };
+            });
+
+            expect(result.message).toBe('Extension cleanup failed');
+            expect(result.disposed).toBe(true);
+            await expect(page.locator('.editor')).toHaveCount(0);
+            await expect(page.locator('#editor')).toBeVisible();
+        });
+
         test.describe('pending work', () => {
             test('aborts pending default image reads on disposal', async ({ page }) => {
                 await createEditor(page);
@@ -479,7 +511,7 @@ test.describe('Editor', () => {
         });
     });
 
-    test.describe('plugins option', () => {
+    test.describe('static plugins', () => {
         test('preserves custom toolbar actions and their editor receiver', async ({ page }) => {
             await page.evaluate(() => {
                 UI.Editor.plugins.custom = {
@@ -496,39 +528,6 @@ test.describe('Editor', () => {
             await page.getByRole('button', { name: 'Custom insert' }).click();
 
             await expect(page.locator('.editor')).toHaveText('Hello custom');
-        });
-
-        test('finishes restoring the textarea even when extension cleanup throws', async ({ page }) => {
-            await createEditor(page);
-
-            const result = await page.evaluate(() => {
-                const editor = window.editor;
-
-                editor.onDispose(() => {
-                    throw new Error('Extension cleanup failed');
-                });
-
-                let message;
-
-                try {
-                    editor.dispose();
-                } catch (error) {
-                    message = error.message;
-                }
-
-                editor.dispose();
-
-                return {
-                    message,
-                    disposed: editor.node === null,
-                    containers: document.querySelectorAll('.editor').length,
-                };
-            });
-
-            expect(result.message).toBe('Extension cleanup failed');
-            expect(result.disposed).toBe(true);
-            await expect(page.locator('.editor')).toHaveCount(0);
-            await expect(page.locator('#editor')).toBeVisible();
         });
 
         test.describe('fullscreen', () => {

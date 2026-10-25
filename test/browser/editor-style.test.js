@@ -4,40 +4,53 @@ import { createEditor, selectContents } from '../setup/editor.js';
 test.describe('Editor styles', () => {
     test.describe('themes and RTL', () => {
         for (const theme of ['light', 'dark']) {
-            test(`supports ${theme} theme, RTL, narrow containers, logical indentation, and resizing`, async ({ page }) => {
-                await page.evaluate((theme) => {
-                    document.documentElement.setAttribute('data-ui-theme', theme);
-                    document.body.dir = 'rtl';
-                    document.body.style.width = '300px';
-                }, theme);
-                await createEditor(page, '<p>مرحبا</p>', { buttons: [['style', 'source', 'fullScreen']] });
-                await selectContents(page, '.editor p');
-                await page.evaluate(() => window.editor.indent());
+            test.describe(`${theme} theme`, () => {
+                test.beforeEach(async ({ page }) => {
+                    await page.evaluate((theme) => {
+                        document.documentElement.setAttribute('data-ui-theme', theme);
+                        document.body.dir = 'rtl';
+                        document.body.style.width = '300px';
+                    }, theme);
+                    await createEditor(page, '<p>مرحبا</p>', { buttons: [['style', 'source', 'fullScreen']] });
+                });
 
-                const indentation = await page.locator('.editor > div').evaluate((node) => ({
-                    margin: parseFloat(getComputedStyle(node).marginRight),
-                    font: parseFloat(getComputedStyle(node).fontSize),
-                    style: node.style.marginInlineStart,
-                }));
+                test('indents from the right in RTL', async ({ page }) => {
+                    await selectContents(page, '.editor p');
+                    await page.evaluate(() => window.editor.indent());
 
-                expect(indentation.style).toBe('2em');
-                expect(indentation.margin).toBeCloseTo(indentation.font * 2, 1);
+                    const indentation = page.locator('.editor > div');
+                    const fontSize = await indentation.evaluate((node) => parseFloat(getComputedStyle(node).fontSize));
 
-                const resize = page.getByRole('separator', { name: 'Resize editor' });
-                const height = await page.locator('.card-body').evaluate((node) => node.getBoundingClientRect().height);
+                    await expect(indentation).toHaveAttribute('style', /margin-inline-start: 2em/);
+                    await expect(indentation).toHaveCSS('margin-right', `${fontSize * 2}px`);
+                });
 
-                await resize.focus();
-                await page.keyboard.press('ArrowDown');
+                test('fits a narrow container', async ({ page }) => {
+                    const panel = await page.locator('.editor-panel').boundingBox();
 
-                expect(await page.locator('.card-body').evaluate((node) => node.getBoundingClientRect().height)).toBeCloseTo(height + 10, 0);
-                expect(await page.locator('.card').evaluate((node) => node.getBoundingClientRect().width)).toBeLessThanOrEqual(300);
-                await page.getByRole('button', { name: 'Full Screen', exact: true }).click();
+                    expect(panel.width).toBeLessThanOrEqual(300);
+                });
 
-                await expect(page.getByRole('dialog')).toBeVisible();
-                await page.keyboard.press('Escape');
+                test('resizes with the keyboard', async ({ page }) => {
+                    const body = page.locator('.card-body');
+                    const { height } = await body.boundingBox();
+                    const resize = page.getByRole('separator', { name: 'Resize editor' });
 
-                await expect(page.getByRole('dialog')).toHaveCount(0);
-                await expect(page.locator('.editor')).toHaveText('مرحبا');
+                    await resize.focus();
+                    await page.keyboard.press('ArrowDown');
+
+                    await expect(body).toHaveCSS('height', `${height + 10}px`);
+                });
+
+                test('preserves content when leaving fullscreen', async ({ page }) => {
+                    await page.getByRole('button', { name: 'Full Screen', exact: true }).click();
+
+                    await expect(page.getByRole('dialog')).toBeVisible();
+                    await page.keyboard.press('Escape');
+
+                    await expect(page.getByRole('dialog')).toHaveCount(0);
+                    await expect(page.locator('.editor')).toHaveText('مرحبا');
+                });
             });
         }
     });

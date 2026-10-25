@@ -53,7 +53,8 @@ test.describe('Editor accessibility', () => {
             await selectContents(page, '.editor p');
             await page.keyboard.press('Meta+b');
 
-            expect(await page.evaluate(() => document.queryCommandState('bold'))).toBe(true);
+            await expect(page.locator('.editor').getByText('Hello world', { exact: true })).toHaveCSS('font-weight', '700');
+            await expect(page.getByRole('button', { name: 'Bold', exact: true })).toHaveAttribute('aria-pressed', 'true');
             await page.evaluate(() => window.editor.insertText('Changed'));
             await page.keyboard.press('Meta+z');
 
@@ -90,10 +91,10 @@ test.describe('Editor accessibility', () => {
             await selectContents(page, '.editor p');
             await page.keyboard.press('Control+i');
 
-            expect(await page.evaluate(() => document.queryCommandState('italic'))).toBe(true);
+            await expect(page.locator('.editor').getByText('Shortcuts', { exact: true })).toHaveCSS('font-style', 'italic');
             await page.keyboard.press('Control+u');
 
-            expect(await page.evaluate(() => document.queryCommandState('underline'))).toBe(true);
+            await expect(page.locator('.editor u, .editor [style*="text-decoration"]')).toHaveCSS('text-decoration-line', 'underline');
             await page.keyboard.press('Control+z');
             await page.keyboard.press('Control+y');
 
