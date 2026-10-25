@@ -59,9 +59,9 @@ function intersects(range, block) {
 export function getSelectedBlocks(root, range) {
     const anchor = range.startContainer.nodeType === window.Node.ELEMENT_NODE ?
         range.startContainer : range.startContainer.parentElement;
-    const item = $.closest(anchor, 'li')[0];
+    const item = $.is(anchor, 'li') ? anchor : $.closest(anchor, 'li')[0];
 
-    if (item && containsNode(root, item)) {
+    if (item && containsNode(root, item) && containsNode(item.parentElement, range.endContainer)) {
         return [...item.parentElement.children].filter((node) => $.is(node, 'li') && intersects(range, node));
     }
 
@@ -99,6 +99,66 @@ function removeEmpty(node) {
 }
 
 /**
+ * Gets an explicitly styled indentation in em units.
+ * @param {HTMLElement} node The indented element.
+ * @returns {number} The indentation, or zero when no positive inline margin is set.
+ */
+function getIndent(node) {
+    for (const property of ['marginInlineStart', 'marginLeft']) {
+        const value = $.getStyle(node, property);
+
+        if (value) {
+            // Preserve exact em steps instead of converting rounded layout pixels back to em.
+            if (/^[\d.]+em$/.test(value) && parseFloat(value) > 0) {
+                return parseFloat(value);
+            }
+
+            const margin = parseFloat($.css(node, property));
+
+            if (margin > 0) {
+                return margin / parseFloat($.css(node, 'fontSize'));
+            }
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * Sets an indentation without changing the element's markup or other styles.
+ * @param {HTMLElement} node The indented element.
+ * @param {number} indent The indentation in em units.
+ */
+function setIndent(node, indent) {
+    $.removeStyle(node, 'margin-inline-start');
+    $.removeStyle(node, 'margin-left');
+
+    if (indent > 0) {
+        $.setStyle(node, 'marginInlineStart', `${Number(indent.toFixed(6))}em`);
+    }
+}
+
+/**
+ * Finds the nearest explicit indentation without crossing a table cell boundary.
+ * @param {HTMLElement} block The selected block.
+ * @param {HTMLElement} root The editing boundary.
+ * @returns {HTMLElement|null} The indented ancestor or block.
+ */
+function getIndentWrapper(block, root) {
+    for (let node = block; node && node !== root; node = node.parentElement) {
+        if (getIndent(node)) {
+            return node;
+        }
+
+        if ($.is(node, 'td, th')) {
+            break;
+        }
+    }
+
+    return null;
+}
+
+/**
  * Indents sibling blocks or list items.
  * @param {HTMLElement[]} blocks The consecutive selected blocks.
  */
@@ -107,10 +167,14 @@ export function indentBlocks(blocks) {
     const parent = first.parentElement;
 
     if ($.is(first, 'li')) {
-        const previous = first.previousElementSibling;
+        let previous = first.previousElementSibling;
 
         if (!$.is(previous, 'li')) {
-            return;
+            previous = $.create('li', {
+                style: { listStyleType: 'none' },
+            });
+
+            $.before(first, previous);
         }
 
         let list = previous.lastElementChild;
@@ -121,6 +185,18 @@ export function indentBlocks(blocks) {
         }
 
         $.append(list, blocks);
+
+        return;
+    }
+
+    if ($.is(first, 'td, th')) {
+        for (const cell of blocks) {
+            const wrapper = $.create('div');
+
+            $.setStyle(wrapper, 'marginInlineStart', '2em');
+            $.append(wrapper, cell.childNodes);
+            $.append(cell, wrapper);
+        }
 
         return;
     }
@@ -179,6 +255,10 @@ function outdentItems(blocks) {
     }
 
     removeEmpty(list);
+
+    if ($.is(parentItem, 'li') && $.getStyle(parentItem, 'listStyleType') === 'none') {
+        removeEmpty(parentItem);
+    }
 }
 
 /**
@@ -188,41 +268,110 @@ function outdentItems(blocks) {
  */
 export function outdentBlocks(blocks, root) {
     if ($.is(blocks[0], 'li')) {
-        outdentItems(blocks);
+        const remaining = [...blocks];
+
+        while (remaining.length) {
+            const group = [remaining.shift()];
+            const styled = !$.is(group[0].parentElement.parentElement, 'li') && getIndent(group[0]) > 0;
+
+            while (remaining.length && (!$.is(remaining[0].parentElement.parentElement, 'li') && getIndent(remaining[0]) > 0) === styled) {
+                group.push(remaining.shift());
+            }
+
+            if (styled) {
+                for (const item of group) {
+                    setIndent(item, getIndent(item) - 2);
+                }
+            } else {
+                outdentItems(group);
+            }
+        }
 
         return;
     }
 
-    const wrappers = new Set();
+    const groups = [];
+    let previousWrapper;
 
     for (const block of blocks) {
-        let wrapper = block;
+        const wrapper = getIndentWrapper(block, root);
 
-        while (wrapper && wrapper !== root && !(parseFloat($.getStyle(wrapper, 'marginInlineStart') || $.getStyle(wrapper, 'marginLeft')) > 0)) {
-            wrapper = wrapper.parentElement;
+        if (wrapper) {
+            if (wrapper === previousWrapper) {
+                groups.at(-1).push(block);
+            } else {
+                groups.push([block]);
+            }
         }
 
-        if (wrapper && wrapper !== root) {
-            wrappers.add(wrapper);
-        }
+        previousWrapper = wrapper;
     }
 
-    for (const wrapper of wrappers) {
-        const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) =>
-            containsNode(node, block)));
+    for (const selected of groups) {
+        // Earlier groups may have split the original wrapper around these blocks.
+        const wrapper = getIndentWrapper(selected[0], root);
+        const indentationOnly = $.is(wrapper, 'div') &&
+            [...wrapper.attributes].every((attribute) => attribute.name === 'style') &&
+            Object.keys($.getStyle(wrapper)).every((property) => ['margin-inline-start', 'margin-left'].includes(property));
+        const indent = getIndent(wrapper) - 2;
 
-        if (blocks.includes(wrapper)) {
-            $.replaceWith(wrapper, wrapper.childNodes);
+        if (selected.includes(wrapper)) {
+            if (indentationOnly && indent <= 0) {
+                $.replaceWith(wrapper, wrapper.childNodes);
+            } else {
+                setIndent(wrapper, indent);
+            }
         } else if (selected.length) {
             const following = $.clone(wrapper, { deep: false })[0];
+            const originalNodes = new Set($.find('[id]', wrapper));
+            let first = selected[0];
+            let last = selected.at(-1);
 
             $.removeAttribute(following, 'id');
 
-            while (selected.at(-1).nextSibling) {
-                $.append(following, selected.at(-1).nextSibling);
+            // Split ancestor containers as well, so unselected blocks keep their indentation.
+            while (first.parentElement !== wrapper && !first.previousSibling) {
+                first = first.parentElement;
             }
 
-            $.after(wrapper, [...selected, following]);
+            while (last.parentElement !== wrapper && !last.nextSibling) {
+                last = last.parentElement;
+            }
+
+            const tail = $.createRange();
+
+            tail.selectNodeContents(wrapper);
+            tail.setStartAfter(last);
+            $.append(following, tail.extractContents());
+
+            const range = $.createRange();
+
+            range.selectNodeContents(wrapper);
+            range.setStartBefore(first);
+
+            let content = range.extractContents();
+
+            if (!indentationOnly || indent > 0) {
+                const container = $.clone(wrapper, { deep: false })[0];
+
+                $.removeAttribute(container, 'id');
+                setIndent(container, indent);
+                $.append(container, content);
+                content = container;
+            }
+
+            // Range extraction clones ancestor elements, including their IDs.
+            for (const node of [...$.find('[id]', content), ...$.find('[id]', following)]) {
+                if (!originalNodes.has(node)) {
+                    $.removeAttribute(node, 'id');
+                }
+            }
+
+            if (!indentationOnly && !wrapper.children.length && !$.getText(wrapper).trim() && $.hasAttribute(wrapper, 'id')) {
+                $.setAttribute(content, 'id', $.getAttribute(wrapper, 'id'));
+            }
+
+            $.after(wrapper, [content, following]);
             removeEmpty(wrapper);
             removeEmpty(following);
         }

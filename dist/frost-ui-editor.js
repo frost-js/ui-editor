@@ -279,8 +279,8 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	*/
 	function getSelectedBlocks(root, range) {
 		const anchor = range.startContainer.nodeType === window$4.Node.ELEMENT_NODE ? range.startContainer : range.startContainer.parentElement;
-		const item = _fr0st_query.default.closest(anchor, "li")[0];
-		if (item && containsNode(root, item)) return [...item.parentElement.children].filter((node) => _fr0st_query.default.is(node, "li") && intersects(range, node));
+		const item = _fr0st_query.default.is(anchor, "li") ? anchor : _fr0st_query.default.closest(anchor, "li")[0];
+		if (item && containsNode(root, item) && containsNode(item.parentElement, range.endContainer)) return [...item.parentElement.children].filter((node) => _fr0st_query.default.is(node, "li") && intersects(range, node));
 		const blocks = [];
 		const visit = (parent) => {
 			for (const child of [...parent.children]) {
@@ -301,6 +301,45 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		if (!node.children.length && !_fr0st_query.default.getText(node).trim()) _fr0st_query.default.replaceWith(node, node.childNodes);
 	}
 	/**
+	* Gets an explicitly styled indentation in em units.
+	* @param {HTMLElement} node The indented element.
+	* @returns {number} The indentation, or zero when no positive inline margin is set.
+	*/
+	function getIndent(node) {
+		for (const property of ["marginInlineStart", "marginLeft"]) {
+			const value = _fr0st_query.default.getStyle(node, property);
+			if (value) {
+				if (/^[\d.]+em$/.test(value) && parseFloat(value) > 0) return parseFloat(value);
+				const margin = parseFloat(_fr0st_query.default.css(node, property));
+				if (margin > 0) return margin / parseFloat(_fr0st_query.default.css(node, "fontSize"));
+			}
+		}
+		return 0;
+	}
+	/**
+	* Sets an indentation without changing the element's markup or other styles.
+	* @param {HTMLElement} node The indented element.
+	* @param {number} indent The indentation in em units.
+	*/
+	function setIndent(node, indent) {
+		_fr0st_query.default.removeStyle(node, "margin-inline-start");
+		_fr0st_query.default.removeStyle(node, "margin-left");
+		if (indent > 0) _fr0st_query.default.setStyle(node, "marginInlineStart", `${Number(indent.toFixed(6))}em`);
+	}
+	/**
+	* Finds the nearest explicit indentation without crossing a table cell boundary.
+	* @param {HTMLElement} block The selected block.
+	* @param {HTMLElement} root The editing boundary.
+	* @returns {HTMLElement|null} The indented ancestor or block.
+	*/
+	function getIndentWrapper(block, root) {
+		for (let node = block; node && node !== root; node = node.parentElement) {
+			if (getIndent(node)) return node;
+			if (_fr0st_query.default.is(node, "td, th")) break;
+		}
+		return null;
+	}
+	/**
 	* Indents sibling blocks or list items.
 	* @param {HTMLElement[]} blocks The consecutive selected blocks.
 	*/
@@ -308,14 +347,26 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		const first = blocks[0];
 		const parent = first.parentElement;
 		if (_fr0st_query.default.is(first, "li")) {
-			const previous = first.previousElementSibling;
-			if (!_fr0st_query.default.is(previous, "li")) return;
+			let previous = first.previousElementSibling;
+			if (!_fr0st_query.default.is(previous, "li")) {
+				previous = _fr0st_query.default.create("li", { style: { listStyleType: "none" } });
+				_fr0st_query.default.before(first, previous);
+			}
 			let list = previous.lastElementChild;
 			if (!list || list.tagName !== parent.tagName) {
 				list = _fr0st_query.default.create(parent.localName);
 				_fr0st_query.default.append(previous, list);
 			}
 			_fr0st_query.default.append(list, blocks);
+			return;
+		}
+		if (_fr0st_query.default.is(first, "td, th")) {
+			for (const cell of blocks) {
+				const wrapper = _fr0st_query.default.create("div");
+				_fr0st_query.default.setStyle(wrapper, "marginInlineStart", "2em");
+				_fr0st_query.default.append(wrapper, cell.childNodes);
+				_fr0st_query.default.append(cell, wrapper);
+			}
 			return;
 		}
 		const wrapper = _fr0st_query.default.create("div");
@@ -349,6 +400,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			_fr0st_query.default.after(list, content);
 		}
 		removeEmpty(list);
+		if (_fr0st_query.default.is(parentItem, "li") && _fr0st_query.default.getStyle(parentItem, "listStyleType") === "none") removeEmpty(parentItem);
 	}
 	/**
 	* Outdents a selection from a margin wrapper without modifying surrounding blocks.
@@ -357,23 +409,59 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	*/
 	function outdentBlocks(blocks, root) {
 		if (_fr0st_query.default.is(blocks[0], "li")) {
-			outdentItems(blocks);
+			const remaining = [...blocks];
+			while (remaining.length) {
+				const group = [remaining.shift()];
+				const styled = !_fr0st_query.default.is(group[0].parentElement.parentElement, "li") && getIndent(group[0]) > 0;
+				while (remaining.length && (!_fr0st_query.default.is(remaining[0].parentElement.parentElement, "li") && getIndent(remaining[0]) > 0) === styled) group.push(remaining.shift());
+				if (styled) for (const item of group) setIndent(item, getIndent(item) - 2);
+				else outdentItems(group);
+			}
 			return;
 		}
-		const wrappers = /* @__PURE__ */ new Set();
+		const groups = [];
+		let previousWrapper;
 		for (const block of blocks) {
-			let wrapper = block;
-			while (wrapper && wrapper !== root && !(parseFloat(_fr0st_query.default.getStyle(wrapper, "marginInlineStart") || _fr0st_query.default.getStyle(wrapper, "marginLeft")) > 0)) wrapper = wrapper.parentElement;
-			if (wrapper && wrapper !== root) wrappers.add(wrapper);
+			const wrapper = getIndentWrapper(block, root);
+			if (wrapper) {
+				if (wrapper === previousWrapper) groups.at(-1).push(block);
+				else groups.push([block]);
+			}
+			previousWrapper = wrapper;
 		}
-		for (const wrapper of wrappers) {
-			const selected = [...wrapper.childNodes].filter((node) => blocks.some((block) => containsNode(node, block)));
-			if (blocks.includes(wrapper)) _fr0st_query.default.replaceWith(wrapper, wrapper.childNodes);
-			else if (selected.length) {
+		for (const selected of groups) {
+			const wrapper = getIndentWrapper(selected[0], root);
+			const indentationOnly = _fr0st_query.default.is(wrapper, "div") && [...wrapper.attributes].every((attribute) => attribute.name === "style") && Object.keys(_fr0st_query.default.getStyle(wrapper)).every((property) => ["margin-inline-start", "margin-left"].includes(property));
+			const indent = getIndent(wrapper) - 2;
+			if (selected.includes(wrapper)) {
+				if (indentationOnly && indent <= 0) _fr0st_query.default.replaceWith(wrapper, wrapper.childNodes);
+				else setIndent(wrapper, indent);
+			} else if (selected.length) {
 				const following = _fr0st_query.default.clone(wrapper, { deep: false })[0];
+				const originalNodes = new Set(_fr0st_query.default.find("[id]", wrapper));
+				let first = selected[0];
+				let last = selected.at(-1);
 				_fr0st_query.default.removeAttribute(following, "id");
-				while (selected.at(-1).nextSibling) _fr0st_query.default.append(following, selected.at(-1).nextSibling);
-				_fr0st_query.default.after(wrapper, [...selected, following]);
+				while (first.parentElement !== wrapper && !first.previousSibling) first = first.parentElement;
+				while (last.parentElement !== wrapper && !last.nextSibling) last = last.parentElement;
+				const tail = _fr0st_query.default.createRange();
+				tail.selectNodeContents(wrapper);
+				tail.setStartAfter(last);
+				_fr0st_query.default.append(following, tail.extractContents());
+				const range = _fr0st_query.default.createRange();
+				range.selectNodeContents(wrapper);
+				range.setStartBefore(first);
+				let content = range.extractContents();
+				if (!indentationOnly || indent > 0) {
+					const container = _fr0st_query.default.clone(wrapper, { deep: false })[0];
+					_fr0st_query.default.removeAttribute(container, "id");
+					setIndent(container, indent);
+					_fr0st_query.default.append(container, content);
+					content = container;
+				}
+				for (const node of [..._fr0st_query.default.find("[id]", content), ..._fr0st_query.default.find("[id]", following)]) if (!originalNodes.has(node)) _fr0st_query.default.removeAttribute(node, "id");
+				if (!indentationOnly && !wrapper.children.length && !_fr0st_query.default.getText(wrapper).trim() && _fr0st_query.default.hasAttribute(wrapper, "id")) _fr0st_query.default.setAttribute(content, "id", _fr0st_query.default.getAttribute(wrapper, "id"));
+				_fr0st_query.default.after(wrapper, [content, following]);
 				removeEmpty(wrapper);
 				removeEmpty(following);
 			}

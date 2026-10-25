@@ -388,6 +388,8 @@ The complete editor panel uses the same focused border and translucent ring as F
 | Up/Down on the editor resize handle | Change editor height. |
 | Left/Right on the image width handle | Change image width. |
 
+List indentation adds a nested `<ul>` or `<ol>` level. When there is no preceding item to nest under, the editor creates a markerless parent `<li>`, so the first item and entire lists can be indented repeatedly. Outdent removes one level and cleans up unused markerless parents; outdenting a top-level item converts it to paragraph content. Paragraph indentation uses 2em steps, and table-cell indentation stays inside the cell. Toolbar actions, keyboard shortcuts, and the `indent()`/`outdent()` methods share the same behavior.
+
 The editing engine still uses browser `contenteditable` and deprecated `document.execCommand()` APIs. Serialization, font handling, and native selection/editing details differ by browser; depend on semantic formatting rather than byte-identical HTML. Real operating-system IME behavior and assistive technology combinations need application testing; automated composition events do not replace those checks.
 
 ## Forms
