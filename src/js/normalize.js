@@ -18,12 +18,12 @@ const phrasingSelector = [
 ].join(', ');
 
 /**
- * Determines whether a node is phrasing content.
+ * Determines whether a node can stay in an inline run, including comments.
  * https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
  * @param {Node} node The input node.
  * @returns {boolean} Whether the node is phrasing content.
  */
-export const isPhrasingContent = (node) => $._isText(node) || $.is(node, phrasingSelector);
+export const isPhrasingContent = (node) => $._isText(node) || node.nodeType === 8 || $.is(node, phrasingSelector);
 
 /**
  * Joins adjacent inline formatting elements without merging media or other structured content.

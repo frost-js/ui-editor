@@ -54,9 +54,10 @@ function getIndentWrapper(block, root) {
  * Gets the block units affected by a selection.
  * @param {HTMLElement} root The editing boundary.
  * @param {Range} range The selected range.
- * @returns {HTMLElement[]} The selected blocks or sibling list items.
+ * @param {boolean} [includeInline=false] Whether to include bare inline content for wrapping.
+ * @returns {Node[]} The selected blocks, sibling list items, or requested inline nodes.
  */
-export function getSelectedBlocks(root, range) {
+export function getSelectedBlocks(root, range, includeInline = false) {
     const anchor = $._isElement(range.startContainer) ?
         range.startContainer : range.startContainer.parentElement;
     const item = $.is(anchor, 'li') ? anchor : $.closest(anchor, 'li')[0];
@@ -84,6 +85,11 @@ export function getSelectedBlocks(root, range) {
     };
 
     visit(root);
+
+    if (includeInline) {
+        blocks.push(...$.contents(root).filter((node) => isPhrasingContent(node) && intersects(range, node)));
+        blocks.sort((a, b) => a.compareDocumentPosition(b) & window.Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+    }
 
     return blocks;
 }
@@ -334,17 +340,16 @@ function outdentItems(blocks) {
         const content = $.createFragment();
 
         for (const item of blocks) {
-            const paragraph = $.create('p');
+            const block = $.create([...item.childNodes].every(isPhrasingContent) ? 'p' : 'div');
 
-            while (item.firstChild && isPhrasingContent(item.firstChild)) {
-                $.append(paragraph, item.firstChild);
+            for (const { name, value } of item.attributes) {
+                if (name !== 'value') {
+                    $.setAttribute(block, name, value);
+                }
             }
 
-            if (paragraph.childNodes.length) {
-                $.append(content, paragraph);
-            }
-
-            $.append(content, item.childNodes);
+            $.append(block, item.childNodes);
+            $.append(content, block);
             $.remove(item);
         }
 

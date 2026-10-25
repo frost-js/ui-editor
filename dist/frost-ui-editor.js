@@ -239,12 +239,12 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		"wbr"
 	].join(", ");
 	/**
-	* Determines whether a node is phrasing content.
+	* Determines whether a node can stay in an inline run, including comments.
 	* https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
 	* @param {Node} node The input node.
 	* @returns {boolean} Whether the node is phrasing content.
 	*/
-	var isPhrasingContent = (node) => _fr0st_query.default._isText(node) || _fr0st_query.default.is(node, phrasingSelector);
+	var isPhrasingContent = (node) => _fr0st_query.default._isText(node) || node.nodeType === 8 || _fr0st_query.default.is(node, phrasingSelector);
 	/**
 	* Joins adjacent inline formatting elements without merging media or other structured content.
 	* @param {HTMLElement} container The container.
@@ -394,9 +394,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 	* Gets the block units affected by a selection.
 	* @param {HTMLElement} root The editing boundary.
 	* @param {Range} range The selected range.
-	* @returns {HTMLElement[]} The selected blocks or sibling list items.
+	* @param {boolean} [includeInline=false] Whether to include bare inline content for wrapping.
+	* @returns {Node[]} The selected blocks, sibling list items, or requested inline nodes.
 	*/
-	function getSelectedBlocks(root, range) {
+	function getSelectedBlocks(root, range, includeInline = false) {
 		const anchor = _fr0st_query.default._isElement(range.startContainer) ? range.startContainer : range.startContainer.parentElement;
 		const item = _fr0st_query.default.is(anchor, "li") ? anchor : _fr0st_query.default.closest(anchor, "li")[0];
 		if (item && containsNode(root, item) && containsNode(item.parentElement, range.endContainer)) return [...item.parentElement.children].filter((node) => _fr0st_query.default.is(node, "li") && intersects(range, node));
@@ -410,6 +411,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			}
 		};
 		visit(root);
+		if (includeInline) {
+			blocks.push(..._fr0st_query.default.contents(root).filter((node) => isPhrasingContent(node) && intersects(range, node)));
+			blocks.sort((a, b) => a.compareDocumentPosition(b) & window$3.Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+		}
 		return blocks;
 	}
 	/**
@@ -555,10 +560,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		} else {
 			const content = _fr0st_query.default.createFragment();
 			for (const item of blocks) {
-				const paragraph = _fr0st_query.default.create("p");
-				while (item.firstChild && isPhrasingContent(item.firstChild)) _fr0st_query.default.append(paragraph, item.firstChild);
-				if (paragraph.childNodes.length) _fr0st_query.default.append(content, paragraph);
-				_fr0st_query.default.append(content, item.childNodes);
+				const block = _fr0st_query.default.create([...item.childNodes].every(isPhrasingContent) ? "p" : "div");
+				for (const { name, value } of item.attributes) if (name !== "value") _fr0st_query.default.setAttribute(block, name, value);
+				_fr0st_query.default.append(block, item.childNodes);
+				_fr0st_query.default.append(content, block);
 				_fr0st_query.default.remove(item);
 			}
 			if (following.children.length) _fr0st_query.default.append(content, following);
@@ -2303,7 +2308,7 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			if (!this.node) return;
 			const range = getRange(this.#editor);
 			if (!range) return;
-			let blocks = getSelectedBlocks(this.#editor, range);
+			let blocks = getSelectedBlocks(this.#editor, range, !outdent);
 			if (outdent && !blocks.length) return;
 			this.#addHistory({
 				html: _fr0st_query.default.getHtml(this.#editor),
@@ -2312,19 +2317,21 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			this.#observe(false);
 			const markers = saveSelection(this.#editor);
 			try {
-				if (!blocks.length) {
-					const paragraph = _fr0st_query.default.create("p");
-					let first = markers.start;
+				if (!blocks.length) blocks.push(markers.start);
+				blocks = blocks.map((block) => {
+					if (!isPhrasingContent(block)) return block;
+					let first = block;
 					while (first.parentNode !== this.#editor) first = first.parentNode;
+					if (!isPhrasingContent(first)) return first;
 					while (first.previousSibling && isPhrasingContent(first.previousSibling)) first = first.previousSibling;
 					const inline = [];
 					for (let node = first; node && isPhrasingContent(node); node = node.nextSibling) inline.push(node);
-					if (inline.length) {
-						_fr0st_query.default.before(inline[0], paragraph);
-						_fr0st_query.default.append(paragraph, inline);
-						blocks = [paragraph];
-					}
-				}
+					const paragraph = _fr0st_query.default.create("p");
+					_fr0st_query.default.before(inline[0], paragraph);
+					_fr0st_query.default.append(paragraph, inline);
+					return paragraph;
+				});
+				blocks = [...new Set(blocks)];
 				while (blocks.length) {
 					const group = [blocks.shift()];
 					while (blocks.length && group.at(-1).nextElementSibling === blocks[0]) group.push(blocks.shift());
@@ -3323,7 +3330,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 					_fr0st_query.default.setHtml(button, content);
 				}
 				let enabled = false;
-				if ("command" in data) enabled = "value" in data ? document.queryCommandValue(data.command) === data.value : document.queryCommandState(data.command);
+				if (data.command === "fontSize" && "value" in data) {
+					const size = document.queryCommandValue("fontSize");
+					enabled = this.constructor.fontSizes[size] === Number(data.value);
+				} else if ("command" in data) enabled = "value" in data ? document.queryCommandValue(data.command) === data.value : document.queryCommandState(data.command);
 				if (enabled) {
 					_fr0st_query.default.addClass(button, "active");
 					_fr0st_query.default.setAttribute(button, { "aria-pressed": true });

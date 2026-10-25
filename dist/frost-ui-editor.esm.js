@@ -208,12 +208,12 @@ var phrasingSelector = [
 	"wbr"
 ].join(", ");
 /**
-* Determines whether a node is phrasing content.
+* Determines whether a node can stay in an inline run, including comments.
 * https://html.spec.whatwg.org/multipage/dom.html#phrasing-content
 * @param {Node} node The input node.
 * @returns {boolean} Whether the node is phrasing content.
 */
-var isPhrasingContent = (node) => $._isText(node) || $.is(node, phrasingSelector);
+var isPhrasingContent = (node) => $._isText(node) || node.nodeType === 8 || $.is(node, phrasingSelector);
 /**
 * Joins adjacent inline formatting elements without merging media or other structured content.
 * @param {HTMLElement} container The container.
@@ -363,9 +363,10 @@ function getIndentWrapper(block, root) {
 * Gets the block units affected by a selection.
 * @param {HTMLElement} root The editing boundary.
 * @param {Range} range The selected range.
-* @returns {HTMLElement[]} The selected blocks or sibling list items.
+* @param {boolean} [includeInline=false] Whether to include bare inline content for wrapping.
+* @returns {Node[]} The selected blocks, sibling list items, or requested inline nodes.
 */
-function getSelectedBlocks(root, range) {
+function getSelectedBlocks(root, range, includeInline = false) {
 	const anchor = $._isElement(range.startContainer) ? range.startContainer : range.startContainer.parentElement;
 	const item = $.is(anchor, "li") ? anchor : $.closest(anchor, "li")[0];
 	if (item && containsNode(root, item) && containsNode(item.parentElement, range.endContainer)) return [...item.parentElement.children].filter((node) => $.is(node, "li") && intersects(range, node));
@@ -379,6 +380,10 @@ function getSelectedBlocks(root, range) {
 		}
 	};
 	visit(root);
+	if (includeInline) {
+		blocks.push(...$.contents(root).filter((node) => isPhrasingContent(node) && intersects(range, node)));
+		blocks.sort((a, b) => a.compareDocumentPosition(b) & window$3.Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1);
+	}
 	return blocks;
 }
 /**
@@ -524,10 +529,10 @@ function outdentItems(blocks) {
 	} else {
 		const content = $.createFragment();
 		for (const item of blocks) {
-			const paragraph = $.create("p");
-			while (item.firstChild && isPhrasingContent(item.firstChild)) $.append(paragraph, item.firstChild);
-			if (paragraph.childNodes.length) $.append(content, paragraph);
-			$.append(content, item.childNodes);
+			const block = $.create([...item.childNodes].every(isPhrasingContent) ? "p" : "div");
+			for (const { name, value } of item.attributes) if (name !== "value") $.setAttribute(block, name, value);
+			$.append(block, item.childNodes);
+			$.append(content, block);
 			$.remove(item);
 		}
 		if (following.children.length) $.append(content, following);
@@ -2272,7 +2277,7 @@ var Editor = class extends BaseComponent {
 		if (!this.node) return;
 		const range = getRange(this.#editor);
 		if (!range) return;
-		let blocks = getSelectedBlocks(this.#editor, range);
+		let blocks = getSelectedBlocks(this.#editor, range, !outdent);
 		if (outdent && !blocks.length) return;
 		this.#addHistory({
 			html: $.getHtml(this.#editor),
@@ -2281,19 +2286,21 @@ var Editor = class extends BaseComponent {
 		this.#observe(false);
 		const markers = saveSelection(this.#editor);
 		try {
-			if (!blocks.length) {
-				const paragraph = $.create("p");
-				let first = markers.start;
+			if (!blocks.length) blocks.push(markers.start);
+			blocks = blocks.map((block) => {
+				if (!isPhrasingContent(block)) return block;
+				let first = block;
 				while (first.parentNode !== this.#editor) first = first.parentNode;
+				if (!isPhrasingContent(first)) return first;
 				while (first.previousSibling && isPhrasingContent(first.previousSibling)) first = first.previousSibling;
 				const inline = [];
 				for (let node = first; node && isPhrasingContent(node); node = node.nextSibling) inline.push(node);
-				if (inline.length) {
-					$.before(inline[0], paragraph);
-					$.append(paragraph, inline);
-					blocks = [paragraph];
-				}
-			}
+				const paragraph = $.create("p");
+				$.before(inline[0], paragraph);
+				$.append(paragraph, inline);
+				return paragraph;
+			});
+			blocks = [...new Set(blocks)];
 			while (blocks.length) {
 				const group = [blocks.shift()];
 				while (blocks.length && group.at(-1).nextElementSibling === blocks[0]) group.push(blocks.shift());
@@ -3292,7 +3299,10 @@ var Editor = class extends BaseComponent {
 				$.setHtml(button, content);
 			}
 			let enabled = false;
-			if ("command" in data) enabled = "value" in data ? document.queryCommandValue(data.command) === data.value : document.queryCommandState(data.command);
+			if (data.command === "fontSize" && "value" in data) {
+				const size = document.queryCommandValue("fontSize");
+				enabled = this.constructor.fontSizes[size] === Number(data.value);
+			} else if ("command" in data) enabled = "value" in data ? document.queryCommandValue(data.command) === data.value : document.queryCommandState(data.command);
 			if (enabled) {
 				$.addClass(button, "active");
 				$.setAttribute(button, { "aria-pressed": true });

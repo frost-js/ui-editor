@@ -1511,7 +1511,7 @@ export default class Editor extends BaseComponent {
             return;
         }
 
-        let blocks = getSelectedBlocks(this.#editor, range);
+        let blocks = getSelectedBlocks(this.#editor, range, !outdent);
 
         if (outdent && !blocks.length) {
             return;
@@ -1524,11 +1524,23 @@ export default class Editor extends BaseComponent {
 
         try {
             if (!blocks.length) {
-                const paragraph = $.create('p');
-                let first = markers.start;
+                blocks.push(markers.start);
+            }
+
+            blocks = blocks.map((block) => {
+                if (!isPhrasingContent(block)) {
+                    return block;
+                }
+
+                let first = block;
 
                 while (first.parentNode !== this.#editor) {
                     first = first.parentNode;
+                }
+
+                // Another selected node may already have wrapped this inline run.
+                if (!isPhrasingContent(first)) {
+                    return first;
                 }
 
                 while (first.previousSibling && isPhrasingContent(first.previousSibling)) {
@@ -1541,12 +1553,14 @@ export default class Editor extends BaseComponent {
                     inline.push(node);
                 }
 
-                if (inline.length) {
-                    $.before(inline[0], paragraph);
-                    $.append(paragraph, inline);
-                    blocks = [paragraph];
-                }
-            }
+                const paragraph = $.create('p');
+
+                $.before(inline[0], paragraph);
+                $.append(paragraph, inline);
+
+                return paragraph;
+            });
+            blocks = [...new Set(blocks)];
 
             while (blocks.length) {
                 const group = [blocks.shift()];
@@ -3019,7 +3033,11 @@ export default class Editor extends BaseComponent {
 
             let enabled = false;
 
-            if ('command' in data) {
+            if (data.command === 'fontSize' && 'value' in data) {
+                const size = document.queryCommandValue('fontSize');
+
+                enabled = this.constructor.fontSizes[size] === Number(data.value);
+            } else if ('command' in data) {
                 enabled = 'value' in data ?
                     document.queryCommandValue(data.command) === data.value :
                     document.queryCommandState(data.command);
