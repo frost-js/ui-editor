@@ -348,8 +348,14 @@ function outdentItems(blocks) {
                 }
             }
 
+            $.removeStyle(block, 'list-style-type');
+
+            if ($.getAttribute(block, 'style') === '') {
+                $.removeAttribute(block, 'style');
+            }
+
             $.append(block, item.childNodes);
-            $.append(content, block);
+            $.append(content, $.is(block, 'div') && !block.attributes.length ? block.childNodes : block);
             $.remove(item);
         }
 

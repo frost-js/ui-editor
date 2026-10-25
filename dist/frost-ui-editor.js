@@ -570,8 +570,10 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 			for (const item of blocks) {
 				const block = _fr0st_query.default.create([...item.childNodes].every(isPhrasingContent) ? "p" : "div");
 				for (const { name, value } of item.attributes) if (name !== "value") _fr0st_query.default.setAttribute(block, name, value);
+				_fr0st_query.default.removeStyle(block, "list-style-type");
+				if (_fr0st_query.default.getAttribute(block, "style") === "") _fr0st_query.default.removeAttribute(block, "style");
 				_fr0st_query.default.append(block, item.childNodes);
-				_fr0st_query.default.append(content, block);
+				_fr0st_query.default.append(content, _fr0st_query.default.is(block, "div") && !block.attributes.length ? block.childNodes : block);
 				_fr0st_query.default.remove(item);
 			}
 			if (following.children.length) _fr0st_query.default.append(content, following);

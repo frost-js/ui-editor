@@ -539,8 +539,10 @@ function outdentItems(blocks) {
 		for (const item of blocks) {
 			const block = $.create([...item.childNodes].every(isPhrasingContent) ? "p" : "div");
 			for (const { name, value } of item.attributes) if (name !== "value") $.setAttribute(block, name, value);
+			$.removeStyle(block, "list-style-type");
+			if ($.getAttribute(block, "style") === "") $.removeAttribute(block, "style");
 			$.append(block, item.childNodes);
-			$.append(content, block);
+			$.append(content, $.is(block, "div") && !block.attributes.length ? block.childNodes : block);
 			$.remove(item);
 		}
 		if (following.children.length) $.append(content, following);

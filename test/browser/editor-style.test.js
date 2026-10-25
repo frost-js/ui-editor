@@ -39,7 +39,7 @@ test.describe('Editor styles', () => {
                     await resize.focus();
                     await page.keyboard.press('ArrowDown');
 
-                    await expect(body).toHaveCSS('height', `${height + 10}px`);
+                    await expect.poll(async () => (await body.boundingBox()).height).toBeCloseTo(height + 10, 2);
                 });
 
                 test('preserves content when leaving fullscreen', async ({ page }) => {
