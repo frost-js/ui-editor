@@ -18,9 +18,11 @@ A WYSIWYG editor for Frost UI, with customizable toolbars, HTML source editing, 
 - Custom buttons, dropdowns, popovers, upload callbacks, and language dictionaries
 - Native form submission, reset, validation, disabled, and readonly behavior
 - Accessible labels, keyboard controls, light/dark themes, and RTL
-- Native `Editor` class and `editor` fQuery plugin, with existing-instance reuse
-- ESM and UMD bundles, expanded/minified CSS, source maps, and Sass modules
-- JSDoc-powered IntelliSense and Chromium, Firefox, and WebKit regression tests
+- Native `Editor` class and `editor` fQuery plugin
+- Existing-instance reuse with frozen resolved options
+- Prebuilt ESM and UMD bundles with source maps
+- Expanded and minified component CSS with source maps
+- JSDoc-powered IntelliSense
 
 Explore [the demo](./demo/index.html) for interactive examples.
 
@@ -586,13 +588,11 @@ npm run build
 
 `npm test` rebuilds the bundles, then runs the Playwright suite in Chromium, Firefox, and WebKit. `npm run test:browser` runs the suite against the existing bundles, so rebuild after changing source files.
 
-After building, `npm run test:coverage` runs Chromium tests and writes coverage reports to `coverage/`. Development/builds support Node `^20.19.0 || ^22.13.0 || >=24`.
+After building, `npm run test:coverage` runs Chromium tests and writes coverage reports to `coverage/`.
 
 `npm run test:headed` and `npm run test:ui` also use the existing bundles and open headed browsers or the Playwright UI.
 
 To view the demo, open `demo/index.html` in your browser after building.
-
-Run `npm run lint:sass:unused` to check Sass defaults. Commit generated `dist/` artifacts with source changes; CI checks that the tracked bundles are current.
 
 ## License
 
