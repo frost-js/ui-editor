@@ -1,8 +1,18 @@
+/** @import { Page } from '@playwright/test'; */
+
 import { expect, test } from '#test';
 import { createEditor } from '../setup/editor.js';
 
 const gif = 'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
+/**
+ * Dispatches a drag event carrying plain text.
+ * @param {Page} page The test page.
+ * @param {string} target The target selector.
+ * @param {string} type The drag event type.
+ * @param {string} [text=''] The transferred text.
+ * @returns {Promise<boolean>} Whether the event was not canceled.
+ */
 async function dragEvent(page, target, type, text = '') {
     return page.evaluate(({ target, type, text }) => {
         const dataTransfer = new DataTransfer();
@@ -16,7 +26,7 @@ async function dragEvent(page, target, type, text = '') {
 
         Object.defineProperty(event, 'dataTransfer', { value: dataTransfer });
 
-        return document.querySelector(target).dispatchEvent(event);
+        return $.findOne(target).dispatchEvent(event);
     }, {
         target,
         type,

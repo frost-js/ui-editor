@@ -123,7 +123,7 @@ $.ready(() => {
         logEvent(`${event.type}.ui.editor — ${$.getValue(methodNode)}`);
     });
     // Explicit initialization is required; data attributes only configure options.
-    $('[data-demo-editor]').editor();
+    $('[data-ui-toggle="editor"]').editor();
 
     let methodInstance = Editor.init(methodNode);
 

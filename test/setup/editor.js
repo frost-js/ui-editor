@@ -10,11 +10,12 @@
  */
 export async function createEditor(page, html = '<p>Hello world</p>', options = {}) {
     await page.evaluate(({ html, options }) => {
-        const node = document.createElement('textarea');
+        const node = $.create('textarea', {
+            attributes: { id: 'editor' },
+        });
 
-        node.id = 'editor';
-        node.value = html;
-        document.body.append(node);
+        $.setValue(node, html);
+        $.append(document.body, node);
         window.editor = UI.Editor.init(node, {
             buttons: [['bold', 'source', 'undo', 'redo']],
             ...options,
@@ -32,7 +33,7 @@ export async function createEditor(page, html = '<p>Hello world</p>', options = 
  */
 export async function selectContents(page, selector) {
     await page.locator('.editor').focus();
-    await page.evaluate((selector) => getSelection().selectAllChildren(document.querySelector(selector)), selector);
+    await page.evaluate((selector) => getSelection().selectAllChildren($.findOne(selector)), selector);
 }
 
 /**

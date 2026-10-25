@@ -363,27 +363,33 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 // src/js/indentation.js
 	var window$3 = _fr0st_query.default.getWindow();
 	/**
-	* Tests whether a range includes content inside a block rather than just its boundary.
-	* @param {Range} range The selected range.
-	* @param {HTMLElement} block The block to test.
-	* @returns {boolean} Whether the block contains selected content.
+	* Gets an explicitly styled indentation in em units.
+	* @param {HTMLElement} node The indented element.
+	* @returns {number} The indentation, or zero when no positive inline margin is set.
 	*/
-	function intersects(range, block) {
-		if (range.collapsed) return containsNode(block, range.startContainer);
-		const start = range.cloneRange();
-		const end = range.cloneRange();
-		start.collapse(true);
-		end.collapse(false);
-		const blockStart = _fr0st_query.default.createRange();
-		blockStart.selectNodeContents(block);
-		const blockEnd = blockStart.cloneRange();
-		blockStart.collapse(true);
-		blockEnd.collapse(false);
-		if (start.compareBoundaryPoints(window$3.Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(window$3.Range.START_TO_START, blockStart) <= 0) return false;
-		const overlap = range.cloneRange();
-		if (start.compareBoundaryPoints(window$3.Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
-		if (end.compareBoundaryPoints(window$3.Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
-		return Boolean(overlap.toString() || _fr0st_query.default.find("br, img, hr, iframe, video, audio, svg, input", block).some((node) => overlap.intersectsNode(node)) || !block.childNodes.length);
+	function getIndent(node) {
+		for (const property of ["marginInlineStart", "marginLeft"]) {
+			const value = _fr0st_query.default.getStyle(node, property);
+			if (value) {
+				if (/^[\d.]+em$/.test(value) && parseFloat(value) > 0) return parseFloat(value);
+				const margin = parseFloat(_fr0st_query.default.css(node, property));
+				if (margin > 0) return margin / parseFloat(_fr0st_query.default.css(node, "fontSize"));
+			}
+		}
+		return 0;
+	}
+	/**
+	* Finds the nearest explicit indentation without crossing a table cell boundary.
+	* @param {HTMLElement} block The selected block.
+	* @param {HTMLElement} root The editing boundary.
+	* @returns {HTMLElement|null} The indented ancestor or block.
+	*/
+	function getIndentWrapper(block, root) {
+		for (let node = block; node && node !== root; node = node.parentElement) {
+			if (getIndent(node)) return node;
+			if (_fr0st_query.default.is(node, "td, th")) break;
+		}
+		return null;
 	}
 	/**
 	* Gets the block units affected by a selection.
@@ -406,52 +412,6 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		};
 		visit(root);
 		return blocks;
-	}
-	/**
-	* Removes empty structural containers while preserving any remaining inline children.
-	* @param {HTMLElement} node The container.
-	*/
-	function removeEmpty(node) {
-		if (!node.children.length && !_fr0st_query.default.getText(node).trim()) _fr0st_query.default.replaceWith(node, node.childNodes);
-	}
-	/**
-	* Gets an explicitly styled indentation in em units.
-	* @param {HTMLElement} node The indented element.
-	* @returns {number} The indentation, or zero when no positive inline margin is set.
-	*/
-	function getIndent(node) {
-		for (const property of ["marginInlineStart", "marginLeft"]) {
-			const value = _fr0st_query.default.getStyle(node, property);
-			if (value) {
-				if (/^[\d.]+em$/.test(value) && parseFloat(value) > 0) return parseFloat(value);
-				const margin = parseFloat(_fr0st_query.default.css(node, property));
-				if (margin > 0) return margin / parseFloat(_fr0st_query.default.css(node, "fontSize"));
-			}
-		}
-		return 0;
-	}
-	/**
-	* Sets an indentation without changing the element's markup or other styles.
-	* @param {HTMLElement} node The indented element.
-	* @param {number} indent The indentation in em units.
-	*/
-	function setIndent(node, indent) {
-		_fr0st_query.default.removeStyle(node, "margin-inline-start");
-		_fr0st_query.default.removeStyle(node, "margin-left");
-		if (indent > 0) _fr0st_query.default.setStyle(node, "marginInlineStart", `${Number(indent.toFixed(6))}em`);
-	}
-	/**
-	* Finds the nearest explicit indentation without crossing a table cell boundary.
-	* @param {HTMLElement} block The selected block.
-	* @param {HTMLElement} root The editing boundary.
-	* @returns {HTMLElement|null} The indented ancestor or block.
-	*/
-	function getIndentWrapper(block, root) {
-		for (let node = block; node && node !== root; node = node.parentElement) {
-			if (getIndent(node)) return node;
-			if (_fr0st_query.default.is(node, "td, th")) break;
-		}
-		return null;
 	}
 	/**
 	* Indents sibling blocks or list items.
@@ -489,32 +449,27 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 		_fr0st_query.default.append(wrapper, blocks);
 	}
 	/**
-	* Moves list items out of one nesting level, retaining following items as children.
-	* @param {HTMLElement[]} blocks The consecutive selected list items.
+	* Tests whether a range includes content inside a block rather than just its boundary.
+	* @param {Range} range The selected range.
+	* @param {HTMLElement} block The block to test.
+	* @returns {boolean} Whether the block contains selected content.
 	*/
-	function outdentItems(blocks) {
-		const list = blocks[0].parentElement;
-		const parentItem = list.parentElement;
-		const following = _fr0st_query.default.clone(list, { deep: false })[0];
-		_fr0st_query.default.removeAttribute(following, "id");
-		while (blocks.at(-1).nextSibling) _fr0st_query.default.append(following, blocks.at(-1).nextSibling);
-		if (_fr0st_query.default.is(parentItem, "li")) {
-			if (following.children.length) _fr0st_query.default.append(blocks.at(-1), following);
-			_fr0st_query.default.after(parentItem, blocks);
-		} else {
-			const content = _fr0st_query.default.createFragment();
-			for (const item of blocks) {
-				const paragraph = _fr0st_query.default.create("p");
-				while (item.firstChild && isPhrasingContent(item.firstChild)) _fr0st_query.default.append(paragraph, item.firstChild);
-				if (paragraph.childNodes.length) _fr0st_query.default.append(content, paragraph);
-				_fr0st_query.default.append(content, item.childNodes);
-				_fr0st_query.default.remove(item);
-			}
-			if (following.children.length) _fr0st_query.default.append(content, following);
-			_fr0st_query.default.after(list, content);
-		}
-		removeEmpty(list);
-		if (_fr0st_query.default.is(parentItem, "li") && _fr0st_query.default.getStyle(parentItem, "listStyleType") === "none") removeEmpty(parentItem);
+	function intersects(range, block) {
+		if (range.collapsed) return containsNode(block, range.startContainer);
+		const start = range.cloneRange();
+		const end = range.cloneRange();
+		start.collapse(true);
+		end.collapse(false);
+		const blockStart = _fr0st_query.default.createRange();
+		blockStart.selectNodeContents(block);
+		const blockEnd = blockStart.cloneRange();
+		blockStart.collapse(true);
+		blockEnd.collapse(false);
+		if (start.compareBoundaryPoints(window$3.Range.START_TO_START, blockEnd) >= 0 || end.compareBoundaryPoints(window$3.Range.START_TO_START, blockStart) <= 0) return false;
+		const overlap = range.cloneRange();
+		if (start.compareBoundaryPoints(window$3.Range.START_TO_START, blockStart) < 0) overlap.setStart(block, 0);
+		if (end.compareBoundaryPoints(window$3.Range.START_TO_START, blockEnd) > 0) overlap.setEnd(block, block.childNodes.length);
+		return Boolean(overlap.toString() || _fr0st_query.default.find("br, img, hr, iframe, video, audio, svg, input", block).some((node) => overlap.intersectsNode(node)) || !block.childNodes.length);
 	}
 	/**
 	* Outdents a selection from a margin wrapper without modifying surrounding blocks.
@@ -584,6 +539,51 @@ _fr0st_query = __toESM(_fr0st_query, 1);
 				removeEmpty(following);
 			}
 		}
+	}
+	/**
+	* Moves list items out of one nesting level, retaining following items as children.
+	* @param {HTMLElement[]} blocks The consecutive selected list items.
+	*/
+	function outdentItems(blocks) {
+		const list = blocks[0].parentElement;
+		const parentItem = list.parentElement;
+		const following = _fr0st_query.default.clone(list, { deep: false })[0];
+		_fr0st_query.default.removeAttribute(following, "id");
+		while (blocks.at(-1).nextSibling) _fr0st_query.default.append(following, blocks.at(-1).nextSibling);
+		if (_fr0st_query.default.is(parentItem, "li")) {
+			if (following.children.length) _fr0st_query.default.append(blocks.at(-1), following);
+			_fr0st_query.default.after(parentItem, blocks);
+		} else {
+			const content = _fr0st_query.default.createFragment();
+			for (const item of blocks) {
+				const paragraph = _fr0st_query.default.create("p");
+				while (item.firstChild && isPhrasingContent(item.firstChild)) _fr0st_query.default.append(paragraph, item.firstChild);
+				if (paragraph.childNodes.length) _fr0st_query.default.append(content, paragraph);
+				_fr0st_query.default.append(content, item.childNodes);
+				_fr0st_query.default.remove(item);
+			}
+			if (following.children.length) _fr0st_query.default.append(content, following);
+			_fr0st_query.default.after(list, content);
+		}
+		removeEmpty(list);
+		if (_fr0st_query.default.is(parentItem, "li") && _fr0st_query.default.getStyle(parentItem, "listStyleType") === "none") removeEmpty(parentItem);
+	}
+	/**
+	* Removes empty structural containers while preserving any remaining inline children.
+	* @param {HTMLElement} node The container.
+	*/
+	function removeEmpty(node) {
+		if (!node.children.length && !_fr0st_query.default.getText(node).trim()) _fr0st_query.default.replaceWith(node, node.childNodes);
+	}
+	/**
+	* Sets an indentation without changing the element's markup or other styles.
+	* @param {HTMLElement} node The indented element.
+	* @param {number} indent The indentation in em units.
+	*/
+	function setIndent(node, indent) {
+		_fr0st_query.default.removeStyle(node, "margin-inline-start");
+		_fr0st_query.default.removeStyle(node, "margin-left");
+		if (indent > 0) _fr0st_query.default.setStyle(node, "marginInlineStart", `${Number(indent.toFixed(6))}em`);
 	}
 
 // src/js/modals.js

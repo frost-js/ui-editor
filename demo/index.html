@@ -54,7 +54,7 @@
                 <p class="text-body-secondary mb-0">Format text, switch to HTML, and undo your changes. The default toolbar also provides links, images, YouTube video, tables, and fullscreen.</p>
             </header>
             <label class="fw-bold mb-2" for="default-editor">Your document</label>
-            <textarea id="default-editor" class="input-filled" data-demo-editor data-ui-height="260px" aria-describedby="editing-help">&lt;h2&gt;A place for your ideas&lt;/h2&gt;&lt;p&gt;Select this text and try &lt;b&gt;bold&lt;/b&gt;, a heading, or a different color.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Write a draft&lt;/li&gt;&lt;li&gt;Review and publish&lt;/li&gt;&lt;/ul&gt;</textarea>
+            <textarea id="default-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="260px" aria-describedby="editing-help">&lt;h2&gt;A place for your ideas&lt;/h2&gt;&lt;p&gt;Select this text and try &lt;b&gt;bold&lt;/b&gt;, a heading, or a different color.&lt;/p&gt;&lt;ul&gt;&lt;li&gt;Write a draft&lt;/li&gt;&lt;li&gt;Review and publish&lt;/li&gt;&lt;/ul&gt;</textarea>
             <p id="editing-help" class="form-text">Use Ctrl/Meta+B, I, or U for formatting. Tab / Shift+Tab indent and outdent in rich and source modes. Escape, then Tab moves focus out. Use the handle below to resize.</p>
         </section>
         <section id="toolbars" class="mb-5">
@@ -65,13 +65,13 @@
             <article class="card card-body p-4 mb-4">
                 <h3 class="h5">Compact toolbar</h3>
                 <label class="fw-bold mb-2" for="compact-editor">Short note</label>
-                <textarea id="compact-editor" class="input-filled" data-demo-editor data-ui-height="150px">&lt;p&gt;A small toolbar for a short note.&lt;/p&gt;</textarea>
+                <textarea id="compact-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="150px">&lt;p&gt;A small toolbar for a short note.&lt;/p&gt;</textarea>
             </article>
             <article class="card card-body p-4 mb-4">
                 <h3 class="h5">Custom action and editing tools</h3>
                 <p>The “Insert greeting” button calls <code>this.insertText()</code>. This toolbar also exposes font size, lists, indentation, alignment, and history.</p>
                 <label class="fw-bold mb-2" for="custom-editor">Custom toolbar</label>
-                <textarea id="custom-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Place the caret here, then insert a greeting.&lt;/p&gt;</textarea>
+                <textarea id="custom-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="180px">&lt;p&gt;Place the caret here, then insert a greeting.&lt;/p&gt;</textarea>
             </article>
             <details>
                 <summary>Custom plugin example</summary>
@@ -98,14 +98,14 @@ UI.Editor.init(textarea, {
                     <article class="card card-body p-4 mb-4">
                         <h3 class="h5">Resizable</h3>
                         <label class="fw-bold mb-2" for="resizable-editor">First document</label>
-                        <textarea id="resizable-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Resize this editor with its bottom handle or use Up/Down when the handle has focus.&lt;/p&gt;</textarea>
+                        <textarea id="resizable-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="180px">&lt;p&gt;Resize this editor with its bottom handle or use Up/Down when the handle has focus.&lt;/p&gt;</textarea>
                     </article>
                 </div>
                 <div class="col-lg-6">
                     <article class="card card-body p-4 mb-4">
                         <h3 class="h5">Fixed height</h3>
                         <label class="fw-bold mb-2" for="fixed-editor">Second document</label>
-                        <textarea id="fixed-editor" class="input-filled" data-demo-editor data-ui-height="240px" data-ui-resizable="false">&lt;p&gt;This editor stays 240px high.&lt;/p&gt;</textarea>
+                        <textarea id="fixed-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="240px" data-ui-resizable="false">&lt;p&gt;This editor stays 240px high.&lt;/p&gt;</textarea>
                     </article>
                 </div>
             </div>
@@ -116,7 +116,7 @@ UI.Editor.init(textarea, {
                 <p class="text-body-secondary mb-0">Click the link, image, or table cell for context actions. Toolbar dialogs insert links, images, and HTTPS YouTube URLs; the table picker inserts a new table.</p>
             </header>
             <label class="fw-bold mb-2" for="media-editor">Media document</label>
-            <textarea id="media-editor" class="input-filled" data-demo-editor data-ui-height="300px">&lt;p&gt;&lt;a href=&quot;https://example.com&quot; target=&quot;_blank&quot;&gt;Example link&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=&quot; width=&quot;80&quot; height=&quot;60&quot; alt=&quot;Resize example&quot;&gt;&lt;/p&gt;&lt;table class=&quot;table table-bordered&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;Task&lt;/td&gt;&lt;td&gt;Status&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Draft&lt;/td&gt;&lt;td&gt;Ready&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;</textarea>
+            <textarea id="media-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="300px">&lt;p&gt;&lt;a href=&quot;https://example.com&quot; target=&quot;_blank&quot;&gt;Example link&lt;/a&gt;&lt;/p&gt;&lt;p&gt;&lt;img src=&quot;data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=&quot; width=&quot;80&quot; height=&quot;60&quot; alt=&quot;Resize example&quot;&gt;&lt;/p&gt;&lt;table class=&quot;table table-bordered&quot;&gt;&lt;tbody&gt;&lt;tr&gt;&lt;td&gt;Task&lt;/td&gt;&lt;td&gt;Status&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;Draft&lt;/td&gt;&lt;td&gt;Ready&lt;/td&gt;&lt;/tr&gt;&lt;/tbody&gt;&lt;/table&gt;</textarea>
             <p class="form-text">The tiny embedded PNG needs no external image request. Select it to resize its width or change its float. Video content loads only when you insert a video.</p>
         </section>
         <section id="uploads" class="mb-5">
@@ -125,7 +125,7 @@ UI.Editor.init(textarea, {
                 <p class="text-body-secondary mb-0">Choose an image in the Image dialog or drop one into the editor. This local simulation waits briefly, reads a raster image, and inserts its data URL; it sends no files to a server.</p>
             </header>
             <label class="fw-bold mb-2" for="upload-editor">Upload example</label>
-            <textarea id="upload-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Insert or drop an image here.&lt;/p&gt;</textarea>
+            <textarea id="upload-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="180px">&lt;p&gt;Insert or drop an image here.&lt;/p&gt;</textarea>
             <p id="upload-status" class="form-text" role="status">Waiting for an image.</p>
             <details>
                 <summary>Callback contract</summary>
@@ -141,7 +141,7 @@ UI.Editor.init(textarea, {
                 <fieldset id="document-fieldset">
                     <legend class="h5">A submitted document</legend>
                     <label class="fw-bold mb-2" for="form-editor">Document HTML</label>
-                    <textarea id="form-editor" class="input-filled" data-demo-editor name="document" required data-ui-height="160px">&lt;p&gt;Original form content&lt;/p&gt;</textarea>
+                    <textarea id="form-editor" class="input-filled" data-ui-toggle="editor" name="document" required data-ui-height="160px">&lt;p&gt;Original form content&lt;/p&gt;</textarea>
                 </fieldset>
                 <div class="d-flex flex-wrap gap-2 mt-3">
                     <button class="btn btn-primary" type="submit">Show submitted HTML</button>
@@ -153,7 +153,7 @@ UI.Editor.init(textarea, {
             <article class="card card-body p-4 mb-4">
                 <h3 class="h5">Readonly</h3>
                 <label class="fw-bold mb-2" for="readonly-editor">Readonly document</label>
-                <textarea id="readonly-editor" class="input-filled" data-demo-editor readonly data-ui-height="120px">&lt;p&gt;You can select this content and view its source.&lt;/p&gt;</textarea>
+                <textarea id="readonly-editor" class="input-filled" data-ui-toggle="editor" readonly data-ui-height="120px">&lt;p&gt;You can select this content and view its source.&lt;/p&gt;</textarea>
             </article>
         </section>
         <section id="rtl" class="mb-5">
@@ -163,7 +163,7 @@ UI.Editor.init(textarea, {
             </header>
             <div dir="rtl">
                 <label class="fw-bold mb-2" for="rtl-editor">مستند عربي</label>
-                <textarea id="rtl-editor" class="input-filled" data-demo-editor dir="rtl" lang="ar" data-ui-height="180px">&lt;p&gt;مرحباً! يمكنك تحرير هذا النص وإضافة قائمة.&lt;/p&gt;</textarea>
+                <textarea id="rtl-editor" class="input-filled" data-ui-toggle="editor" dir="rtl" lang="ar" data-ui-height="180px">&lt;p&gt;مرحباً! يمكنك تحرير هذا النص وإضافة قائمة.&lt;/p&gt;</textarea>
             </div>
         </section>
         <section id="methods-events" class="mb-5">
@@ -172,7 +172,7 @@ UI.Editor.init(textarea, {
                 <p class="text-body-secondary mb-0">Try lifecycle methods, reload a programmatic value, or insert text. Events below are observed on the original textarea after its HTML is synchronized.</p>
             </header>
             <label class="fw-bold mb-2" for="methods-editor">API playground</label>
-            <textarea id="methods-editor" class="input-filled" data-demo-editor data-ui-height="180px">&lt;p&gt;Try the API controls below.&lt;/p&gt;</textarea>
+            <textarea id="methods-editor" class="input-filled" data-ui-toggle="editor" data-ui-height="180px">&lt;p&gt;Try the API controls below.&lt;/p&gt;</textarea>
             <div class="d-flex flex-wrap gap-2 mt-3">
                 <button class="btn btn-outline-primary" type="button" data-demo-method="init">Init</button>
                 <button class="btn btn-outline-primary" type="button" data-demo-method="dispose">Dispose</button>

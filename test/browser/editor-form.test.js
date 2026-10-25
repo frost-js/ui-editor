@@ -1,8 +1,15 @@
+/** @import { Page } from '@playwright/test'; */
+
 import { expect, test } from '#test';
 
+/**
+ * Creates a labelled editor in a native form and counts its change events.
+ * @param {Page} page The test page.
+ * @param {string} [value='<p>Default</p>'] The initial and reset content.
+ */
 async function createForm(page, value = '<p>Default</p>') {
     await page.evaluate((value) => {
-        document.body.innerHTML = '<form>' +
+        $.setHtml(document.body, '<form>' +
             '<fieldset>' +
             '<label for="editor">Article</label>' +
             '<p id="help">Write a description</p>' +
@@ -11,11 +18,12 @@ async function createForm(page, value = '<p>Default</p>') {
             '</textarea>' +
             '</fieldset>' +
             '<button type="submit">Save</button>' +
-            '</form>';
+            '</form>',
+        );
 
-        const node = document.querySelector('#editor');
+        const node = $.findOne('#editor');
 
-        node.defaultValue = value;
+        $.setProperty(node, 'defaultValue', value);
         window.editor = UI.Editor.init(node, { buttons: [['bold', 'source', 'undo', 'redo']] });
         window.changes = 0;
         $.addEvent(node, 'change.ui.editor', () => window.changes++);
@@ -40,8 +48,8 @@ test.describe('Editor forms', () => {
             await expect(page.locator('.editor-source')).toHaveAccessibleName('Article');
             await expect(page.locator('.editor-source')).toHaveAttribute('aria-describedby', 'help');
             await page.evaluate(() => {
-                document.querySelector('#editor').setAttribute('aria-label', 'Updated article');
-                document.querySelector('#editor').setAttribute('aria-invalid', 'true');
+                $.setAttribute('#editor', 'aria-label', 'Updated article');
+                $.setAttribute('#editor', 'aria-invalid', 'true');
             });
 
             await expect(page.locator('.editor-source')).toHaveAttribute('aria-invalid', 'true');
@@ -54,20 +62,20 @@ test.describe('Editor forms', () => {
         test('preserves custom validity and explicit accessibility overrides', async ({ page }) => {
             await createForm(page);
             await page.evaluate(() => {
-                const node = document.querySelector('#editor');
+                const node = $.findOne('#editor');
 
-                node.setAttribute('aria-labelledby', 'help');
+                $.setAttribute(node, 'aria-labelledby', 'help');
                 node.setCustomValidity('Application error');
             });
 
             await expect(page.locator('.editor')).toHaveAccessibleName('Write a description');
-            expect(await page.evaluate(() => document.querySelector('form').reportValidity())).toBe(false);
+            expect(await page.evaluate(() => $.findOne('form').reportValidity())).toBe(false);
             await expect(page.locator('.editor')).toBeFocused();
             await page.evaluate(() => {
-                const node = document.querySelector('#editor');
+                const node = $.findOne('#editor');
 
                 node.setCustomValidity('');
-                node.removeAttribute('required');
+                $.removeAttribute(node, 'required');
             });
 
             await expect(page.locator('.editor')).toHaveAttribute('aria-required', 'false');
@@ -78,13 +86,13 @@ test.describe('Editor forms', () => {
         test('reloads programmatic values on change and through refresh', async ({ page }) => {
             await createForm(page);
             await page.evaluate(() => {
-                document.querySelector('#editor').value = '<h2>External</h2>';
-                document.querySelector('#editor').dispatchEvent(new Event('change', { bubbles: true }));
+                $.setValue('#editor', '<h2>External</h2>');
+                $.findOne('#editor').dispatchEvent(new Event('change', { bubbles: true }));
             });
 
             await expect(page.locator('.editor h2')).toHaveText('External');
             await page.evaluate(() => {
-                document.querySelector('#editor').value = '<p>Refreshed</p>';
+                $.setValue('#editor', '<p>Refreshed</p>');
                 window.editor.refresh();
             });
 
@@ -96,10 +104,10 @@ test.describe('Editor forms', () => {
         test('accepts application value updates during an editor change callback', async ({ page }) => {
             await createForm(page);
             await page.evaluate(() => {
-                const node = document.querySelector('#editor');
+                const node = $.findOne('#editor');
 
                 node.addEventListener('change', () => {
-                    node.value = '<p>Application replacement</p>';
+                    $.setValue(node, '<p>Application replacement</p>');
                     node.dispatchEvent(new Event('input', { bubbles: true }));
                 }, { once: true });
                 window.editor.insertText('Trigger');
@@ -119,7 +127,7 @@ test.describe('Editor forms', () => {
 
             await page.locator('.editor-source').fill(html);
 
-            expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe(html);
+            expect(await page.evaluate(() => new FormData($.findOne('form')).get('article'))).toBe(html);
             await expect(page.locator('#editor')).toHaveValue(html);
             await expect(page.locator('.editor-source')).toHaveValue(html);
             await page.locator('.editor-source').blur();
@@ -136,12 +144,11 @@ test.describe('Editor forms', () => {
                 await createForm(page, html);
 
                 await expect(page.locator('#editor')).toHaveValue(html);
-                expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe(html);
+                expect(await page.evaluate(() => new FormData($.findOne('form')).get('article'))).toBe(html);
 
                 await page.evaluate(() => {
-                    const paragraph = document.createElement('p');
+                    const paragraph = $.create('p', { text: 'Changed' });
 
-                    paragraph.textContent = 'Changed';
                     window.editor.insertNode(paragraph);
                 });
 
@@ -155,7 +162,7 @@ test.describe('Editor forms', () => {
 
                 await expect(page.locator('.editor')).toHaveJSProperty('innerHTML', html);
                 await expect(page.locator('#editor')).toHaveValue(html);
-                expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe(html);
+                expect(await page.evaluate(() => new FormData($.findOne('form')).get('article'))).toBe(html);
             });
         }
     });
@@ -174,7 +181,7 @@ test.describe('Editor forms', () => {
 
                 const changes = await page.evaluate(() => window.changes);
 
-                await page.evaluate(() => document.querySelector('form').reset());
+                await page.evaluate(() => $.findOne('form').reset());
 
                 await expect(page.locator('#editor')).toHaveValue('<p>Default</p>');
                 await expect(page.locator('.editor')).toHaveText('Default');
@@ -205,14 +212,14 @@ test.describe('Editor forms', () => {
                 const value = await page.locator('#editor').inputValue();
 
                 await page.evaluate(() => {
-                    document.querySelector('form').addEventListener('reset', (event) => event.preventDefault(), { once: true });
-                    document.querySelector('form').reset();
+                    $.findOne('form').addEventListener('reset', (event) => event.preventDefault(), { once: true });
+                    $.findOne('form').reset();
                 });
                 await page.clock.runFor(30);
 
                 await expect(page.locator('#editor')).toHaveValue(value);
                 await page.evaluate(() => {
-                    document.querySelector('form').reset();
+                    $.findOne('form').reset();
                     window.editor.dispose();
                 });
                 await page.clock.runFor(30);
@@ -263,7 +270,7 @@ test.describe('Editor forms', () => {
 
             await expect(page.locator('#editor')).toHaveValue('<p>Valid source</p>');
             await page.evaluate(() => {
-                document.querySelector('#editor').readOnly = true;
+                $.setProperty('#editor', 'readOnly', true);
             });
 
             await expect(page.locator('.editor-source')).toHaveJSProperty('readOnly', true);
@@ -279,21 +286,21 @@ test.describe('Editor forms', () => {
         test('honors disabled fieldsets, re-enabling, and readonly command guards', async ({ page }) => {
             await createForm(page);
             await page.evaluate(() => {
-                document.querySelector('fieldset').disabled = true;
+                $.setProperty('fieldset', 'disabled', true);
             });
 
             await expect(page.locator('.editor')).toHaveAttribute('contenteditable', 'false');
             await expect(page.getByRole('button', { name: 'Bold', exact: true })).toBeDisabled();
-            expect(await page.evaluate(() => new FormData(document.querySelector('form')).has('article'))).toBe(false);
+            expect(await page.evaluate(() => new FormData($.findOne('form')).has('article'))).toBe(false);
             await page.evaluate(() => {
                 window.editor.insertText('ignored');
-                document.querySelector('fieldset').disabled = false;
+                $.setProperty('fieldset', 'disabled', false);
             });
 
             await expect(page.locator('.editor')).toHaveAttribute('contenteditable', 'true');
             await expect(page.getByRole('button', { name: 'Bold', exact: true })).toBeEnabled();
             await page.evaluate(() => {
-                document.querySelector('#editor').readOnly = true;
+                $.setProperty('#editor', 'readOnly', true);
             });
 
             await expect(page.locator('.editor')).toHaveAttribute('aria-readonly', 'true');
@@ -306,20 +313,20 @@ test.describe('Editor forms', () => {
             });
 
             await expect(page.locator('#editor')).toHaveValue('<p>Default</p>');
-            expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe('<p>Default</p>');
+            expect(await page.evaluate(() => new FormData($.findOne('form')).get('article'))).toBe('<p>Default</p>');
         });
 
         test('keeps controls inside a disabled fieldset first legend editable', async ({ page }) => {
             await page.evaluate(() => {
-                document.body.innerHTML = '<form><fieldset disabled><legend><textarea id="editor" name="article">Allowed</textarea></legend></fieldset></form>';
-                window.editor = UI.Editor.init(document.querySelector('#editor'), { buttons: [['bold']] });
+                $.setHtml(document.body, '<form><fieldset disabled><legend><textarea id="editor" name="article">Allowed</textarea></legend></fieldset></form>');
+                window.editor = UI.Editor.init($.findOne('#editor'), { buttons: [['bold']] });
             });
 
             await expect(page.locator('.editor')).toHaveAttribute('contenteditable', 'true');
             await expect(page.getByRole('button', { name: 'Bold', exact: true })).toBeEnabled();
             await page.locator('.editor').fill('Legend value');
 
-            expect(await page.evaluate(() => new FormData(document.querySelector('form')).get('article'))).toBe('Legend value');
+            expect(await page.evaluate(() => new FormData($.findOne('form')).get('article'))).toBe('Legend value');
         });
     });
 });
