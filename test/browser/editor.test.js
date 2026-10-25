@@ -61,6 +61,54 @@ test.describe('Editor', () => {
             });
         });
 
+        test('rejects non-element arguments without disturbing an existing instance', async ({ page }) => {
+            await createEditor(page);
+
+            const state = await page.evaluate(() => {
+                const node = $.findOne('#editor');
+                const instance = UI.Editor.init(node);
+                const html = $.getHtml(document.body);
+                const errors = [];
+
+                for (const [name, argument] of [
+                    ['null', null],
+                    ['undefined', undefined],
+                    ['selector', '#editor'],
+                    ['malformed selector', '['],
+                    ['array', [node]],
+                    ['QuerySet', $('#editor')],
+                    ['document', document],
+                    ['text node', document.createTextNode('text')],
+                ]) {
+                    for (const [method, init] of [
+                        ['constructor', (node) => new UI.Editor(node)],
+                        ['init', (node) => UI.Editor.init(node)],
+                    ]) {
+                        let message = null;
+
+                        try {
+                            init(argument);
+                        } catch (error) {
+                            message = `${error.name}: ${error.message}`;
+                        }
+
+                        errors.push({ name, method, message });
+                    }
+                }
+
+                return {
+                    errors,
+                    unchanged: $.getHtml(document.body) === html &&
+                        $.getData(node, UI.Editor.DATA_KEY) === instance,
+                };
+            });
+
+            for (const { name, method, message } of state.errors) {
+                expect(message, `${name} (${method})`).toBe('TypeError: Editor must be created on a textarea element.');
+            }
+            expect(state.unchanged).toBe(true);
+        });
+
         test('rejects a non-textarea without registering an instance or changing the element', async ({ page }) => {
             const result = await page.evaluate(() => {
                 const node = document.createElement('div');

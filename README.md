@@ -583,7 +583,7 @@ npm run build
 
 `npm test` rebuilds the bundles, then runs the Playwright suite in Chromium, Firefox, and WebKit. `npm run test:browser` runs the suite against the existing bundles, so rebuild after changing source files.
 
-After building, `npm run test:coverage` runs Chromium tests on Node 24 and writes coverage reports to `coverage/`. Development/builds support Node `^20.19.0 || ^22.13.0 || >=24`.
+After building, `npm run test:coverage` runs Chromium tests and writes coverage reports to `coverage/`. Development/builds support Node `^20.19.0 || ^22.13.0 || >=24`.
 
 `npm run test:headed` and `npm run test:ui` also use the existing bundles and open headed browsers or the Playwright UI.
 

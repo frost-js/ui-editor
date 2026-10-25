@@ -36,8 +36,10 @@ export default defineConfig({
 
                         // The browser entry only re-exports the component, so bundling
                         // erases it and V8 cannot associate runtime ranges with the file.
+                        // The types module contains only JSDoc and an empty export.
                         return normalizedPath.startsWith('src/js/') &&
-                            normalizedPath !== 'src/js/browser.js';
+                            normalizedPath !== 'src/js/browser.js' &&
+                            normalizedPath !== 'src/js/types.js';
                     },
                     sourceMapResolver: (_url, defaultResolver) => defaultResolver(sourceMapUrl),
                     all: './src/js',
